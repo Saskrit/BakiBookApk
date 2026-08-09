@@ -9,8 +9,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { uploadImage, type UploadType } from '../api/upload';
 import { appAlert } from '../contexts/DialogContext';
+import i18n from '../i18n';
 import { colors } from '../theme/colors';
 import { getInitials } from '../utils/format';
 
@@ -30,7 +32,7 @@ type Props = {
 async function pickFromLibrary(aspect: [number, number]) {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    throw new Error('Photo library access is required to choose an image');
+    throw new Error(i18n.t('upload.photoLibraryRequired'));
   }
 
   return ImagePicker.launchImageLibraryAsync({
@@ -44,7 +46,7 @@ async function pickFromLibrary(aspect: [number, number]) {
 async function pickFromCamera(aspect: [number, number]) {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
-    throw new Error('Camera access is required to take a photo');
+    throw new Error(i18n.t('upload.cameraRequired'));
   }
 
   return ImagePicker.launchCameraAsync({
@@ -66,6 +68,7 @@ export default function ProfileImagePicker({
   style,
   disabled,
 }: Props) {
+  const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [previewUri, setPreviewUri] = useState('');
   const aspect: [number, number] = shape === 'circle' ? [1, 1] : [4, 3];
@@ -83,7 +86,7 @@ export default function ProfileImagePicker({
       setPreviewUri('');
     } catch (err) {
       setPreviewUri('');
-      onError?.(err instanceof Error ? err.message : 'Failed to upload image');
+      onError?.(err instanceof Error ? err.message : t('upload.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -92,9 +95,9 @@ export default function ProfileImagePicker({
   const chooseSource = () => {
     if (disabled || uploading) return;
 
-    appAlert(label, 'Choose a photo source', [
+    appAlert(label, t('upload.choosePhotoSource'), [
       {
-        text: 'Photo Library',
+        text: t('upload.photoLibrary'),
         onPress: async () => {
           try {
             const result = await pickFromLibrary(aspect);
@@ -102,12 +105,12 @@ export default function ProfileImagePicker({
               await handleUpload(result.assets[0].uri);
             }
           } catch (err) {
-            onError?.(err instanceof Error ? err.message : 'Failed to pick image');
+            onError?.(err instanceof Error ? err.message : t('upload.pickFailed'));
           }
         },
       },
       {
-        text: 'Camera',
+        text: t('upload.camera'),
         onPress: async () => {
           try {
             const result = await pickFromCamera(aspect);
@@ -115,11 +118,11 @@ export default function ProfileImagePicker({
               await handleUpload(result.assets[0].uri);
             }
           } catch (err) {
-            onError?.(err instanceof Error ? err.message : 'Failed to take photo');
+            onError?.(err instanceof Error ? err.message : t('upload.cameraFailed'));
           }
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -130,17 +133,17 @@ export default function ProfileImagePicker({
   };
 
   return (
-    <View style={[styles.wrap, style]}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.row}>
+    <View style={[pipStyles.pipWrap, style]}>
+      <Text style={pipStyles.pipLabel}>{label}</Text>
+      <View style={pipStyles.pipRow}>
         <Pressable
           onPress={chooseSource}
           disabled={disabled || uploading}
-          style={({ pressed }) => [pressed && styles.pressed]}
+          style={({ pressed }) => [pressed && pipStyles.pipPressed]}
         >
           <View
             style={[
-              styles.imageBox,
+              pipStyles.pipImageBox,
               {
                 width: size,
                 height: size,
@@ -149,31 +152,31 @@ export default function ProfileImagePicker({
             ]}
           >
             {displayUri ? (
-              <Image source={{ uri: displayUri }} style={[styles.image, { borderRadius: radius }]} />
+              <Image source={{ uri: displayUri }} style={[pipStyles.pipImage, { borderRadius: radius }]} />
             ) : (
-              <View style={[styles.placeholder, { borderRadius: radius }]}>
-                <Text style={styles.initials}>{getInitials(fallbackName || label)}</Text>
+              <View style={[pipStyles.pipPlaceholder, { borderRadius: radius }]}>
+                <Text style={pipStyles.pipInitials}>{getInitials(fallbackName || label)}</Text>
               </View>
             )}
             {uploading ? (
-              <View style={[styles.overlay, { borderRadius: radius }]}>
+              <View style={[pipStyles.pipOverlay, { borderRadius: radius }]}>
                 <ActivityIndicator color="#FFFFFF" />
               </View>
             ) : null}
           </View>
         </Pressable>
 
-        <View style={styles.actions}>
+        <View style={pipStyles.pipActions}>
           <Pressable
             onPress={chooseSource}
             disabled={disabled || uploading}
-            style={[styles.actionBtn, (disabled || uploading) && styles.actionBtnDisabled]}
+            style={[pipStyles.pipActionBtn, (disabled || uploading) && pipStyles.pipActionBtnDisabled]}
           >
-            <Text style={styles.actionBtnText}>{uploading ? 'Uploading…' : 'Change Photo'}</Text>
+            <Text style={pipStyles.pipActionBtnText}>{uploading ? t('upload.uploading') : t('upload.changePhoto')}</Text>
           </Pressable>
           {value ? (
             <Pressable onPress={clearImage} disabled={disabled || uploading}>
-              <Text style={styles.removeText}>Remove</Text>
+              <Text style={pipStyles.pipRemoveText}>{t('upload.remove')}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -182,24 +185,24 @@ export default function ProfileImagePicker({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { marginBottom: 16 },
-  label: {
+const pipStyles = StyleSheet.create({
+  pipWrap: { marginBottom: 16 },
+  pipLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 10,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  imageBox: {
+  pipRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  pipImageBox: {
     overflow: 'hidden',
     backgroundColor: colors.border,
   },
-  image: {
+  pipImage: {
     width: '100%',
     height: '100%',
   },
-  placeholder: {
+  pipPlaceholder: {
     flex: 1,
     width: '100%',
     height: '100%',
@@ -207,23 +210,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  initials: { color: '#FFFFFF', fontWeight: '800', fontSize: 24 },
-  overlay: {
+  pipInitials: { color: '#FFFFFF', fontWeight: '800', fontSize: 24 },
+  pipOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actions: { flex: 1, gap: 8 },
-  actionBtn: {
+  pipActions: { flex: 1, gap: 8 },
+  pipActionBtn: {
     backgroundColor: '#F3F7EC',
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
     alignSelf: 'flex-start',
   },
-  actionBtnDisabled: { opacity: 0.6 },
-  actionBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
-  removeText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
-  pressed: { opacity: 0.85 },
+  pipActionBtnDisabled: { opacity: 0.6 },
+  pipActionBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  pipRemoveText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
+  pipPressed: { opacity: 0.85 },
 });

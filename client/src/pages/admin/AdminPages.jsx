@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
   Check,
@@ -17,7 +17,16 @@ import AdminLayout from '../../components/layouts/AdminLayout';
 import PageHeader from '../../components/app/PageHeader';
 import DataTable from '../../components/app/DataTable';
 import { useApi, LoadingState, ErrorState } from '../../hooks/useApi';
-import { fetchAdminDashboard, fetchAdminShops, fetchAdminUsers, fetchAdminAnalytics, verifyAdminShop, rejectAdminShop } from '../../services/admin';
+import {
+  fetchAdminDashboard,
+  fetchAdminShops,
+  fetchAdminUsers,
+  fetchAdminAnalytics,
+  verifyAdminShop,
+  rejectAdminShop,
+  fetchMaintenanceSettings,
+  updateMaintenanceSettings,
+} from '../../services/admin';
 import { useAppDialog } from '../../contexts/AppDialogContext';
 import { formatRs } from '../../utils/format';
 import '../../components/app/AppPages.css';
@@ -83,7 +92,7 @@ export function AdminDashboardPage() {
                 <Users size={20} />
               </div>
               <div className="admin-stat-card__body">
-                <span>Active Users</span>
+                <span>Total Users</span>
                 <strong>{stats?.activeUsers ?? 0}</strong>
               </div>
             </div>
@@ -468,11 +477,66 @@ export function AdminAnalyticsPage() {
 }
 
 export function AdminSettingsPage() {
+  const { data, loading, error, reload } = useApi(() => fetchMaintenanceSettings(), []);
+  const { alert, confirm } = useAppDialog();
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const settings = data?.settings;
+  const maintenanceOn = Boolean(settings?.maintenanceMode);
+
+  useEffect(() => {
+    if (settings?.maintenanceMessage) {
+      setMessage(settings.maintenanceMessage);
+    }
+  }, [settings?.maintenanceMessage]);
+
+  const handleToggle = async () => {
+    const next = !maintenanceOn;
+    const ok = await confirm({
+      title: next ? 'Enable maintenance mode?' : 'Disable maintenance mode?',
+      message: next
+        ? 'Normal users will be blocked from using BakiBook. Admin access will remain available.'
+        : 'Users will be able to use BakiBook again immediately.',
+      confirmLabel: next ? 'Turn on' : 'Turn off',
+      cancelLabel: 'Cancel',
+    });
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      await updateMaintenanceSettings({
+        maintenanceMode: next,
+        maintenanceMessage: message.trim() || undefined,
+      });
+      reload();
+      await alert({
+        title: 'Maintenance updated',
+        message: next ? 'Maintenance mode is now on.' : 'Maintenance mode is now off.',
+        variant: 'success',
+      });
+    } catch (err) {
+      await alert({
+        title: 'Update failed',
+        message: err.message || 'Could not update maintenance mode',
+        variant: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <AdminShell pageTitle="Settings" pageSubtitle="Platform configuration">
-      <PageHeader title="System Settings" subtitle="Read-only view of platform configuration" />
-      <div className="app-card">
-        <form className="app-form">
+      <PageHeader
+        title="System Settings"
+        subtitle="Control platform availability and maintenance"
+      />
+      {loading ? (
+        <LoadingState />
+      ) : error ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : (
+        <div className="app-card">
           <div className="admin-settings-grid">
             <div className="app-field">
               <label>Platform name</label>
@@ -483,12 +547,63 @@ export function AdminSettingsPage() {
               <input defaultValue="support@bakibook.com" readOnly />
             </div>
           </div>
-          <div className="admin-settings-note">
-            <Info size={16} />
-            <span>System settings are managed via server environment variables. Contact your deployment administrator to make changes.</span>
+
+          <div className="admin-maintenance-card">
+            <div className="admin-maintenance-card__head">
+              <div>
+                <h3>Maintenance Mode</h3>
+                <p>
+                  When enabled, shopkeepers and customers cannot use the app. Admin accounts
+                  stay fully accessible.
+                </p>
+              </div>
+              <span
+                className={`app-badge ${
+                  maintenanceOn ? 'app-badge--warn' : 'app-badge--success'
+                }`}
+              >
+                {maintenanceOn ? 'ON' : 'OFF'}
+              </span>
+            </div>
+
+            <div className="app-field">
+              <label htmlFor="maintenance-message">Maintenance message</label>
+              <textarea
+                id="maintenance-message"
+                rows={3}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="BakiBook is temporarily unavailable. Please check back soon."
+              />
+            </div>
+
+            <button
+              type="button"
+              className={`admin-action-btn ${
+                maintenanceOn ? 'admin-action-btn--reject' : 'admin-action-btn--verify'
+              }`}
+              onClick={handleToggle}
+              disabled={saving}
+            >
+              {saving
+                ? 'Updating...'
+                : maintenanceOn
+                  ? 'Turn maintenance off'
+                  : 'Turn maintenance on'}
+            </button>
+
+            <div className="admin-settings-note">
+              <Info size={16} />
+              <span>
+                Last updated:{' '}
+                {settings?.updatedAt
+                  ? new Date(settings.updatedAt).toLocaleString()
+                  : 'Never'}
+              </span>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </AdminShell>
   );
 }

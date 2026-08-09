@@ -192,6 +192,7 @@ export function buildGroupedLedger({
     .map(({ sortAt, balanceDelta, runningBalance, ...row }) => ({
       id: row.id || `paid-${row.paymentId}`,
       sortAt: sortAt?.toISOString?.() || null,
+      runningBalance,
       ...row,
     }));
 

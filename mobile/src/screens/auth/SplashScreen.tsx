@@ -10,6 +10,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import SplashBackground from '../../components/splash/SplashBackground';
 import { colors } from '../../theme/colors';
@@ -24,6 +25,7 @@ const SPLASH_PROGRESS_MS = 5200;
 const SPLASH_HOLD_AT_100_MS = 400;
 
 export default function SplashScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -80,99 +82,99 @@ export default function SplashScreen({ navigation }: Props) {
   const progressBarWidth = Math.min(width - 64, 320);
 
   return (
-    <View style={styles.container}>
+    <View style={spStyles.spContainer}>
       <StatusBar style="dark" />
       <SplashBackground />
 
-      <View style={[styles.content, { paddingTop: insets.top + 48 }]}>
-        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="BakiBook logo" />
-        <Text style={styles.brandName}>
-          <Text style={styles.brandBaki}>Baki</Text>
-          <Text style={styles.brandBook}>Book</Text>
+      <View style={[spStyles.spContent, { paddingTop: insets.top + 48 }]}>
+        <Image source={LOGO} style={spStyles.spLogo} resizeMode="contain" accessibilityLabel={t('splash.logoA11y')} />
+        <Text style={spStyles.spBrandName}>
+          <Text style={spStyles.spBrandBaki}>Baki</Text>
+          <Text style={spStyles.spBrandBook}>Book</Text>
         </Text>
 
-        <View style={styles.separator}>
-          <View style={styles.separatorDot} />
-          <View style={styles.separatorLine} />
-          <View style={[styles.separatorDot, styles.separatorDotCenter]} />
-          <View style={styles.separatorLine} />
-          <View style={styles.separatorDot} />
+        <View style={spStyles.spSeparator}>
+          <View style={spStyles.spSeparatorDot} />
+          <View style={spStyles.spSeparatorLine} />
+          <View style={[spStyles.spSeparatorDot, spStyles.spSeparatorDotCenter]} />
+          <View style={spStyles.spSeparatorLine} />
+          <View style={spStyles.spSeparatorDot} />
         </View>
 
-        <Text style={styles.tagline}>Digital Credit Management Made Simple</Text>
+        <Text style={spStyles.spTagline}>{t('splash.tagline')}</Text>
       </View>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + 28 }]}>
-        <Text style={styles.bottomTagline}>Manage Credit. Build Trust. Grow Together.</Text>
-        <View style={[styles.progressTrack, { width: progressBarWidth }]}>
-          <Animated.View style={[styles.progressFill, { width: barFillWidth }]} />
+      <View style={[spStyles.spBottom, { paddingBottom: insets.bottom + 28 }]}>
+        <Text style={spStyles.spBottomTagline}>{t('auth.tagline')}</Text>
+        <View style={[spStyles.spProgressTrack, { width: progressBarWidth }]}>
+          <Animated.View style={[spStyles.spProgressFill, { width: barFillWidth }]} />
         </View>
-        <Text style={styles.progressPercent}>{percentLabel}%</Text>
+        <Text style={spStyles.spProgressPercent}>{percentLabel}%</Text>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const spStyles = StyleSheet.create({
+  spContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  content: {
+  spContent: {
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  logo: {
+  spLogo: {
     width: 108,
     height: 108,
     marginBottom: 16,
   },
-  brandName: {
+  spBrandName: {
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  brandBaki: {
+  spBrandBaki: {
     color: colors.text,
   },
-  brandBook: {
+  spBrandBook: {
     color: colors.primary,
   },
-  separator: {
+  spSeparator: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 14,
     marginBottom: 12,
     gap: 0,
   },
-  separatorDot: {
+  spSeparatorDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.primary,
   },
-  separatorLine: {
+  spSeparatorLine: {
     width: 32,
     height: 2,
     backgroundColor: colors.primary,
   },
-  separatorDotCenter: {
+  spSeparatorDotCenter: {
     marginHorizontal: 4,
   },
-  tagline: {
+  spTagline: {
     fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: 280,
   },
-  bottom: {
+  spBottom: {
     alignItems: 'center',
     paddingHorizontal: 32,
     zIndex: 1,
   },
-  bottomTagline: {
+  spBottomTagline: {
     fontSize: 13,
     color: '#FFFFFF',
     textAlign: 'center',
@@ -180,18 +182,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.2,
   },
-  progressTrack: {
+  spProgressTrack: {
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.35)',
     overflow: 'hidden',
   },
-  progressFill: {
+  spProgressFill: {
     height: '100%',
     borderRadius: 2,
     backgroundColor: '#FFFFFF',
   },
-  progressPercent: {
+  spProgressPercent: {
     marginTop: 8,
     fontSize: 12,
     color: 'rgba(255,255,255,0.9)',

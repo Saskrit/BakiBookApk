@@ -69,6 +69,23 @@ export const sendVerificationEmail = async ({ fullName, email }, rawToken) => {
   });
 };
 
+export const sendEmailChangeCode = async ({ fullName }, email, code) => {
+  const html = baseTemplate(
+    'Confirm Your New Email',
+    `<p>Hi ${fullName},</p>
+     <p>Enter this confirmation code in BakiBook to change your account email:</p>
+     <div style="margin:24px 0;padding:16px;text-align:center;background:#FBF6F6;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#454040;">${code}</div>
+     <p style="font-size:13px;color:#666;">This code expires in 10 minutes. If you did not request this change, you can ignore this email and your current email will remain unchanged.</p>`
+  );
+
+  await getTransporter().sendMail({
+    from: fromAddress(),
+    to: email,
+    subject: 'Confirm your new BakiBook email',
+    html,
+  });
+};
+
 export const sendPasswordResetEmail = async ({ fullName, email }, rawToken) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   const resetUrl = `${clientUrl}/reset-password/${rawToken}`;

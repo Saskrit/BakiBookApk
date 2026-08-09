@@ -40,11 +40,21 @@ const paymentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PaymentSubmission',
       default: null,
+      index: true,
     },
     customerArchived: { type: Boolean, default: false, index: true },
     shopkeeperHidden: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
+);
+
+// One payment document per accepted submission (when linked).
+paymentSchema.index(
+  { submission: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { submission: { $type: 'objectId' } },
+  }
 );
 
 export default mongoose.model('Payment', paymentSchema);

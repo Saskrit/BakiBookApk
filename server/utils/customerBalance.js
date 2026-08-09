@@ -23,14 +23,16 @@ export const applyCredit = async (customerId, amount) => {
   return customer;
 };
 
-export const applyPayment = async (customerId, amount) => {
-  const customer = await Customer.findById(customerId);
+export const applyPayment = async (customerId, amount, session = null) => {
+  const query = Customer.findById(customerId);
+  if (session) query.session(session);
+  const customer = await query;
   if (!customer) throw new Error('Customer not found');
 
   customer.balance = Math.max(0, customer.balance - amount);
   customer.lastPaymentDate = new Date();
   customer.creditScore = computeCreditScore(customer);
-  await customer.save();
+  await customer.save(session ? { session } : undefined);
   return customer;
 };
 

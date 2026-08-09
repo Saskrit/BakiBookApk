@@ -6,7 +6,7 @@ export default function LoginBackground() {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width={width} height={220} style={styles.svg}>
+      <Svg width={width} height={220} style={lbStyles.lbSvg}>
         <G opacity={0.18} transform={`translate(${width - 160}, 24)`}>
           <Rect x={28} y={48} width={72} height={52} rx={4} fill="#C8E6C9" />
           <Path d="M20 48 H108 L100 28 H28 Z" fill="#A5D6A7" />
@@ -45,8 +45,8 @@ export default function LoginBackground() {
   );
 }
 
-const styles = StyleSheet.create({
-  svg: {
+const lbStyles = StyleSheet.create({
+  lbSvg: {
     position: 'absolute',
     top: 0,
     right: 0,

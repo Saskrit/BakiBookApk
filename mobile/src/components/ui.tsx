@@ -12,28 +12,28 @@ import { colors } from '../theme/colors';
 import { typography as t } from '../theme/typography';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.screen, style]}>{children}</View>;
+  return <View style={[uiStyles.uiScreen, style]}>{children}</View>;
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <View style={[uiStyles.uiCard, style]}>{children}</View>;
 }
 
 export function Title({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+  return <Text style={uiStyles.uiTitle}>{children}</Text>;
 }
 
 export function Subtitle({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.subtitle}>{children}</Text>;
+  return <Text style={uiStyles.uiSubtitle}>{children}</Text>;
 }
 
 export function Input({ label, ...props }: TextInputProps & { label: string }) {
   return (
-    <View style={styles.inputWrap}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={uiStyles.uiInputWrap}>
+      <Text style={uiStyles.uiLabel}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.textMuted}
-        style={styles.input}
+        style={uiStyles.uiInput}
         {...props}
       />
     </View>
@@ -55,22 +55,22 @@ export function Button({
 }) {
   const variantStyle =
     variant === 'secondary'
-      ? styles.btnSecondary
+      ? uiStyles.uiBtnSecondary
       : variant === 'outline'
-        ? styles.btnOutline
+        ? uiStyles.uiBtnOutline
         : variant === 'danger'
-          ? styles.btnDanger
-          : styles.btnPrimary;
+          ? uiStyles.uiBtnDanger
+          : uiStyles.uiBtnPrimary;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
-        styles.btn,
+        uiStyles.uiBtn,
         variantStyle,
-        (disabled || loading) && styles.btnDisabled,
-        pressed && styles.btnPressed,
+        (disabled || loading) && uiStyles.uiBtnDisabled,
+        pressed && uiStyles.uiBtnPressed,
       ]}
     >
       {loading ? (
@@ -78,7 +78,7 @@ export function Button({
       ) : (
         <Text
           style={[
-            styles.btnText,
+            uiStyles.uiBtnText,
             variant === 'outline' && { color: colors.primary },
           ]}
         >
@@ -91,14 +91,14 @@ export function Button({
 
 export function LoadingState() {
   return (
-    <View style={styles.center}>
+    <View style={uiStyles.uiCenter}>
       <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
 }
 
 export function ErrorText({ message }: { message: string }) {
-  return <Text style={styles.error}>{message}</Text>;
+  return <Text style={uiStyles.uiError}>{message}</Text>;
 }
 
 export function StatCard({
@@ -111,20 +111,20 @@ export function StatCard({
   accent?: boolean;
 }) {
   return (
-    <View style={[styles.statCard, accent && styles.statCardAccent]}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, accent && styles.statValueAccent]}>{value}</Text>
+    <View style={[uiStyles.uiStatCard, accent && uiStyles.uiStatCardAccent]}>
+      <Text style={uiStyles.uiStatLabel}>{label}</Text>
+      <Text style={[uiStyles.uiStatValue, accent && uiStyles.uiStatValueAccent]}>{value}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
+const uiStyles = StyleSheet.create({
+  uiScreen: {
     flex: 1,
     backgroundColor: colors.background,
     padding: 16,
   },
-  card: {
+  uiCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
@@ -132,25 +132,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 12,
   },
-  title: {
+  uiTitle: {
     fontSize: t.h1,
     fontWeight: '700',
     color: colors.primaryDark,
     marginBottom: 4,
   },
-  subtitle: {
+  uiSubtitle: {
     fontSize: t.bodyLg,
     color: colors.textMuted,
     marginBottom: 16,
   },
-  inputWrap: { marginBottom: 14 },
-  label: {
+  uiInputWrap: { marginBottom: 14 },
+  uiLabel: {
     fontSize: t.body,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 6,
   },
-  input: {
+  uiInput: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -160,27 +160,27 @@ const styles = StyleSheet.create({
     fontSize: t.md,
     color: colors.text,
   },
-  btn: {
+  uiBtn: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
-  btnPrimary: { backgroundColor: colors.primary },
-  btnSecondary: { backgroundColor: colors.primaryDark },
-  btnOutline: {
+  uiBtnPrimary: { backgroundColor: colors.primary },
+  uiBtnSecondary: { backgroundColor: colors.primaryDark },
+  uiBtnOutline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  btnDanger: { backgroundColor: colors.danger },
-  btnDisabled: { opacity: 0.6 },
-  btnPressed: { opacity: 0.85 },
-  btnText: { color: '#fff', fontSize: t.md, fontWeight: '600' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  error: { color: colors.danger, marginBottom: 12, fontSize: t.bodyLg },
-  statCard: {
+  uiBtnDanger: { backgroundColor: colors.danger },
+  uiBtnDisabled: { opacity: 0.6 },
+  uiBtnPressed: { opacity: 0.85 },
+  uiBtnText: { color: '#fff', fontSize: t.md, fontWeight: '600' },
+  uiCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  uiError: { color: colors.danger, marginBottom: 12, fontSize: t.bodyLg },
+  uiStatCard: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -188,20 +188,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  statCardAccent: {
+  uiStatCardAccent: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  statLabel: {
+  uiStatLabel: {
     fontSize: t.caption,
     color: colors.textMuted,
     marginBottom: 6,
     fontWeight: '500',
   },
-  statValue: {
+  uiStatValue: {
     fontSize: t.xl,
     fontWeight: '700',
     color: colors.text,
   },
-  statValueAccent: { color: '#fff' },
+  uiStatValueAccent: { color: '#fff' },
 });

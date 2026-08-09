@@ -1,4 +1,5 @@
 import type { Customer } from '../types';
+import i18n from '../i18n';
 import {
   PDF_STYLES,
   buildTableHtml,
@@ -24,6 +25,10 @@ type CustomerReportData = {
   payments: Array<Record<string, unknown>>;
 };
 
+function t(key: string, options?: Record<string, unknown>) {
+  return i18n.t(key, options);
+}
+
 function flattenProducts(credits: Array<Record<string, unknown>>) {
   const products: Array<Record<string, unknown>> = [];
   for (const credit of credits) {
@@ -44,26 +49,27 @@ function flattenProducts(credits: Array<Record<string, unknown>>) {
 export async function exportCustomerReportPdf(data: CustomerReportData) {
   const { customer, summary, ledger, credits, payments, shopName, shopOwner } = data;
   const products = flattenProducts(credits);
-  const linkLabel = customer.linkStatus === 'linked' ? 'Linked account' : 'Not linked';
+  const linkLabel =
+    customer.linkStatus === 'linked' ? t('pdf.linkedAccount') : t('pdf.notLinked');
 
   const profileItems: [string, string][] = [
-    ['Phone', customer.phone || '—'],
-    ['Email', customer.email || '—'],
-    ['Address', customer.address || '—'],
-    ['Credit score', customer.creditScore || '—'],
-    ['Account link', linkLabel],
-    ['Status', customer.status || '—'],
+    [t('pdf.colPhone'), customer.phone || '—'],
+    [t('auth.email'), customer.email || '—'],
+    [t('pdf.colAddress'), customer.address || '—'],
+    [t('pdf.colCreditScore'), customer.creditScore || '—'],
+    [t('pdf.accountLink'), linkLabel],
+    [t('pdf.colStatus'), customer.status || '—'],
   ];
   if (customer.notes?.trim()) {
-    profileItems.push(['Notes', customer.notes.trim()]);
+    profileItems.push([t('pdf.notes'), customer.notes.trim()]);
   }
 
   const statsHtml = [
-    ['Outstanding due', formatRs(summary.balance ?? customer.balance)],
-    ['Total credit given', formatRs(summary.totalCredit ?? 0)],
-    ['Total paid', formatRs(summary.totalPaid ?? 0)],
-    ['Credit transactions', String(summary.transactionCount ?? credits.length)],
-    ['Payments', String(summary.paymentCount ?? payments.length)],
+    [t('pdf.outstandingDue'), formatRs(summary.balance ?? customer.balance)],
+    [t('pdf.totalCreditGiven'), formatRs(summary.totalCredit ?? 0)],
+    [t('pdf.totalPaid'), formatRs(summary.totalPaid ?? 0)],
+    [t('pdf.creditTransactions'), String(summary.transactionCount ?? credits.length)],
+    [t('pdf.payments'), String(summary.paymentCount ?? payments.length)],
   ]
     .map(([label, value]) => `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join('');
@@ -73,57 +79,58 @@ export async function exportCustomerReportPdf(data: CustomerReportData) {
     .join('');
 
   const creditsHtml = buildTableHtml(credits, [
-    { label: 'Date', key: 'date' },
-    { label: 'Time', key: 'time' },
-    { label: 'Products', key: 'products' },
-    { label: 'Total', key: 'total', format: (v) => formatRs(Number(v)) },
-    { label: 'Note', key: 'note' },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colTime'), key: 'time' },
+    { label: t('pdf.colProducts'), key: 'products' },
+    { label: t('pdf.colTotal'), key: 'total', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colNote'), key: 'note' },
   ]);
 
   const productsHtml = buildTableHtml(products, [
-    { label: 'Date', key: 'date' },
-    { label: 'Product', key: 'product' },
-    { label: 'Qty', key: 'qty' },
-    { label: 'Unit price', key: 'unitPrice', format: (v) => formatRs(Number(v)) },
-    { label: 'Line total', key: 'lineTotal', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colProduct'), key: 'product' },
+    { label: t('pdf.colQty'), key: 'qty' },
+    { label: t('pdf.colUnitPrice'), key: 'unitPrice', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colLineTotal'), key: 'lineTotal', format: (v) => formatRs(Number(v)) },
   ]);
 
   const paymentsHtml = buildTableHtml(payments, [
-    { label: 'Date', key: 'date' },
-    { label: 'Time', key: 'time' },
-    { label: 'Paid for', key: 'paidFor' },
-    { label: 'Amount', key: 'amount', format: (v) => formatRs(Number(v)) },
-    { label: 'Method', key: 'method' },
-    { label: 'Receipt', key: 'receiptNo' },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colTime'), key: 'time' },
+    { label: t('pdf.colPaidFor'), key: 'paidFor' },
+    { label: t('pdf.colAmount'), key: 'amount', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colMethod'), key: 'method' },
+    { label: t('pdf.colReceipt'), key: 'receiptNo' },
   ]);
 
   const ledgerHtml = buildTableHtml(ledger, [
-    { label: 'Date', key: 'date' },
-    { label: 'Time', key: 'time' },
-    { label: 'Type', key: 'type' },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colTime'), key: 'time' },
+    { label: t('pdf.colType'), key: 'type' },
     {
-      label: 'Description',
+      label: t('pdf.colDescription'),
       key: 'desc',
       format: (_, row) => String(row.desc || row.items || row.products || '—'),
     },
-    { label: 'Amount', key: 'amount' },
-    { label: 'Balance', key: 'balance' },
+    { label: t('pdf.colAmount'), key: 'amount' },
+    { label: t('pdf.colBalance'), key: 'balance' },
   ]);
 
+  const generatedDate = formatReportDate(new Date().toISOString());
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${PDF_STYLES}</style></head><body>
-    <h1>Customer report — ${escapeHtml(customer.name)}</h1>
+    <h1>${escapeHtml(t('pdf.customerReportTitle', { name: customer.name }))}</h1>
     <div class="meta">
-      <div><strong>${escapeHtml(shopName || 'Shop')}</strong>${shopOwner ? ` · ${escapeHtml(shopOwner)}` : ''}</div>
-      <div>Generated: ${formatReportDate(new Date().toISOString())}</div>
+      <div><strong>${escapeHtml(shopName || t('pdf.shop'))}</strong>${shopOwner ? ` · ${escapeHtml(shopOwner)}` : ''}</div>
+      <div>${escapeHtml(t('pdf.generated', { date: generatedDate }))}</div>
     </div>
-    <h2>Summary</h2><div class="stats">${statsHtml}</div>
-    <h2>Profile</h2><div class="profile">${profileHtml}</div>
-    <h2>Credit transactions</h2>${creditsHtml}
-    <h2>Products purchased</h2>${productsHtml}
-    <h2>Payments</h2>${paymentsHtml}
-    <h2>Account ledger</h2>${ledgerHtml}
-    <div class="footer">BakiBook customer report</div>
+    <h2>${escapeHtml(t('pdf.summary'))}</h2><div class="stats">${statsHtml}</div>
+    <h2>${escapeHtml(t('pdf.profile'))}</h2><div class="profile">${profileHtml}</div>
+    <h2>${escapeHtml(t('pdf.creditTransactions'))}</h2>${creditsHtml}
+    <h2>${escapeHtml(t('pdf.productsPurchased'))}</h2>${productsHtml}
+    <h2>${escapeHtml(t('pdf.payments'))}</h2>${paymentsHtml}
+    <h2>${escapeHtml(t('pdf.accountLedger'))}</h2>${ledgerHtml}
+    <div class="footer">${escapeHtml(t('pdf.footerCustomer'))}</div>
   </body></html>`;
 
-  await shareHtmlAsPdf(html, 'Export customer report');
+  await shareHtmlAsPdf(html, t('pdf.exportCustomerReport'));
 }

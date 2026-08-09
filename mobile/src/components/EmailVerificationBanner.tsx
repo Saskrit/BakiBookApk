@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
 import { resendVerificationEmail } from '../api/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { appAlert } from '../contexts/DialogContext';
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export default function EmailVerificationBanner({ user: userProp, compact }: Props) {
+  const { t } = useTranslation();
   const { user: authUser, refreshUser } = useAuth();
   const user = userProp ?? authUser;
   const [sending, setSending] = useState(false);
@@ -27,12 +29,12 @@ export default function EmailVerificationBanner({ user: userProp, compact }: Pro
     try {
       const data = await resendVerificationEmail();
       setSent(true);
-      appAlert('Verification email sent', data.message || 'Check your inbox for the verification link.');
+      appAlert(t('emailBanner.title'), data.message || t('emailBanner.body', { email: user.email }));
       await refreshUser();
     } catch (err) {
       appAlert(
-        'Could not send email',
-        err instanceof Error ? err.message : 'Please try again in a few minutes.',
+        t('errors.generic'),
+        err instanceof Error ? err.message : t('errors.generic'),
       );
     } finally {
       setSending(false);
@@ -40,8 +42,8 @@ export default function EmailVerificationBanner({ user: userProp, compact }: Pro
   };
 
   return (
-    <View style={[styles.banner, compact && styles.bannerCompact]}>
-      <View style={styles.iconWrap}>
+    <View style={[evStyles.evBanner, compact && evStyles.evBannerCompact]}>
+      <View style={evStyles.evIconWrap}>
         <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
           <Path
             d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z"
@@ -51,19 +53,17 @@ export default function EmailVerificationBanner({ user: userProp, compact }: Pro
           <Path d="M12 8 V13 M12 16 H12.01" stroke={colors.warning} strokeWidth={2} strokeLinecap="round" />
         </Svg>
       </View>
-      <View style={styles.body}>
-        <Text style={styles.title}>Verify your email</Text>
-        <Text style={styles.text}>
-          We sent a link to <Text style={styles.email}>{user.email}</Text>. Open it on your phone or
-          computer, then return here.
-        </Text>
+      <View style={evStyles.evBody}>
+        <Text style={evStyles.evTitle}>{t('emailBanner.title')}</Text>
+        <Text style={evStyles.evText}>{t('emailBanner.body', { email: user.email })}</Text>
         <Pressable
           onPress={handleResend}
           disabled={sending}
-          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+          style={({ pressed }) => [evStyles.evBtn, pressed && evStyles.evBtnPressed]}
         >
-          <Text style={styles.btnText}>
-            {sending ? 'Sending…' : sent ? 'Resend again' : 'Resend verification email'}
+          <Text style={evStyles.evBtnText}>
+            {sending ? t('common.loading') : t('emailBanner.resend')}
+            {sent ? ' ✓' : ''}
           </Text>
         </Pressable>
       </View>
@@ -71,8 +71,8 @@ export default function EmailVerificationBanner({ user: userProp, compact }: Pro
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
+const evStyles = StyleSheet.create({
+  evBanner: {
     flexDirection: 'row',
     gap: 12,
     backgroundColor: '#FFFBEB',
@@ -80,44 +80,31 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
     borderRadius: 14,
     padding: 14,
-    marginBottom: 16,
-  },
-  bannerCompact: {
     marginBottom: 12,
   },
-  iconWrap: {
-    marginTop: 2,
+  evBannerCompact: {
+    marginHorizontal: 0,
   },
-  body: {
-    flex: 1,
-    gap: 6,
+  evIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  text: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  email: {
-    fontWeight: '600',
-    color: colors.text,
-  },
-  btn: {
+  evBody: { flex: 1 },
+  evTitle: { fontWeight: '800', color: colors.text, marginBottom: 4 },
+  evText: { color: colors.textMuted, lineHeight: 20, fontSize: 13 },
+  evEmail: { fontWeight: '700', color: colors.text },
+  evBtn: {
     alignSelf: 'flex-start',
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 2,
+    marginTop: 10,
+    backgroundColor: colors.warning,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  btnPressed: {
-    opacity: 0.7,
-  },
-  btnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+  evBtnPressed: { opacity: 0.85 },
+  evBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
 });

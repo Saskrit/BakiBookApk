@@ -10,13 +10,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { deleteCustomer } from '../../api/customers';
 import { fetchSharedAccount, type LedgerEntry } from '../../api/shared';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { exportCustomerReportPdf } from '../../utils/customerReportPdf';
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
 import type { Customer } from '../../types';
@@ -26,46 +27,54 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CustomerProfile'>;
 
 function StatBox({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <View style={styles.statBox}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, accent ? { color: accent } : null]}>{value}</Text>
+    <View style={cprStyles.cprStatBox}>
+      <Text style={cprStyles.cprStatLabel}>{label}</Text>
+      <Text style={[cprStyles.cprStatValue, accent ? { color: accent } : null]}>{value}</Text>
     </View>
   );
 }
 
 function LedgerRow({ entry }: { entry: LedgerEntry }) {
+  const { t } = useTranslation();
   const isCredit = entry.type === 'Credit';
+  const typeLabel =
+    entry.type === 'Credit'
+      ? t('common.credit')
+      : entry.type === 'Payment'
+        ? t('common.payment')
+        : entry.type || entry.label;
   return (
-    <View style={styles.ledgerRow}>
-      <View style={[styles.ledgerDot, { backgroundColor: isCredit ? '#FEE2E2' : '#DCFCE7' }]}>
-        <Text style={{ color: isCredit ? colors.danger : colors.primary, fontWeight: '800', fontSize: t.sm }}>
+    <View style={cprStyles.cprLedgerRow}>
+      <View style={[cprStyles.cprLedgerDot, { backgroundColor: isCredit ? '#FEE2E2' : '#DCFCE7' }]}>
+        <Text style={{ color: isCredit ? colors.danger : colors.primary, fontWeight: '800', fontSize: ty.sm }}>
           {isCredit ? '+' : '−'}
         </Text>
       </View>
-      <View style={styles.ledgerBody}>
-        <View style={styles.ledgerTop}>
-          <Text style={styles.ledgerType}>{entry.type || entry.label}</Text>
-          <Text style={[styles.ledgerAmount, { color: isCredit ? colors.danger : colors.primary }]}>
+      <View style={cprStyles.cprLedgerBody}>
+        <View style={cprStyles.cprLedgerTop}>
+          <Text style={cprStyles.cprLedgerType}>{typeLabel}</Text>
+          <Text style={[cprStyles.cprLedgerAmount, { color: isCredit ? colors.danger : colors.primary }]}>
             {entry.amount}
           </Text>
         </View>
-        <Text style={styles.ledgerDesc} numberOfLines={2}>
+        <Text style={cprStyles.cprLedgerDesc} numberOfLines={2}>
           {entry.desc || entry.products || entry.items || '—'}
         </Text>
-        <View style={styles.ledgerMeta}>
-          <Text style={styles.ledgerDate}>
+        <View style={cprStyles.cprLedgerMeta}>
+          <Text style={cprStyles.cprLedgerDate}>
             {entry.date}
             {entry.time ? ` · ${entry.time}` : ''}
           </Text>
-          {entry.balance ? <Text style={styles.ledgerBalance}>Bal: {entry.balance}</Text> : null}
+          {entry.balance ? <Text style={cprStyles.cprLedgerBalance}>{t('customerProfile.balance', { amount: entry.balance })}</Text> : null}
         </View>
-        {entry.method ? <Text style={styles.ledgerExtra}>Method: {entry.method}</Text> : null}
+        {entry.method ? <Text style={cprStyles.cprLedgerExtra}>{t('customerProfile.method', { method: entry.method })}</Text> : null}
       </View>
     </View>
   );
 }
 
 export default function CustomerProfileScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { customerId } = route.params;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
@@ -97,7 +106,7 @@ export default function CustomerProfileScreen({ route }: Props) {
     useCallback(() => {
       setLoading(true);
       load()
-        .catch(() => appAlert('Error', 'Failed to load customer profile'))
+        .catch(() => appAlert(t('common.error'), t('customerProfile.loadFailed')))
         .finally(() => setLoading(false));
     }, [load])
   );
@@ -105,19 +114,19 @@ export default function CustomerProfileScreen({ route }: Props) {
   const handleDelete = () => {
     if (!customer) return;
     appAlert(
-      'Delete customer',
-      `Remove ${customer.name} and all related records? This cannot be undone.`,
+      t('customers.deleteTitle'),
+      t('customers.deleteConfirmFull', { name: customer.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteCustomer(customerId);
               navigation.goBack();
             } catch (err) {
-              appAlert('Error', err instanceof Error ? err.message : 'Failed to delete');
+              appAlert(t('common.error'), err instanceof Error ? err.message : t('common.failedToDelete'));
             }
           },
         },
@@ -147,7 +156,7 @@ export default function CustomerProfileScreen({ route }: Props) {
         payments,
       });
     } catch (err) {
-      appAlert('Export failed', err instanceof Error ? err.message : 'Could not export PDF');
+      appAlert(t('customerProfile.exportFailed'), err instanceof Error ? err.message : t('customerProfile.exportFailedBody'));
     } finally {
       setExporting(false);
     }
@@ -159,83 +168,83 @@ export default function CustomerProfileScreen({ route }: Props) {
   const avatarBg = avatarColor(customer.name);
 
   return (
-    <View style={styles.screen}>
+    <View style={cprStyles.cprScreen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       >
         <LinearGradient
           colors={[colors.primaryDark, colors.primary]}
-          style={[styles.hero, { paddingTop: insets.top + 12 }]}
+          style={[cprStyles.cprHero, { paddingTop: insets.top + 12 }]}
         >
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={styles.back}>‹ Back</Text>
+            <Text style={cprStyles.cprBack}>{t('common.back')}</Text>
           </Pressable>
 
-          <View style={[styles.avatar, { backgroundColor: `${avatarBg}33` }]}>
-            <Text style={[styles.avatarText, { color: '#FFFFFF' }]}>{initials}</Text>
+          <View style={[cprStyles.cprAvatar, { backgroundColor: `${avatarBg}33` }]}>
+            <Text style={[cprStyles.cprAvatarText, { color: '#FFFFFF' }]}>{initials}</Text>
           </View>
-          <Text style={styles.heroName}>{customer.name}</Text>
-          {customer.phone ? <Text style={styles.heroMeta}>{customer.phone}</Text> : null}
-          {customer.email ? <Text style={styles.heroMeta}>{customer.email}</Text> : null}
-          {customer.address ? <Text style={styles.heroMeta}>{customer.address}</Text> : null}
+          <Text style={cprStyles.cprHeroName}>{customer.name}</Text>
+          {customer.phone ? <Text style={cprStyles.cprHeroMeta}>{customer.phone}</Text> : null}
+          {customer.email ? <Text style={cprStyles.cprHeroMeta}>{customer.email}</Text> : null}
+          {customer.address ? <Text style={cprStyles.cprHeroMeta}>{customer.address}</Text> : null}
 
-          <View style={styles.chipRow}>
+          <View style={cprStyles.cprChipRow}>
             {customer.creditScore ? (
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>Score: {customer.creditScore}</Text>
+              <View style={cprStyles.cprChip}>
+                <Text style={cprStyles.cprChipText}>{t('customerProfile.score', { score: customer.creditScore })}</Text>
               </View>
             ) : null}
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                {customer.linkStatus === 'linked' ? 'Linked account' : 'Shop customer'}
+            <View style={cprStyles.cprChip}>
+              <Text style={cprStyles.cprChipText}>
+                {customer.linkStatus === 'linked' ? t('customerProfile.linkedAccount') : t('customerProfile.shopCustomer')}
               </Text>
             </View>
           </View>
         </LinearGradient>
 
-        <View style={styles.body}>
-          <View style={styles.statsRow}>
+        <View style={cprStyles.cprBody}>
+          <View style={cprStyles.cprStatsRow}>
             <StatBox
-              label="Outstanding"
+              label={t('customerProfile.outstanding')}
               value={formatRs(summary.balance ?? customer.balance)}
               accent={customer.balance > 0 ? colors.danger : colors.primary}
             />
-            <StatBox label="Total credit" value={formatRs(summary.totalCredit)} />
-            <StatBox label="Total paid" value={formatRs(summary.totalPaid)} accent={colors.primary} />
+            <StatBox label={t('customerProfile.totalCredit')} value={formatRs(summary.totalCredit)} />
+            <StatBox label={t('customerProfile.totalPaid')} value={formatRs(summary.totalPaid)} accent={colors.primary} />
           </View>
 
           {customer.notes?.trim() ? (
-            <View style={styles.notesCard}>
-              <Text style={styles.notesTitle}>Notes</Text>
-              <Text style={styles.notesText}>{customer.notes}</Text>
+            <View style={cprStyles.cprNotesCard}>
+              <Text style={cprStyles.cprNotesTitle}>{t('customerProfile.notes')}</Text>
+              <Text style={cprStyles.cprNotesText}>{customer.notes}</Text>
             </View>
           ) : null}
 
-          <View style={styles.actionRow}>
+          <View style={cprStyles.cprActionRow}>
             <Pressable
-              style={styles.actionBtn}
+              style={cprStyles.cprActionBtn}
               onPress={() => navigation.navigate('EditCustomer', { customerId })}
             >
-              <Text style={styles.actionBtnText}>Edit</Text>
+              <Text style={cprStyles.cprActionBtnText}>{t('common.edit')}</Text>
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={handleExport} disabled={exporting}>
-              <Text style={styles.actionBtnText}>{exporting ? 'Exporting…' : 'Download report'}</Text>
+            <Pressable style={cprStyles.cprActionBtn} onPress={handleExport} disabled={exporting}>
+              <Text style={cprStyles.cprActionBtnText}>{exporting ? t('common.exporting') : t('customerProfile.downloadReport')}</Text>
             </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleDelete}>
-              <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Delete</Text>
+            <Pressable style={[cprStyles.cprActionBtn, cprStyles.cprActionBtnDanger]} onPress={handleDelete}>
+              <Text style={[cprStyles.cprActionBtnText, cprStyles.cprActionBtnDangerText]}>{t('common.delete')}</Text>
             </Pressable>
           </View>
 
-          <View style={styles.quickActions}>
+          <View style={cprStyles.cprQuickActions}>
             <Button
-              title="Add credit"
+              title={t('customerProfile.addCredit')}
               onPress={() =>
                 navigation.navigate('AddCredit', { customerId, customerName: customer.name })
               }
             />
             <Button
-              title="Record payment"
+              title={t('customerProfile.recordPayment')}
               variant="outline"
               onPress={() =>
                 navigation.navigate('RecordPayment', { customerId, customerName: customer.name })
@@ -243,14 +252,17 @@ export default function CustomerProfileScreen({ route }: Props) {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Account ledger</Text>
-          <Text style={styles.sectionSub}>
-            {summary.transactionCount} credits · {summary.paymentCount} payments
+          <Text style={cprStyles.cprSectionTitle}>{t('customerProfile.ledgerTitle')}</Text>
+          <Text style={cprStyles.cprSectionSub}>
+            {t('customerProfile.ledgerSub', {
+              credits: summary.transactionCount,
+              payments: summary.paymentCount,
+            })}
           </Text>
 
-          <View style={styles.ledgerCard}>
+          <View style={cprStyles.cprLedgerCard}>
             {ledger.length === 0 ? (
-              <Text style={styles.emptyLedger}>No transactions yet.</Text>
+              <Text style={cprStyles.cprEmptyLedger}>{t('customerProfile.noTransactions')}</Text>
             ) : (
               ledger.map((entry) => <LedgerRow key={entry.id} entry={entry} />)
             )}
@@ -261,23 +273,23 @@ export default function CustomerProfileScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  hero: {
+const cprStyles = StyleSheet.create({
+  cprScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  cprHero: {
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  back: {
+  cprBack: {
     alignSelf: 'flex-start',
     color: 'rgba(255,255,255,0.95)',
-    fontSize: t.bodyLg,
+    fontSize: ty.bodyLg,
     fontWeight: '600',
     marginBottom: 12,
   },
-  avatar: {
+  cprAvatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
@@ -287,20 +299,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.5)',
     marginBottom: 10,
   },
-  avatarText: { fontSize: t.h2, fontWeight: '800' },
-  heroName: { color: '#FFF', fontSize: t.h2, fontWeight: '800', textAlign: 'center' },
-  heroMeta: { color: 'rgba(255,255,255,0.9)', fontSize: t.body, marginTop: 4, textAlign: 'center' },
-  chipRow: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
-  chip: {
+  cprAvatarText: { fontSize: ty.h2, fontWeight: '800' },
+  cprHeroName: { color: '#FFF', fontSize: ty.h2, fontWeight: '800', textAlign: 'center' },
+  cprHeroMeta: { color: 'rgba(255,255,255,0.9)', fontSize: ty.body, marginTop: 4, textAlign: 'center' },
+  cprChipRow: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  cprChip: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  chipText: { color: '#FFF', fontSize: t.caption, fontWeight: '600' },
-  body: { padding: 16, marginTop: -8 },
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  statBox: {
+  cprChipText: { color: '#FFF', fontSize: ty.caption, fontWeight: '600' },
+  cprBody: { padding: 16, marginTop: -8 },
+  cprStatsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  cprStatBox: {
     flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 14,
@@ -308,9 +320,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  statLabel: { fontSize: t.sm, color: colors.textMuted, marginBottom: 4 },
-  statValue: { fontSize: t.bodyLg, fontWeight: '800', color: colors.text },
-  notesCard: {
+  cprStatLabel: { fontSize: ty.sm, color: colors.textMuted, marginBottom: 4 },
+  cprStatValue: { fontSize: ty.bodyLg, fontWeight: '800', color: colors.text },
+  cprNotesCard: {
     backgroundColor: '#FFF',
     borderRadius: 14,
     padding: 14,
@@ -318,10 +330,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  notesTitle: { fontSize: t.bodyLg, fontWeight: '700', color: colors.text, marginBottom: 6 },
-  notesText: { fontSize: t.body, color: colors.textMuted, lineHeight: 18 },
-  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  actionBtn: {
+  cprNotesTitle: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.text, marginBottom: 6 },
+  cprNotesText: { fontSize: ty.body, color: colors.textMuted, lineHeight: 18 },
+  cprActionRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  cprActionBtn: {
     flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 10,
@@ -330,27 +342,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  actionBtnDanger: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-  actionBtnText: { fontSize: t.caption, fontWeight: '700', color: colors.primary },
-  actionBtnDangerText: { color: colors.danger },
-  quickActions: { gap: 8, marginBottom: 18 },
-  sectionTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  sectionSub: { fontSize: t.caption, color: colors.textMuted, marginBottom: 10, marginTop: 2 },
-  ledgerCard: {
+  cprActionBtnDanger: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  cprActionBtnText: { fontSize: ty.caption, fontWeight: '700', color: colors.primary },
+  cprActionBtnDangerText: { color: colors.danger },
+  cprQuickActions: { gap: 8, marginBottom: 18 },
+  cprSectionTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text },
+  cprSectionSub: { fontSize: ty.caption, color: colors.textMuted, marginBottom: 10, marginTop: 2 },
+  cprLedgerCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 4,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  ledgerRow: {
+  cprLedgerRow: {
     flexDirection: 'row',
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2F5',
     gap: 10,
   },
-  ledgerDot: {
+  cprLedgerDot: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -358,19 +370,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 2,
   },
-  ledgerBody: { flex: 1 },
-  ledgerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  ledgerType: { fontSize: t.bodyLg, fontWeight: '700', color: colors.text },
-  ledgerAmount: { fontSize: t.bodyLg, fontWeight: '800' },
-  ledgerDesc: { fontSize: t.body, color: colors.textMuted, marginTop: 4, lineHeight: 17 },
-  ledgerMeta: {
+  cprLedgerBody: { flex: 1 },
+  cprLedgerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
+  cprLedgerType: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.text },
+  cprLedgerAmount: { fontSize: ty.bodyLg, fontWeight: '800' },
+  cprLedgerDesc: { fontSize: ty.body, color: colors.textMuted, marginTop: 4, lineHeight: 17 },
+  cprLedgerMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 6,
     gap: 8,
   },
-  ledgerDate: { fontSize: t.caption, color: colors.textMuted },
-  ledgerBalance: { fontSize: t.caption, fontWeight: '700', color: colors.primary },
-  ledgerExtra: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  emptyLedger: { textAlign: 'center', color: colors.textMuted, padding: 24, fontSize: t.body },
+  cprLedgerDate: { fontSize: ty.caption, color: colors.textMuted },
+  cprLedgerBalance: { fontSize: ty.caption, fontWeight: '700', color: colors.primary },
+  cprLedgerExtra: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  cprEmptyLedger: { textAlign: 'center', color: colors.textMuted, padding: 24, fontSize: ty.body },
 });

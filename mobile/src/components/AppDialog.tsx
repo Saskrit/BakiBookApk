@@ -38,7 +38,7 @@ function DialogIcon({ tone }: { tone: 'default' | 'danger' | 'success' | 'info' 
           : '#EEF2E6';
 
   return (
-    <View style={[styles.iconWrap, { backgroundColor: bg }]}>
+    <View style={[adlgStyles.adlgIconWrap, { backgroundColor: bg }]}>
       {tone === 'danger' ? (
         <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
           <Path d="M6 7 H18 L17 19 H7 Z" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
@@ -92,39 +92,39 @@ export default function AppDialog({ visible, title, message, buttons, onDismiss,
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
-      <Pressable style={styles.overlay} onPress={onDismiss}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+      <Pressable style={adlgStyles.adlgOverlay} onPress={onDismiss}>
+        <Pressable style={adlgStyles.adlgCard} onPress={(e) => e.stopPropagation()}>
           <DialogIcon tone={tone} />
-          <Text style={styles.title}>{title}</Text>
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          <Text style={adlgStyles.adlgTitle}>{title}</Text>
+          {message ? <Text style={adlgStyles.adlgMessage}>{message}</Text> : null}
 
           {layout === 'single' ? (
             <Pressable
               onPress={() => onPress(buttons[0])}
-              style={({ pressed }) => [styles.singleBtn, pressed && styles.btnPressed]}
+              style={({ pressed }) => [adlgStyles.adlgSingleBtn, pressed && adlgStyles.adlgBtnPressed]}
             >
-              <Text style={styles.singleBtnText}>{buttons[0].text}</Text>
+              <Text style={adlgStyles.adlgSingleBtnText}>{buttons[0].text}</Text>
             </Pressable>
           ) : layout === 'row' ? (
-            <View style={styles.rowActions}>
+            <View style={adlgStyles.adlgRowActions}>
               {ordered.map((button) => (
                 <Pressable
                   key={button.text}
                   onPress={() => onPress(button)}
                   style={({ pressed }) => [
-                    styles.rowBtn,
-                    button.style === 'cancel' && styles.rowBtnCancel,
-                    button.style === 'destructive' && styles.rowBtnDanger,
-                    !button.style || button.style === 'default' ? styles.rowBtnPrimary : null,
-                    pressed && styles.btnPressed,
+                    adlgStyles.adlgRowBtn,
+                    button.style === 'cancel' && adlgStyles.adlgRowBtnCancel,
+                    button.style === 'destructive' && adlgStyles.adlgRowBtnDanger,
+                    !button.style || button.style === 'default' ? adlgStyles.adlgRowBtnPrimary : null,
+                    pressed && adlgStyles.adlgBtnPressed,
                   ]}
                 >
                   <Text
                     style={[
-                      styles.rowBtnText,
-                      button.style === 'cancel' && styles.rowBtnTextCancel,
-                      button.style === 'destructive' && styles.rowBtnTextDanger,
-                      (!button.style || button.style === 'default') && styles.rowBtnTextPrimary,
+                      adlgStyles.adlgRowBtnText,
+                      button.style === 'cancel' && adlgStyles.adlgRowBtnTextCancel,
+                      button.style === 'destructive' && adlgStyles.adlgRowBtnTextDanger,
+                      (!button.style || button.style === 'default') && adlgStyles.adlgRowBtnTextPrimary,
                     ]}
                   >
                     {button.text}
@@ -133,24 +133,24 @@ export default function AppDialog({ visible, title, message, buttons, onDismiss,
               ))}
             </View>
           ) : (
-            <View style={styles.stackActions}>
+            <View style={adlgStyles.adlgStackActions}>
               {ordered.map((button, index) => (
                 <Pressable
                   key={`${button.text}-${index}`}
                   onPress={() => onPress(button)}
                   style={({ pressed }) => [
-                    styles.stackBtn,
-                    index > 0 && styles.stackBtnBorder,
-                    button.style === 'cancel' && styles.stackBtnCancel,
-                    button.style === 'destructive' && styles.stackBtnDanger,
-                    pressed && styles.btnPressed,
+                    adlgStyles.adlgStackBtn,
+                    index > 0 && adlgStyles.adlgStackBtnBorder,
+                    button.style === 'cancel' && adlgStyles.adlgStackBtnCancel,
+                    button.style === 'destructive' && adlgStyles.adlgStackBtnDanger,
+                    pressed && adlgStyles.adlgBtnPressed,
                   ]}
                 >
                   <Text
                     style={[
-                      styles.stackBtnText,
-                      button.style === 'cancel' && styles.stackBtnTextCancel,
-                      button.style === 'destructive' && styles.stackBtnTextDanger,
+                      adlgStyles.adlgStackBtnText,
+                      button.style === 'cancel' && adlgStyles.adlgStackBtnTextCancel,
+                      button.style === 'destructive' && adlgStyles.adlgStackBtnTextDanger,
                     ]}
                   >
                     {button.text}
@@ -165,15 +165,15 @@ export default function AppDialog({ visible, title, message, buttons, onDismiss,
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
+const adlgStyles = StyleSheet.create({
+  adlgOverlay: {
     flex: 1,
     backgroundColor: 'rgba(45, 51, 25, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
-  card: {
+  adlgCard: {
     width: '100%',
     maxWidth: 340,
     backgroundColor: '#FFFFFF',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 12,
   },
-  iconWrap: {
+  adlgIconWrap: {
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -196,58 +196,58 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  title: {
+  adlgTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.primaryDark,
     textAlign: 'center',
     marginBottom: 6,
   },
-  message: {
+  adlgMessage: {
     fontSize: 14,
     lineHeight: 21,
     color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 18,
   },
-  rowActions: {
+  adlgRowActions: {
     flexDirection: 'row',
     gap: 10,
     width: '100%',
     marginTop: 4,
   },
-  rowBtn: {
+  adlgRowBtn: {
     flex: 1,
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBtnCancel: {
+  adlgRowBtnCancel: {
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  rowBtnPrimary: {
+  adlgRowBtnPrimary: {
     backgroundColor: colors.primary,
   },
-  rowBtnDanger: {
+  adlgRowBtnDanger: {
     backgroundColor: colors.danger,
   },
-  rowBtnText: {
+  adlgRowBtnText: {
     fontSize: 15,
     fontWeight: '700',
   },
-  rowBtnTextCancel: {
+  adlgRowBtnTextCancel: {
     color: colors.textMuted,
   },
-  rowBtnTextPrimary: {
+  adlgRowBtnTextPrimary: {
     color: '#FFFFFF',
   },
-  rowBtnTextDanger: {
+  adlgRowBtnTextDanger: {
     color: '#FFFFFF',
   },
-  stackActions: {
+  adlgStackActions: {
     width: '100%',
     borderRadius: 14,
     overflow: 'hidden',
@@ -255,36 +255,36 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginTop: 4,
   },
-  stackBtn: {
+  adlgStackBtn: {
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: '#FAFAFA',
   },
-  stackBtnBorder: {
+  adlgStackBtnBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  stackBtnCancel: {
+  adlgStackBtnCancel: {
     backgroundColor: '#FFFFFF',
   },
-  stackBtnDanger: {},
-  stackBtnText: {
+  adlgStackBtnDanger: {},
+  adlgStackBtnText: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.primaryDark,
   },
-  stackBtnTextCancel: {
+  adlgStackBtnTextCancel: {
     color: colors.textMuted,
     fontWeight: '700',
   },
-  stackBtnTextDanger: {
+  adlgStackBtnTextDanger: {
     color: colors.danger,
     fontWeight: '700',
   },
-  btnPressed: {
+  adlgBtnPressed: {
     opacity: 0.82,
   },
-  singleBtn: {
+  adlgSingleBtn: {
     width: '100%',
     marginTop: 4,
     borderRadius: 12,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.primary,
   },
-  singleBtnText: {
+  adlgSingleBtnText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',

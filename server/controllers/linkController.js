@@ -79,6 +79,14 @@ export const acceptLink = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Customers only' });
     }
 
+    const emailVerified = !!(req.user.isEmailVerified || req.user.authProvider === 'google');
+    if (!emailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Verify your email before accepting a shop invitation',
+      });
+    }
+
     const customer = await Customer.findOne({
       _id: req.params.customerId,
       email: req.user.email?.toLowerCase(),

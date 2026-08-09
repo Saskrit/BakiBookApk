@@ -18,3 +18,11 @@ export const fetchAdminUsers = () => request('/admin/users');
 export const fetchAdminAnalytics = () => request('/admin/analytics');
 
 export const fetchPlatformStats = () => request('/stats');
+
+export const fetchMaintenanceSettings = () => request('/admin/maintenance');
+
+export const updateMaintenanceSettings = (payload) =>
+  request('/admin/maintenance', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });

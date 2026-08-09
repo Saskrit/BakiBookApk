@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { fetchCompleteReport } from '../../api/shop';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { formatReportDate } from '../../utils/pdfHtml';
 import { exportCompleteShopReportPdf } from '../../utils/shopReportPdf';
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
@@ -32,10 +33,10 @@ type CompleteReport = {
   outstanding?: Array<Record<string, unknown>>;
 };
 
-const PERIOD_LABELS: Record<Period, string> = {
-  daily: 'Today',
-  weekly: 'This week',
-  monthly: 'This month',
+const PERIOD_KEYS: Record<Period, string> = {
+  daily: 'reports.periodToday',
+  weekly: 'reports.periodWeek',
+  monthly: 'reports.periodMonth',
 };
 
 function SummaryStat({
@@ -52,10 +53,10 @@ function SummaryStat({
   iconBg: string;
 }) {
   return (
-    <View style={styles.summaryStat}>
-      <View style={[styles.summaryStatIcon, { backgroundColor: iconBg }]}>{icon}</View>
-      <Text style={styles.summaryStatLabel}>{label}</Text>
-      <Text style={[styles.summaryStatValue, { color }]} numberOfLines={1}>
+    <View style={rp2Styles.rptSummaryStat}>
+      <View style={[rp2Styles.rptSummaryStatIcon, { backgroundColor: iconBg }]}>{icon}</View>
+      <Text style={rp2Styles.rptSummaryStatLabel}>{label}</Text>
+      <Text style={[rp2Styles.rptSummaryStatValue, { color }]} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -64,9 +65,9 @@ function SummaryStat({
 
 function CountChip({ label, value }: { label: string; value: string | number }) {
   return (
-    <View style={styles.countChip}>
-      <Text style={styles.countChipValue}>{value}</Text>
-      <Text style={styles.countChipLabel}>{label}</Text>
+    <View style={rp2Styles.rptCountChip}>
+      <Text style={rp2Styles.rptCountChipValue}>{value}</Text>
+      <Text style={rp2Styles.rptCountChipLabel}>{label}</Text>
     </View>
   );
 }
@@ -86,56 +87,56 @@ function CollapsibleSection({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <View style={styles.sectionCard}>
+    <View style={rp2Styles.rptSectionCard}>
       <Pressable
         onPress={() => setOpen((v) => !v)}
-        style={({ pressed }) => [styles.sectionHeader, pressed && styles.sectionHeaderPressed]}
+        style={({ pressed }) => [rp2Styles.rptSectionHeader, pressed && rp2Styles.rptSectionHeaderPressed]}
       >
-        <View style={[styles.sectionIcon, { backgroundColor: iconBg }]}>{icon}</View>
-        <View style={styles.sectionHeaderBody}>
-          <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={[rp2Styles.rptSectionIcon, { backgroundColor: iconBg }]}>{icon}</View>
+        <View style={rp2Styles.rptSectionHeaderBody}>
+          <Text style={rp2Styles.rptSectionTitle}>{title}</Text>
           {count != null ? (
-            <Text style={styles.sectionCount}>
-              {count} record{count === 1 ? '' : 's'}
-            </Text>
+            <Text style={rp2Styles.rptSectionCount}>{t('common.records', { count })}</Text>
           ) : null}
         </View>
-        <Text style={styles.sectionChevron}>{open ? '▾' : '›'}</Text>
+        <Text style={rp2Styles.rptSectionChevron}>{open ? '▾' : '›'}</Text>
       </Pressable>
-      {open ? <View style={styles.sectionBody}>{children}</View> : null}
+      {open ? <View style={rp2Styles.rptSectionBody}>{children}</View> : null}
     </View>
   );
 }
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <View style={styles.emptyHint}>
-      <Text style={styles.emptyHintText}>{text}</Text>
+    <View style={rp2Styles.rptEmptyHint}>
+      <Text style={rp2Styles.rptEmptyHintText}>{text}</Text>
     </View>
   );
 }
 
 function CreditRow({ item }: { item: Record<string, unknown> }) {
-  const customer = String(item.customer || 'Customer');
+  const { t } = useTranslation();
+  const customer = String(item.customer || t('common.customer'));
   return (
-    <View style={styles.recordRow}>
-      <View style={[styles.recordAvatar, { backgroundColor: avatarColor(customer) }]}>
-        <Text style={styles.recordAvatarText}>{getInitials(customer)}</Text>
+    <View style={rp2Styles.rptRecordRow}>
+      <View style={[rp2Styles.rptRecordAvatar, { backgroundColor: avatarColor(customer) }]}>
+        <Text style={rp2Styles.rptRecordAvatarText}>{getInitials(customer)}</Text>
       </View>
-      <View style={styles.recordBody}>
-        <Text style={styles.recordTitle} numberOfLines={1}>
+      <View style={rp2Styles.rptRecordBody}>
+        <Text style={rp2Styles.rptRecordTitle} numberOfLines={1}>
           {customer}
         </Text>
-        <Text style={styles.recordSub} numberOfLines={2}>
-          {String(item.products || 'Credit')}
+        <Text style={rp2Styles.rptRecordSub} numberOfLines={2}>
+          {String(item.products || t('common.credit'))}
           {item.note ? ` · ${item.note}` : ''}
         </Text>
-        <Text style={styles.recordDate}>{String(item.date || '')}</Text>
+        <Text style={rp2Styles.rptRecordDate}>{String(item.date || '')}</Text>
       </View>
-      <Text style={[styles.recordAmount, styles.amountCredit]}>
+      <Text style={[rp2Styles.rptRecordAmount, rp2Styles.rptAmountCredit]}>
         {formatRs(Number(item.total || 0))}
       </Text>
     </View>
@@ -143,23 +144,24 @@ function CreditRow({ item }: { item: Record<string, unknown> }) {
 }
 
 function PaymentRow({ item }: { item: Record<string, unknown> }) {
-  const customer = String(item.customer || 'Customer');
+  const { t } = useTranslation();
+  const customer = String(item.customer || t('common.customer'));
   return (
-    <View style={styles.recordRow}>
-      <View style={[styles.recordAvatar, { backgroundColor: avatarColor(customer) }]}>
-        <Text style={styles.recordAvatarText}>{getInitials(customer)}</Text>
+    <View style={rp2Styles.rptRecordRow}>
+      <View style={[rp2Styles.rptRecordAvatar, { backgroundColor: avatarColor(customer) }]}>
+        <Text style={rp2Styles.rptRecordAvatarText}>{getInitials(customer)}</Text>
       </View>
-      <View style={styles.recordBody}>
-        <Text style={styles.recordTitle} numberOfLines={1}>
+      <View style={rp2Styles.rptRecordBody}>
+        <Text style={rp2Styles.rptRecordTitle} numberOfLines={1}>
           {customer}
         </Text>
-        <Text style={styles.recordSub} numberOfLines={1}>
-          {String(item.paidFor || 'Payment')}
+        <Text style={rp2Styles.rptRecordSub} numberOfLines={1}>
+          {String(item.paidFor || t('reports.paidFor'))}
           {item.method ? ` · ${item.method}` : ''}
         </Text>
-        <Text style={styles.recordDate}>{String(item.date || '')}</Text>
+        <Text style={rp2Styles.rptRecordDate}>{String(item.date || '')}</Text>
       </View>
-      <Text style={[styles.recordAmount, styles.amountPayment]}>
+      <Text style={[rp2Styles.rptRecordAmount, rp2Styles.rptAmountPayment]}>
         +{formatRs(Number(item.amount || 0))}
       </Text>
     </View>
@@ -167,60 +169,62 @@ function PaymentRow({ item }: { item: Record<string, unknown> }) {
 }
 
 function ProductRow({ item }: { item: Record<string, unknown> }) {
+  const { t } = useTranslation();
   return (
-    <View style={styles.recordRow}>
-      <View style={[styles.recordAvatar, { backgroundColor: '#FFF7ED' }]}>
+    <View style={rp2Styles.rptRecordRow}>
+      <View style={[rp2Styles.rptRecordAvatar, { backgroundColor: '#FFF7ED' }]}>
         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
           <Rect x={4} y={6} width={16} height={14} rx={2} stroke="#EA580C" strokeWidth={2} />
         </Svg>
       </View>
-      <View style={styles.recordBody}>
-        <Text style={styles.recordTitle} numberOfLines={1}>
-          {String(item.product || 'Product')}
+      <View style={rp2Styles.rptRecordBody}>
+        <Text style={rp2Styles.rptRecordTitle} numberOfLines={1}>
+          {String(item.product || t('common.product'))}
         </Text>
-        <Text style={styles.recordSub} numberOfLines={1}>
+        <Text style={rp2Styles.rptRecordSub} numberOfLines={1}>
           {String(item.customer || '')} · ×{String(item.qty || 1)} @ {formatRs(Number(item.price || 0))}
         </Text>
-        <Text style={styles.recordDate}>{String(item.date || '')}</Text>
+        <Text style={rp2Styles.rptRecordDate}>{String(item.date || '')}</Text>
       </View>
-      <Text style={styles.recordAmount}>{formatRs(Number(item.total || 0))}</Text>
+      <Text style={rp2Styles.rptRecordAmount}>{formatRs(Number(item.total || 0))}</Text>
     </View>
   );
 }
 
 function ActivityRow({ item }: { item: Record<string, unknown> }) {
-  const type = String(item.type || 'Activity');
+  const { t } = useTranslation();
+  const type = String(item.type || t('common.activity'));
   const isPayment = type.toLowerCase().includes('payment');
   return (
-    <View style={styles.recordRow}>
+    <View style={rp2Styles.rptRecordRow}>
       <View
         style={[
-          styles.recordBadge,
+          rp2Styles.rptRecordBadge,
           { backgroundColor: isPayment ? '#DCFCE7' : '#FEE2E2' },
         ]}
       >
         <Text
           style={[
-            styles.recordBadgeText,
+            rp2Styles.rptRecordBadgeText,
             { color: isPayment ? colors.primary : colors.danger },
           ]}
         >
           {type.slice(0, 1)}
         </Text>
       </View>
-      <View style={styles.recordBody}>
-        <Text style={styles.recordTitle} numberOfLines={1}>
+      <View style={rp2Styles.rptRecordBody}>
+        <Text style={rp2Styles.rptRecordTitle} numberOfLines={1}>
           {String(item.customer || '—')}
         </Text>
-        <Text style={styles.recordSub} numberOfLines={2}>
+        <Text style={rp2Styles.rptRecordSub} numberOfLines={2}>
           {String(item.details || type)}
         </Text>
-        <Text style={styles.recordDate}>{String(item.date || '')}</Text>
+        <Text style={rp2Styles.rptRecordDate}>{String(item.date || '')}</Text>
       </View>
       <Text
         style={[
-          styles.recordAmount,
-          isPayment ? styles.amountPayment : styles.amountCredit,
+          rp2Styles.rptRecordAmount,
+          isPayment ? rp2Styles.rptAmountPayment : rp2Styles.rptAmountCredit,
         ]}
       >
         {formatRs(Number(item.amount || 0))}
@@ -230,22 +234,23 @@ function ActivityRow({ item }: { item: Record<string, unknown> }) {
 }
 
 function OutstandingRow({ item }: { item: Record<string, unknown> }) {
-  const name = String(item.name || 'Customer');
+  const { t } = useTranslation();
+  const name = String(item.name || t('common.customer'));
   return (
-    <View style={styles.recordRow}>
-      <View style={[styles.recordAvatar, { backgroundColor: avatarColor(name) }]}>
-        <Text style={styles.recordAvatarText}>{getInitials(name)}</Text>
+    <View style={rp2Styles.rptRecordRow}>
+      <View style={[rp2Styles.rptRecordAvatar, { backgroundColor: avatarColor(name) }]}>
+        <Text style={rp2Styles.rptRecordAvatarText}>{getInitials(name)}</Text>
       </View>
-      <View style={styles.recordBody}>
-        <Text style={styles.recordTitle} numberOfLines={1}>
+      <View style={rp2Styles.rptRecordBody}>
+        <Text style={rp2Styles.rptRecordTitle} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={styles.recordSub} numberOfLines={1}>
-          {item.phone ? String(item.phone) : 'No phone'}
+        <Text style={rp2Styles.rptRecordSub} numberOfLines={1}>
+          {item.phone ? String(item.phone) : t('reports.noPhone')}
           {item.creditScore ? ` · ${item.creditScore}` : ''}
         </Text>
       </View>
-      <Text style={[styles.recordAmount, styles.amountCredit]}>
+      <Text style={[rp2Styles.rptRecordAmount, rp2Styles.rptAmountCredit]}>
         {formatRs(Number(item.balance || 0))}
       </Text>
     </View>
@@ -263,16 +268,17 @@ function RecordBlock({
   renderItem: (item: Record<string, unknown>, index: number) => ReactNode;
   preview?: number;
 }) {
+  const { t } = useTranslation();
   if (!items?.length) return <EmptyHint text={empty} />;
   const shown = items.slice(0, preview);
   return (
-    <View style={styles.recordList}>
+    <View style={rp2Styles.rptRecordList}>
       {shown.map((item, index) => (
         <View key={String(item.id || index)}>{renderItem(item, index)}</View>
       ))}
       {items.length > preview ? (
-        <Text style={styles.moreHint}>
-          + {items.length - preview} more in exported PDF
+        <Text style={rp2Styles.rptMoreHint}>
+          {t('reports.moreInPdf', { count: items.length - preview })}
         </Text>
       ) : null}
     </View>
@@ -280,6 +286,7 @@ function RecordBlock({
 }
 
 export default function ReportsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<Period>('daily');
@@ -304,11 +311,11 @@ export default function ReportsScreen() {
         outstanding: Array.isArray(res.outstanding) ? res.outstanding : [],
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report');
+      setError(err instanceof Error ? err.message : t('reports.loadFailed'));
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadReport('daily');
@@ -327,7 +334,7 @@ export default function ReportsScreen() {
 
   const exportPdf = async () => {
     if (!data) {
-      appAlert('No report', 'Generate a report first, then export.');
+      appAlert(t('reports.noReport'), t('reports.generateFirst'));
       return;
     }
     setExporting(true);
@@ -339,7 +346,10 @@ export default function ReportsScreen() {
         ...data,
       });
     } catch (err) {
-      appAlert('Export failed', err instanceof Error ? err.message : 'Could not export PDF');
+      appAlert(
+        t('reports.exportFailed'),
+        err instanceof Error ? err.message : t('reports.exportFailedBody')
+      );
     } finally {
       setExporting(false);
     }
@@ -350,39 +360,39 @@ export default function ReportsScreen() {
   const periodEnd = formatReportDate(String(report.periodEnd || ''));
 
   return (
-    <View style={styles.screen}>
+    <View style={rp2Styles.rptScreen}>
       <LinearGradient
         colors={[colors.primaryDark, colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[rp2Styles.rptHeader, { paddingTop: insets.top + 12 }]}
       >
-        <Text style={styles.headerTitle}>Reports</Text>
-        <Text style={styles.headerSubtitle}>
-          {user?.shopName || 'Your shop'} · sales & collections
+        <Text style={rp2Styles.rptHeaderTitle}>{t('reports.title')}</Text>
+        <Text style={rp2Styles.rptHeaderSubtitle}>
+          {t('reports.subtitle', { shop: user?.shopName || t('reports.yourShop') })}
         </Text>
 
-        <View style={styles.periodRow}>
+        <View style={rp2Styles.rptPeriodRow}>
           {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
             <Pressable
               key={p}
               onPress={() => onPeriodChange(p)}
-              style={[styles.periodChip, period === p && styles.periodChipActive]}
+              style={[rp2Styles.rptPeriodChip, period === p && rp2Styles.rptPeriodChipActive]}
             >
-              <Text style={[styles.periodChipText, period === p && styles.periodChipTextActive]}>
-                {PERIOD_LABELS[p]}
+              <Text style={[rp2Styles.rptPeriodChipText, period === p && rp2Styles.rptPeriodChipTextActive]}>
+                {t(PERIOD_KEYS[p])}
               </Text>
             </Pressable>
           ))}
         </View>
 
         {data && !loading ? (
-          <View style={styles.dateRange}>
+          <View style={rp2Styles.rptDateRange}>
             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
               <Rect x={3} y={5} width={18} height={16} rx={2} stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
               <Path d="M3 10 H21" stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
             </Svg>
-            <Text style={styles.dateRangeText}>
+            <Text style={rp2Styles.rptDateRangeText}>
               {periodStart}
               {periodEnd && periodEnd !== periodStart ? ` – ${periodEnd}` : ''}
             </Text>
@@ -391,8 +401,8 @@ export default function ReportsScreen() {
       </LinearGradient>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+        style={rp2Styles.rptScroll}
+        contentContainerStyle={[rp2Styles.rptContent, { paddingBottom: insets.bottom + 100 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
@@ -401,9 +411,9 @@ export default function ReportsScreen() {
 
         {data && !loading ? (
           <>
-            <View style={styles.summaryGrid}>
+            <View style={rp2Styles.rptSummaryGrid}>
               <SummaryStat
-                label="Credit given"
+                label={t('reports.creditGiven')}
                 value={formatRs(Number(report.creditGiven || 0))}
                 color="#EA580C"
                 iconBg="#FFF7ED"
@@ -414,7 +424,7 @@ export default function ReportsScreen() {
                 }
               />
               <SummaryStat
-                label="Collected"
+                label={t('reports.collected')}
                 value={formatRs(Number(report.paymentsReceived || 0))}
                 color={colors.primary}
                 iconBg="#ECFDF5"
@@ -425,7 +435,7 @@ export default function ReportsScreen() {
                 }
               />
               <SummaryStat
-                label="Outstanding"
+                label={t('reports.outstanding')}
                 value={formatRs(Number(report.totalOutstanding || 0))}
                 color={colors.danger}
                 iconBg="#FEE2E2"
@@ -441,17 +451,17 @@ export default function ReportsScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.countRow}
+              contentContainerStyle={rp2Styles.rptCountRow}
             >
-              <CountChip label="Credits" value={Number(report.transactionCount ?? 0)} />
-              <CountChip label="Payments" value={Number(report.paymentCount ?? 0)} />
-              <CountChip label="Products" value={Number(report.productCount ?? 0)} />
-              <CountChip label="Customers" value={Number(report.customerCount ?? 0)} />
-              <CountChip label="With dues" value={Number(report.customersWithDues ?? 0)} />
+              <CountChip label={t('reports.credits')} value={Number(report.transactionCount ?? 0)} />
+              <CountChip label={t('reports.payments')} value={Number(report.paymentCount ?? 0)} />
+              <CountChip label={t('reports.products')} value={Number(report.productCount ?? 0)} />
+              <CountChip label={t('reports.customers')} value={Number(report.customerCount ?? 0)} />
+              <CountChip label={t('reports.withDues')} value={Number(report.customersWithDues ?? 0)} />
             </ScrollView>
 
             <CollapsibleSection
-              title="Credit transactions"
+              title={t('reports.creditTransactions')}
               count={data.credits?.length}
               iconBg="#FFF7ED"
               defaultOpen
@@ -463,13 +473,13 @@ export default function ReportsScreen() {
             >
               <RecordBlock
                 items={data.credits}
-                empty="No credit given in this period."
+                empty={t('reports.noCredit')}
                 renderItem={(item) => <CreditRow item={item} />}
               />
             </CollapsibleSection>
 
             <CollapsibleSection
-              title="Payments received"
+              title={t('reports.paymentsReceived')}
               count={data.payments?.length}
               iconBg="#ECFDF5"
               icon={
@@ -480,13 +490,13 @@ export default function ReportsScreen() {
             >
               <RecordBlock
                 items={data.payments}
-                empty="No payments in this period."
+                empty={t('reports.noPayments')}
                 renderItem={(item) => <PaymentRow item={item} />}
               />
             </CollapsibleSection>
 
             <CollapsibleSection
-              title="Product sales"
+              title={t('reports.productSales')}
               count={data.products?.length}
               iconBg="#FFF7ED"
               icon={
@@ -497,13 +507,13 @@ export default function ReportsScreen() {
             >
               <RecordBlock
                 items={data.products}
-                empty="No product lines in this period."
+                empty={t('reports.noProducts')}
                 renderItem={(item) => <ProductRow item={item} />}
               />
             </CollapsibleSection>
 
             <CollapsibleSection
-              title="All activity"
+              title={t('reports.allActivity')}
               count={data.activity?.length}
               iconBg="#EFF6FF"
               icon={
@@ -514,13 +524,13 @@ export default function ReportsScreen() {
             >
               <RecordBlock
                 items={data.activity}
-                empty="No activity in this period."
+                empty={t('reports.noActivity')}
                 renderItem={(item) => <ActivityRow item={item} />}
               />
             </CollapsibleSection>
 
             <CollapsibleSection
-              title="Outstanding customers"
+              title={t('reports.outstandingCustomers')}
               count={data.outstanding?.length}
               iconBg="#FEE2E2"
               icon={
@@ -532,41 +542,41 @@ export default function ReportsScreen() {
             >
               <RecordBlock
                 items={data.outstanding}
-                empty="No outstanding balances — all clear!"
+                empty={t('reports.allClear')}
                 renderItem={(item) => <OutstandingRow item={item} />}
               />
             </CollapsibleSection>
           </>
         ) : loading && data ? (
-          <View style={styles.loadingOverlay}>
+          <View style={rp2Styles.rptLoadingOverlay}>
             <LoadingState />
           </View>
         ) : null}
       </ScrollView>
 
-      <View style={[styles.exportBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[rp2Styles.rptExportBar, { paddingBottom: insets.bottom + 12 }]}>
         <Button
-          title={exporting ? 'Exporting…' : 'Export full PDF report'}
+          title={exporting ? t('common.exporting') : t('reports.exportPdf')}
           onPress={exportPdf}
           disabled={!data || exporting || loading}
         />
-        <Text style={styles.exportHint}>Includes every transaction detail for sharing or printing</Text>
+        <Text style={rp2Styles.rptExportHint}>{t('reports.exportHint')}</Text>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  header: {
+const rp2Styles = StyleSheet.create({
+  rptScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  rptHeader: {
     paddingHorizontal: 16,
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: t.body, marginTop: 4 },
-  periodRow: {
+  rptHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
+  rptHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
+  rptPeriodRow: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 16,
@@ -574,32 +584,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
   },
-  periodChip: {
+  rptPeriodChip: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
-  periodChipActive: { backgroundColor: '#FFF' },
-  periodChipText: { color: 'rgba(255,255,255,0.85)', fontSize: t.caption, fontWeight: '700' },
-  periodChipTextActive: { color: colors.primaryDark },
-  dateRange: {
+  rptPeriodChipActive: { backgroundColor: '#FFF' },
+  rptPeriodChipText: { color: 'rgba(255,255,255,0.85)', fontSize: ty.caption, fontWeight: '700' },
+  rptPeriodChipTextActive: { color: colors.primaryDark },
+  rptDateRange: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: 12,
     alignSelf: 'center',
   },
-  dateRangeText: { color: 'rgba(255,255,255,0.9)', fontSize: t.caption, fontWeight: '600' },
-  scroll: { flex: 1 },
-  content: { padding: 16, paddingTop: 14 },
-  loadingOverlay: { paddingVertical: 24 },
-  summaryGrid: {
+  rptDateRangeText: { color: 'rgba(255,255,255,0.9)', fontSize: ty.caption, fontWeight: '600' },
+  rptScroll: { flex: 1 },
+  rptContent: { padding: 16, paddingTop: 14 },
+  rptLoadingOverlay: { paddingVertical: 24 },
+  rptSummaryGrid: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: 12,
   },
-  summaryStat: {
+  rptSummaryStat: {
     flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 14,
@@ -608,7 +618,7 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     minWidth: 0,
   },
-  summaryStatIcon: {
+  rptSummaryStatIcon: {
     width: 32,
     height: 32,
     borderRadius: 10,
@@ -616,10 +626,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  summaryStatLabel: { fontSize: t.sm, color: colors.textMuted, fontWeight: '600' },
-  summaryStatValue: { fontSize: t.bodyLg, fontWeight: '800', marginTop: 4 },
-  countRow: { gap: 8, paddingBottom: 14 },
-  countChip: {
+  rptSummaryStatLabel: { fontSize: ty.sm, color: colors.textMuted, fontWeight: '600' },
+  rptSummaryStatValue: { fontSize: ty.bodyLg, fontWeight: '800', marginTop: 4 },
+  rptCountRow: { gap: 8, paddingBottom: 14 },
+  rptCountChip: {
     backgroundColor: '#FFF',
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -629,9 +639,9 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     minWidth: 72,
   },
-  countChipValue: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  countChipLabel: { fontSize: t.sm, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
-  sectionCard: {
+  rptCountChipValue: { fontSize: ty.lg, fontWeight: '800', color: colors.text },
+  rptCountChipLabel: { fontSize: ty.sm, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
+  rptSectionCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
     marginBottom: 10,
@@ -639,33 +649,33 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     overflow: 'hidden',
   },
-  sectionHeader: {
+  rptSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
     gap: 12,
   },
-  sectionHeaderPressed: { backgroundColor: '#FAFAFA' },
-  sectionIcon: {
+  rptSectionHeaderPressed: { backgroundColor: '#FAFAFA' },
+  rptSectionIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionHeaderBody: { flex: 1 },
-  sectionTitle: { fontSize: t.md, fontWeight: '700', color: colors.text },
-  sectionCount: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  sectionChevron: { fontSize: 20, color: colors.textMuted, fontWeight: '300' },
-  sectionBody: {
+  rptSectionHeaderBody: { flex: 1 },
+  rptSectionTitle: { fontSize: ty.md, fontWeight: '700', color: colors.text },
+  rptSectionCount: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  rptSectionChevron: { fontSize: 20, color: colors.textMuted, fontWeight: '300' },
+  rptSectionBody: {
     borderTopWidth: 1,
     borderTopColor: '#F0F1F3',
     paddingHorizontal: 14,
     paddingBottom: 12,
     paddingTop: 4,
   },
-  recordList: { gap: 0 },
-  recordRow: {
+  rptRecordList: { gap: 0 },
+  rptRecordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -673,42 +683,42 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  recordAvatar: {
+  rptRecordAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordAvatarText: { color: '#FFF', fontWeight: '800', fontSize: t.caption },
-  recordBadge: {
+  rptRecordAvatarText: { color: '#FFF', fontWeight: '800', fontSize: ty.caption },
+  rptRecordBadge: {
     width: 38,
     height: 38,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordBadgeText: { fontWeight: '800', fontSize: t.bodyLg },
-  recordBody: { flex: 1, minWidth: 0 },
-  recordTitle: { fontSize: t.bodyLg, fontWeight: '700', color: colors.text },
-  recordSub: { fontSize: t.caption, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
-  recordDate: { fontSize: t.sm, color: colors.textMuted, marginTop: 3 },
-  recordAmount: { fontSize: t.bodyLg, fontWeight: '800', color: colors.text },
-  amountCredit: { color: colors.danger },
-  amountPayment: { color: colors.primary },
-  moreHint: {
-    fontSize: t.caption,
+  rptRecordBadgeText: { fontWeight: '800', fontSize: ty.bodyLg },
+  rptRecordBody: { flex: 1, minWidth: 0 },
+  rptRecordTitle: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.text },
+  rptRecordSub: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
+  rptRecordDate: { fontSize: ty.sm, color: colors.textMuted, marginTop: 3 },
+  rptRecordAmount: { fontSize: ty.bodyLg, fontWeight: '800', color: colors.text },
+  rptAmountCredit: { color: colors.danger },
+  rptAmountPayment: { color: colors.primary },
+  rptMoreHint: {
+    fontSize: ty.caption,
     color: colors.primary,
     fontWeight: '600',
     textAlign: 'center',
     paddingVertical: 10,
   },
-  emptyHint: {
+  rptEmptyHint: {
     paddingVertical: 16,
     alignItems: 'center',
   },
-  emptyHintText: { fontSize: t.body, color: colors.textMuted, textAlign: 'center' },
-  exportBar: {
+  rptEmptyHintText: { fontSize: ty.body, color: colors.textMuted, textAlign: 'center' },
+  rptExportBar: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -724,8 +734,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  exportHint: {
-    fontSize: t.sm,
+  rptExportHint: {
+    fontSize: ty.sm,
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 6,

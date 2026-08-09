@@ -5,10 +5,14 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { getTutorialStats } from '../../features/tutorial/catalog';
 import { colors } from '../../theme/colors';
 import { typography as t } from '../../theme/typography';
 import { getInitials } from '../../utils/format';
@@ -26,6 +30,7 @@ type MenuItem = {
   icon: ReactNode;
   onPress: () => void;
   danger?: boolean;
+  badge?: number;
 };
 
 type MenuSection = {
@@ -33,26 +38,31 @@ type MenuSection = {
   items: MenuItem[];
 };
 
-function comingSoon(label: string) {
-  appAlert('Coming soon', `${label} will be available in a future update.`);
+function comingSoon(label: string, title: string, body: string) {
+  appAlert(title, body.replace('{{label}}', label));
 }
 
 function RowIcon({ children, bg }: { children: ReactNode; bg: string }) {
-  return <View style={[styles.rowIcon, { backgroundColor: bg }]}>{children}</View>;
+  return <View style={[stStyles.stRowIcon, { backgroundColor: bg }]}>{children}</View>;
 }
 
 function MenuRow({ item }: { item: MenuItem }) {
   return (
     <Pressable
       onPress={item.onPress}
-      style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
+      style={({ pressed }) => [stStyles.stMenuRow, pressed && stStyles.stMenuRowPressed]}
     >
       <RowIcon bg={`${item.color}14`}>{item.icon}</RowIcon>
-      <View style={styles.menuRowBody}>
-        <Text style={[styles.menuRowLabel, item.danger && styles.menuRowDanger]}>{item.label}</Text>
-        {item.subtitle ? <Text style={styles.menuRowSub}>{item.subtitle}</Text> : null}
+      <View style={stStyles.stMenuRowBody}>
+        <Text style={[stStyles.stMenuRowLabel, item.danger && stStyles.stMenuRowDanger]}>{item.label}</Text>
+        {item.subtitle ? <Text style={stStyles.stMenuRowSub}>{item.subtitle}</Text> : null}
       </View>
-      <Text style={styles.menuRowChevron}>›</Text>
+      {item.badge ? (
+        <View style={stStyles.stMenuBadge}>
+          <Text style={stStyles.stMenuBadgeText}>{item.badge > 99 ? '99+' : item.badge}</Text>
+        </View>
+      ) : null}
+      <Text style={stStyles.stMenuRowChevron}>›</Text>
     </Pressable>
   );
 }
@@ -60,24 +70,35 @@ function MenuRow({ item }: { item: MenuItem }) {
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNav>();
   const { user, logout } = useAuth();
+  const { unreadCount, connected } = useNotifications();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const tutorialStats = getTutorialStats(user?.tutorialProgress?.completedStepIds || []);
 
   const openShopProfile = () => navigation.getParent()?.navigate('ShopProfile');
 
   const handleLogout = () => {
-    appAlert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => logout() },
+    appAlert(t('settings.signOutConfirmTitle'), t('settings.signOutConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.signOut'), style: 'destructive', onPress: () => logout() },
     ]);
   };
 
+  const notifSubtitle = connected
+    ? unreadCount > 0
+      ? t('settings.notificationsUnread', { count: unreadCount })
+      : t('settings.notificationsCaughtUp')
+    : unreadCount > 0
+      ? t('settings.notificationsOffline', { count: unreadCount })
+      : t('settings.notificationsHistory');
+
   const sections: MenuSection[] = [
     {
-      title: 'Business',
+      title: t('settings.business'),
       items: [
         {
-          label: 'Reports & analytics',
-          subtitle: 'Sales, credit and collections',
+          label: t('settings.reportsAnalytics'),
+          subtitle: t('settings.reportsSubtitle'),
           color: colors.primary,
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -87,8 +108,8 @@ export default function SettingsScreen() {
           onPress: () => navigation.navigate('Reports'),
         },
         {
-          label: 'Products',
-          subtitle: 'Catalog & inventory',
+          label: t('nav.products'),
+          subtitle: t('settings.productsSubtitle'),
           color: '#EA580C',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -98,7 +119,7 @@ export default function SettingsScreen() {
           onPress: () => navigation.getParent()?.navigate('Products'),
         },
         {
-          label: 'Expenses',
+          label: t('settings.expenses'),
           color: '#2563EB',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -111,11 +132,11 @@ export default function SettingsScreen() {
       ],
     },
     {
-      title: 'Customers & credit',
+      title: t('settings.customersCredit'),
       items: [
         {
-          label: 'Customers',
-          subtitle: 'Manage your customer list',
+          label: t('nav.customers'),
+          subtitle: t('settings.customersSubtitle'),
           color: colors.primary,
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -126,7 +147,7 @@ export default function SettingsScreen() {
           onPress: () => navigation.navigate('Customers'),
         },
         {
-          label: 'Add credit',
+          label: t('settings.addCredit'),
           color: '#EA580C',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -137,7 +158,7 @@ export default function SettingsScreen() {
           onPress: () => navigation.getParent()?.navigate('AddCredit'),
         },
         {
-          label: 'Scan QR',
+          label: t('settings.scanQr'),
           color: '#DB2777',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -145,10 +166,10 @@ export default function SettingsScreen() {
               <Rect x={13} y={13} width={7} height={7} stroke="#DB2777" strokeWidth={2} />
             </Svg>
           ),
-          onPress: () => navigation.navigate('Scan'),
+          onPress: () => navigation.getParent()?.navigate('QRScanner'),
         },
         {
-          label: 'Due reminders',
+          label: t('settings.dueReminders'),
           color: '#2563EB',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -156,16 +177,17 @@ export default function SettingsScreen() {
               <Path d="M4 10 H20" stroke="#2563EB" strokeWidth={2} />
             </Svg>
           ),
-          onPress: () => comingSoon('Due Reminder Settings'),
+          onPress: () =>
+            comingSoon(t('settings.dueReminders'), t('common.comingSoon'), t('settings.comingSoonBody')),
         },
       ],
     },
     {
-      title: 'Account',
+      title: t('settings.account'),
       items: [
         {
-          label: 'Shop profile',
-          subtitle: 'Name, location, photos',
+          label: t('settings.shopProfile'),
+          subtitle: t('settings.shopProfileSubtitle'),
           color: '#2563EB',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -175,17 +197,33 @@ export default function SettingsScreen() {
           onPress: openShopProfile,
         },
         {
-          label: 'Notifications',
+          label: t('settings.notifications'),
+          subtitle: notifSubtitle,
+          badge: unreadCount,
           color: '#7C3AED',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
               <Path d="M12 4 C8 4 5 7 5 10 C5 16 3 17 3 17 H21 C21 17 19 16 19 10 C19 7 16 4 12 4 Z" stroke="#7C3AED" strokeWidth={2} />
             </Svg>
           ),
-          onPress: () => comingSoon('Notifications'),
+          onPress: () => navigation.getParent()?.navigate('Notifications'),
         },
         {
-          label: 'Security',
+          label: t('settings.tutorial'),
+          subtitle: `${t('settings.tutorialSubtitle')} · ${t('common.percentComplete', {
+            percent: tutorialStats.percent,
+          })}`,
+          color: '#0F766E',
+          icon: (
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path d="M4 6 H20 V18 H4 Z" stroke="#0F766E" strokeWidth={2} />
+              <Path d="M8 10 H16 M8 14 H13" stroke="#0F766E" strokeWidth={2} />
+            </Svg>
+          ),
+          onPress: () => navigation.getParent()?.navigate('Tutorial'),
+        },
+        {
+          label: t('settings.security'),
           color: '#7C3AED',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -195,7 +233,7 @@ export default function SettingsScreen() {
           onPress: () => navigation.getParent()?.navigate('Security'),
         },
         {
-          label: 'Help & support',
+          label: t('settings.helpSupport'),
           color: '#6B7280',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -208,20 +246,21 @@ export default function SettingsScreen() {
       ],
     },
     {
-      title: 'Other',
+      title: t('settings.other'),
       items: [
         {
-          label: 'Backup & restore',
+          label: t('settings.backupRestore'),
           color: '#2563EB',
           icon: (
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
               <Path d="M7 18 H17 C19 18 21 16 21 14 C21 11 18 9 15 9 C14 5 11 3 7 3 C4 3 2 5 2 8 C2 11 4 13 7 13" stroke="#2563EB" strokeWidth={2} />
             </Svg>
           ),
-          onPress: () => comingSoon('Backup & Restore'),
+          onPress: () =>
+            comingSoon(t('settings.backupRestore'), t('common.comingSoon'), t('settings.comingSoonBody')),
         },
         {
-          label: 'Sign out',
+          label: t('common.signOut'),
           color: colors.danger,
           danger: true,
           icon: (
@@ -236,99 +275,102 @@ export default function SettingsScreen() {
   ];
 
   const hasShop = Boolean(user?.shopName?.trim());
-  const shopName = hasShop ? user!.shopName! : 'Register your shop';
+  const shopName = hasShop ? user!.shopName! : t('settings.registerYourShop');
   const profileUri = user?.profileImage;
   const shopUri = user?.shopImage;
   const verified = user?.isShopVerified || user?.shopVerificationStatus === 'verified';
 
   return (
-    <View style={styles.screen}>
+    <View style={stStyles.stScreen}>
       <LinearGradient
         colors={[colors.primaryDark, colors.primary]}
-        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+        style={[stStyles.stHero, { paddingTop: insets.top + 16 }]}
       >
-        <Text style={styles.heroTitle}>Profile</Text>
+        <Text style={stStyles.stHeroTitle}>{t('settings.profile')}</Text>
 
-        <Pressable style={styles.profileCard} onPress={openShopProfile}>
-          <View style={styles.avatarWrap}>
+        <Pressable style={stStyles.stProfileCard} onPress={openShopProfile}>
+          <View style={stStyles.stAvatarWrap}>
             {profileUri ? (
-              <Image source={{ uri: profileUri }} style={styles.avatar} />
+              <Image source={{ uri: profileUri }} style={stStyles.stAvatar} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{getInitials(user?.fullName || shopName)}</Text>
+              <View style={stStyles.stAvatarPlaceholder}>
+                <Text style={stStyles.stAvatarText}>{getInitials(user?.fullName || shopName)}</Text>
               </View>
             )}
             {shopUri ? (
-              <Image source={{ uri: shopUri }} style={styles.shopBadge} />
+              <Image source={{ uri: shopUri }} style={stStyles.stShopBadge} />
             ) : (
-              <View style={styles.shopBadgePlaceholder}>
-                <Text style={styles.shopBadgeText}>{getInitials(shopName).slice(0, 1)}</Text>
+              <View style={stStyles.stShopBadgePlaceholder}>
+                <Text style={stStyles.stShopBadgeText}>{getInitials(shopName).slice(0, 1)}</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName} numberOfLines={1}>
+          <View style={stStyles.stProfileInfo}>
+            <Text style={stStyles.stProfileName} numberOfLines={1}>
               {user?.fullName || 'Shopkeeper'}
             </Text>
-            <Text style={styles.profileShop} numberOfLines={1}>
+            <Text style={stStyles.stProfileShop} numberOfLines={1}>
               {shopName}
             </Text>
-            <Text style={styles.profileEmail} numberOfLines={1}>
+            <Text style={stStyles.stProfileEmail} numberOfLines={1}>
               {user?.email}
             </Text>
-            <View style={styles.badgeRow}>
-              <View style={[styles.badge, verified ? styles.badgeVerified : styles.badgePending]}>
-                <Text style={[styles.badgeText, verified ? styles.badgeTextVerified : styles.badgeTextPending]}>
-                  {verified ? 'Verified shop' : 'Shop profile'}
+            <View style={stStyles.stBadgeRow}>
+              <View style={[stStyles.stBadge, verified ? stStyles.stBadgeVerified : stStyles.stBadgePending]}>
+                <Text style={[stStyles.stBadgeText, verified ? stStyles.stBadgeTextVerified : stStyles.stBadgeTextPending]}>
+                  {verified ? t('settings.verifiedShop') : t('settings.shopProfileBadge')}
                 </Text>
               </View>
               {user?.authProvider !== 'google' ? (
                 <View
                   style={[
-                    styles.badge,
-                    user?.isEmailVerified ? styles.badgeVerified : styles.badgeEmailPending,
+                    stStyles.stBadge,
+                    user?.isEmailVerified ? stStyles.stBadgeVerified : stStyles.stBadgeEmailPending,
                   ]}
                 >
                   <Text
                     style={[
-                      styles.badgeText,
-                      user?.isEmailVerified ? styles.badgeTextVerified : styles.badgeTextEmailPending,
+                      stStyles.stBadgeText,
+                      user?.isEmailVerified ? stStyles.stBadgeTextVerified : stStyles.stBadgeTextEmailPending,
                     ]}
                   >
-                    {user?.isEmailVerified ? 'Email verified' : 'Email not verified'}
+                    {user?.isEmailVerified ? t('settings.emailVerified') : t('settings.emailNotVerified')}
                   </Text>
                 </View>
               ) : null}
             </View>
           </View>
 
-          <Text style={styles.editHint}>Edit ›</Text>
+          <Text style={stStyles.stEditHint}>{t('settings.editHint')}</Text>
         </Pressable>
       </LinearGradient>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        style={stStyles.stScroll}
+        contentContainerStyle={[stStyles.stContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         <EmailVerificationBanner compact />
+        <View style={stStyles.stLanguageCard}>
+          <LanguageSwitcher />
+        </View>
         {sections.map((section) => (
-          <View key={section.title} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionCard}>
+          <View key={section.title} style={stStyles.stSection}>
+            <Text style={stStyles.stSectionTitle}>{section.title}</Text>
+            <View style={stStyles.stSectionCard}>
               {section.items.map((item, index) => (
                 <View key={item.label}>
                   <MenuRow item={item} />
-                  {index < section.items.length - 1 ? <View style={styles.divider} /> : null}
+                  {index < section.items.length - 1 ? <View style={stStyles.stDivider} /> : null}
                 </View>
               ))}
             </View>
           </View>
         ))}
 
-        <View style={styles.securityBanner}>
-          <View style={styles.securityIcon}>
+        <View style={stStyles.stSecurityBanner}>
+          <View style={stStyles.stSecurityIcon}>
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z"
@@ -338,32 +380,30 @@ export default function SettingsScreen() {
               <Path d="M9 12 L11 14 L15 10" stroke={colors.primary} strokeWidth={2} />
             </Svg>
           </View>
-          <Text style={styles.securityText}>
-            Your shop data is encrypted and backed up regularly.
-          </Text>
+          <Text style={stStyles.stSecurityText}>{t('settings.securityBanner')}</Text>
         </View>
 
-        <Text style={styles.version}>BakiBook v1.0.0</Text>
+        <Text style={stStyles.stVersion}>{t('settings.version')}</Text>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  hero: {
+const stStyles = StyleSheet.create({
+  stScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  stHero: {
     paddingHorizontal: 16,
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  heroTitle: {
+  stHeroTitle: {
     color: '#FFFFFF',
     fontSize: t.h1,
     fontWeight: '800',
     marginBottom: 14,
   },
-  profileCard: {
+  stProfileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -376,9 +416,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  avatarWrap: { position: 'relative' },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  avatarPlaceholder: {
+  stAvatarWrap: { position: 'relative' },
+  stAvatar: { width: 52, height: 52, borderRadius: 26 },
+  stAvatarPlaceholder: {
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -386,8 +426,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#FFF', fontWeight: '800', fontSize: t.lg },
-  shopBadge: {
+  stAvatarText: { color: '#FFF', fontWeight: '800', fontSize: t.lg },
+  stShopBadge: {
     position: 'absolute',
     bottom: -2,
     right: -4,
@@ -397,7 +437,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
-  shopBadgePlaceholder: {
+  stShopBadgePlaceholder: {
     position: 'absolute',
     bottom: -2,
     right: -4,
@@ -410,29 +450,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shopBadgeText: { color: '#FFF', fontSize: t.xs, fontWeight: '800' },
-  profileInfo: { flex: 1, minWidth: 0 },
-  profileName: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  profileShop: { fontSize: t.body, color: colors.primary, fontWeight: '600', marginTop: 2 },
-  profileEmail: { fontSize: t.caption, color: colors.textMuted, marginTop: 3 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  badge: {
+  stShopBadgeText: { color: '#FFF', fontSize: t.xs, fontWeight: '800' },
+  stProfileInfo: { flex: 1, minWidth: 0 },
+  stProfileName: { fontSize: t.lg, fontWeight: '800', color: colors.text },
+  stProfileShop: { fontSize: t.body, color: colors.primary, fontWeight: '600', marginTop: 2 },
+  stProfileEmail: { fontSize: t.caption, color: colors.textMuted, marginTop: 3 },
+  stBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  stBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
   },
-  badgeVerified: { backgroundColor: '#DCFCE7' },
-  badgePending: { backgroundColor: '#F3F4F6' },
-  badgeEmailPending: { backgroundColor: '#FEF3C7' },
-  badgeText: { fontSize: t.sm, fontWeight: '700' },
-  badgeTextVerified: { color: colors.primary },
-  badgeTextPending: { color: colors.textMuted },
-  badgeTextEmailPending: { color: colors.warning },
-  editHint: { fontSize: t.bodyLg, fontWeight: '700', color: colors.primary },
-  scroll: { flex: 1, marginTop: -4 },
-  content: { paddingHorizontal: 16, paddingTop: 16 },
-  section: { marginBottom: 14 },
-  sectionTitle: {
+  stBadgeVerified: { backgroundColor: '#DCFCE7' },
+  stBadgePending: { backgroundColor: '#F3F4F6' },
+  stBadgeEmailPending: { backgroundColor: '#FEF3C7' },
+  stBadgeText: { fontSize: t.sm, fontWeight: '700' },
+  stBadgeTextVerified: { color: colors.primary },
+  stBadgeTextPending: { color: colors.textMuted },
+  stBadgeTextEmailPending: { color: colors.warning },
+  stEditHint: { fontSize: t.bodyLg, fontWeight: '700', color: colors.primary },
+  stScroll: { flex: 1, marginTop: -4 },
+  stContent: { paddingHorizontal: 16, paddingTop: 16 },
+  stLanguageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#ECEEF2',
+  },
+  stSection: { marginBottom: 14 },
+  stSectionTitle: {
     fontSize: t.caption,
     fontWeight: '700',
     color: colors.textMuted,
@@ -441,35 +489,45 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 4,
   },
-  sectionCard: {
+  stSectionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  menuRow: {
+  stMenuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 12,
   },
-  menuRowPressed: { backgroundColor: '#F9FAFB' },
-  rowIcon: {
+  stMenuRowPressed: { backgroundColor: '#F9FAFB' },
+  stRowIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuRowBody: { flex: 1 },
-  menuRowLabel: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
-  menuRowSub: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  menuRowDanger: { color: colors.danger },
-  menuRowChevron: { fontSize: t.xxl, color: '#C4C9D4', fontWeight: '300' },
-  divider: { height: 1, backgroundColor: '#F0F2F5', marginLeft: 66 },
-  securityBanner: {
+  stMenuRowBody: { flex: 1 },
+  stMenuRowLabel: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
+  stMenuRowSub: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
+  stMenuRowDanger: { color: colors.danger },
+  stMenuBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stMenuBadgeText: { color: '#FFFFFF', fontSize: t.xs, fontWeight: '800' },
+  stMenuRowChevron: { fontSize: t.xxl, color: '#C4C9D4', fontWeight: '300' },
+  stDivider: { height: 1, backgroundColor: '#F0F2F5', marginLeft: 66 },
+  stSecurityBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ECFDF5',
@@ -480,7 +538,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BBF7D0',
   },
-  securityIcon: {
+  stSecurityIcon: {
     width: 34,
     height: 34,
     borderRadius: 10,
@@ -488,13 +546,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  securityText: {
+  stSecurityText: {
     flex: 1,
     fontSize: t.body,
     color: colors.text,
     lineHeight: 17,
   },
-  version: {
+  stVersion: {
     textAlign: 'center',
     fontSize: t.caption,
     color: colors.textMuted,

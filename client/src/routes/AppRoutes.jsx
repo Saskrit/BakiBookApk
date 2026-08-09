@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from '../pages/LandingPage';
 import Login from '../pages/Login';
+import AdminLogin from '../pages/AdminLogin';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
 import AuthRedirect from '../pages/AuthRedirect';
@@ -94,6 +95,7 @@ function AppRoutes() {
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+      <Route path="/admin/login" element={<GuestRoute><AdminLogin /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
       <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />

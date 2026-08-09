@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { appAlert } from '../../contexts/DialogContext';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import {
@@ -22,12 +23,13 @@ import {
 } from '../../api/products';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { formatRelativeTime, formatRs } from '../../utils/format';
 import type { ShopProduct } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
 
 export default function ProductsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -59,16 +61,16 @@ export default function ProductsScreen() {
   useEffect(() => {
     setLoading(true);
     load()
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load products'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('products.loadFailed')))
       .finally(() => setLoading(false));
-  }, [load]);
+  }, [load, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh');
+      setError(err instanceof Error ? err.message : t('common.failedToRefresh'));
     } finally {
       setRefreshing(false);
     }
@@ -100,7 +102,7 @@ export default function ProductsScreen() {
   const handleSave = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setFormError('Product name is required');
+      setFormError(t('products.nameRequired'));
       return;
     }
 
@@ -109,7 +111,7 @@ export default function ProductsScreen() {
     if (trimmedPrice) {
       const parsedPrice = Number(trimmedPrice);
       if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-        setFormError('Enter a valid price or leave price empty');
+        setFormError(t('products.invalidPrice'));
         return;
       }
       payload.lastPrice = parsedPrice;
@@ -136,24 +138,27 @@ export default function ProductsScreen() {
       setModalOpen(false);
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save product');
+      setFormError(err instanceof Error ? err.message : t('products.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (product: ShopProduct) => {
-    appAlert('Delete product', `Remove "${product.name}" from catalog?`, [
-      { text: 'Cancel', style: 'cancel' },
+    appAlert(t('products.deleteTitle'), t('products.deleteConfirm', { name: product.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await deleteProduct(product.id);
             await load();
           } catch (err) {
-            appAlert('Error', err instanceof Error ? err.message : 'Failed to delete');
+            appAlert(
+              t('common.error'),
+              err instanceof Error ? err.message : t('common.failedToDelete')
+            );
           }
         },
       },
@@ -163,32 +168,32 @@ export default function ProductsScreen() {
   if (loading) return <LoadingState />;
 
   return (
-    <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerTop}>
+    <View style={prStyles.prScreen}>
+      <View style={[prStyles.prHeader, { paddingTop: insets.top + 12 }]}>
+        <View style={prStyles.prHeaderTop}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={styles.back}>‹ Back</Text>
+            <Text style={prStyles.prBack}>{t('common.back')}</Text>
           </Pressable>
-          <Pressable style={styles.addBtn} onPress={openAdd}>
-            <Text style={styles.addBtnText}>+ Add</Text>
+          <Pressable style={prStyles.prAddBtn} onPress={openAdd}>
+            <Text style={prStyles.prAddBtnText}>{t('products.add')}</Text>
           </Pressable>
         </View>
-        <Text style={styles.headerTitle}>Products</Text>
-        <Text style={styles.headerSubtitle}>Your shop product catalog</Text>
+        <Text style={prStyles.prHeaderTitle}>{t('products.title')}</Text>
+        <Text style={prStyles.prHeaderSubtitle}>{t('products.subtitle')}</Text>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statPill}>
-            <Text style={styles.statValue}>{stats.count}</Text>
-            <Text style={styles.statLabel}>Products</Text>
+        <View style={prStyles.prStatsRow}>
+          <View style={prStyles.prStatPill}>
+            <Text style={prStyles.prStatValue}>{stats.count}</Text>
+            <Text style={prStyles.prStatLabel}>{t('products.productsLabel')}</Text>
           </View>
-          <View style={styles.statPill}>
-            <Text style={styles.statValue}>{stats.totalUsage}</Text>
-            <Text style={styles.statLabel}>Times used</Text>
+          <View style={prStyles.prStatPill}>
+            <Text style={prStyles.prStatValue}>{stats.totalUsage}</Text>
+            <Text style={prStyles.prStatLabel}>{t('products.timesUsed')}</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.searchBox}>
+      <View style={prStyles.prSearchBox}>
         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
           <Circle cx={11} cy={11} r={7} stroke={colors.textMuted} strokeWidth={2} />
           <Path d="M20 20 L16.5 16.5" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
@@ -196,48 +201,44 @@ export default function ProductsScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search products..."
+          placeholder={t('products.searchPlaceholder')}
           placeholderTextColor={colors.textMuted}
-          style={styles.searchInput}
+          style={prStyles.prSearchInput}
         />
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={prStyles.prError}>{error}</Text> : null}
 
       <FlatList
         data={products}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }}
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            No products yet. Add credit or tap + Add to build your catalog.
-          </Text>
-        }
+        ListEmptyComponent={<Text style={prStyles.prEmpty}>{t('products.empty')}</Text>}
         renderItem={({ item }) => (
           <Pressable
-            style={styles.row}
+            style={prStyles.prRow}
             onPress={() => openEdit(item)}
             onLongPress={() => handleDelete(item)}
           >
-            <View style={styles.rowIcon}>
+            <View style={prStyles.prRowIcon}>
               <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
                 <Rect x={4} y={6} width={16} height={14} rx={2} stroke="#EA580C" strokeWidth={2} />
               </Svg>
             </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowName}>{item.name}</Text>
-              <Text style={styles.rowMeta}>
-                Used {item.usageCount ?? 0} time{(item.usageCount ?? 0) === 1 ? '' : 's'}
+            <View style={prStyles.prRowBody}>
+              <Text style={prStyles.prRowName}>{item.name}</Text>
+              <Text style={prStyles.prRowMeta}>
+                {t('common.timesUsed', { count: item.usageCount ?? 0 })}
                 {item.lastUsedAt ? ` · ${formatRelativeTime(item.lastUsedAt)}` : ''}
               </Text>
             </View>
-            <View style={styles.rowPriceCol}>
-              <Text style={styles.rowPrice}>
+            <View style={prStyles.prRowPriceCol}>
+              <Text style={prStyles.prRowPrice}>
                 {item.lastPrice ? formatRs(item.lastPrice) : '—'}
               </Text>
-              <Text style={styles.rowHint}>
-                {item.lastPrice ? 'last price' : 'name only'}
+              <Text style={prStyles.prRowHint}>
+                {item.lastPrice ? t('common.lastPrice') : t('common.nameOnly')}
               </Text>
             </View>
           </Pressable>
@@ -245,29 +246,35 @@ export default function ProductsScreen() {
       />
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 16 }]}>
-            <Text style={styles.modalTitle}>{editing ? 'Edit product' : 'Add product'}</Text>
+        <View style={prStyles.prModalBackdrop}>
+          <View style={[prStyles.prModalCard, { paddingBottom: insets.bottom + 16 }]}>
+            <Text style={prStyles.prModalTitle}>
+              {editing ? t('products.editProduct') : t('products.addProduct')}
+            </Text>
             {formError ? <ErrorText message={formError} /> : null}
-            <Text style={styles.fieldLabel}>Product name *</Text>
+            <Text style={prStyles.prFieldLabel}>{t('products.productName')}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Rice 1kg"
-              style={styles.fieldInput}
+              placeholder={t('products.namePlaceholder')}
+              style={prStyles.prFieldInput}
               autoFocus
             />
-            <Text style={styles.fieldLabel}>Default price (optional)</Text>
+            <Text style={prStyles.prFieldLabel}>{t('products.defaultPrice')}</Text>
             <TextInput
               value={price}
               onChangeText={setPrice}
-              placeholder="Leave blank if price varies"
+              placeholder={t('products.pricePlaceholder')}
               keyboardType="numeric"
-              style={styles.fieldInput}
+              style={prStyles.prFieldInput}
             />
-            <View style={styles.modalActions}>
-              <Button title="Cancel" variant="outline" onPress={() => setModalOpen(false)} />
-              <Button title={editing ? 'Save' : 'Add product'} onPress={handleSave} loading={saving} />
+            <View style={prStyles.prModalActions}>
+              <Button title={t('common.cancel')} variant="outline" onPress={() => setModalOpen(false)} />
+              <Button
+                title={editing ? t('common.save') : t('products.addProduct')}
+                onPress={handleSave}
+                loading={saving}
+              />
             </View>
           </View>
         </View>
@@ -276,37 +283,37 @@ export default function ProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  header: {
+const prStyles = StyleSheet.create({
+  prScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  prHeader: {
     backgroundColor: colors.primaryDark,
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  back: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600' },
-  addBtn: {
+  prHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  prBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  prAddBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: t.body },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: t.body, marginTop: 4 },
-  statsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  statPill: {
+  prAddBtnText: { color: '#FFF', fontWeight: '700', fontSize: ty.body },
+  prHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
+  prHeaderSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.body, marginTop: 4 },
+  prStatsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  prStatPill: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: 10,
     alignItems: 'center',
   },
-  statValue: { color: '#FFF', fontSize: t.lg, fontWeight: '800' },
-  statLabel: { color: 'rgba(255,255,255,0.85)', fontSize: t.caption, marginTop: 2 },
-  searchBox: {
+  prStatValue: { color: '#FFF', fontSize: ty.lg, fontWeight: '800' },
+  prStatLabel: { color: 'rgba(255,255,255,0.85)', fontSize: ty.caption, marginTop: 2 },
+  prSearchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -319,9 +326,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  searchInput: { flex: 1, fontSize: t.bodyLg, color: colors.text, padding: 0 },
-  error: { color: colors.danger, marginHorizontal: 16, marginTop: 8, fontSize: t.body },
-  row: {
+  prSearchInput: { flex: 1, fontSize: ty.bodyLg, color: colors.text, padding: 0 },
+  prError: { color: colors.danger, marginHorizontal: 16, marginTop: 8, fontSize: ty.body },
+  prRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
@@ -332,7 +339,7 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     gap: 12,
   },
-  rowIcon: {
+  prRowIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
@@ -340,31 +347,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: { flex: 1 },
-  rowName: { fontSize: t.md, fontWeight: '700', color: colors.text },
-  rowMeta: { fontSize: t.caption, color: colors.textMuted, marginTop: 4 },
-  rowPriceCol: { alignItems: 'flex-end' },
-  rowPrice: { fontSize: t.bodyLg, fontWeight: '800', color: colors.primary },
-  rowHint: { fontSize: t.sm, color: colors.textMuted, marginTop: 2 },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: 40, lineHeight: 20, fontSize: t.body },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard: {
+  prRowBody: { flex: 1 },
+  prRowName: { fontSize: ty.md, fontWeight: '700', color: colors.text },
+  prRowMeta: { fontSize: ty.caption, color: colors.textMuted, marginTop: 4 },
+  prRowPriceCol: { alignItems: 'flex-end' },
+  prRowPrice: { fontSize: ty.bodyLg, fontWeight: '800', color: colors.primary },
+  prRowHint: { fontSize: ty.sm, color: colors.textMuted, marginTop: 2 },
+  prEmpty: { textAlign: 'center', color: colors.textMuted, marginTop: 40, lineHeight: 20, fontSize: ty.body },
+  prModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  prModalCard: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
   },
-  modalTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text, marginBottom: 12 },
-  fieldLabel: { fontSize: t.body, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 8 },
-  fieldInput: {
+  prModalTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  prFieldLabel: { fontSize: ty.body, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 8 },
+  prFieldInput: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: t.md,
+    fontSize: ty.md,
     color: colors.text,
   },
-  modalActions: { gap: 8, marginTop: 16 },
+  prModalActions: { gap: 8, marginTop: 16 },
 });

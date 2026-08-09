@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/api';
+import { notifyMaintenanceMode } from '../contexts/MaintenanceContext';
+import i18n from '../i18n';
 
 const TOKEN_KEY = 'bakibook_token';
 
@@ -19,14 +21,18 @@ export async function setToken(token: string | null) {
   }
 }
 
+export async function getAuthToken(): Promise<string | null> {
+  if (authToken) return authToken;
+  authToken = await AsyncStorage.getItem(TOKEN_KEY);
+  return authToken;
+}
+
 export async function request<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   if (!API_BASE_URL) {
-    throw new Error(
-      'API URL is not configured. Set EXPO_PUBLIC_API_URL in mobile/.env or eas.json.'
-    );
+    throw new Error(i18n.t('errors.notConfigured'));
   }
 
   if (!authToken) {
@@ -49,17 +55,22 @@ export async function request<T = unknown>(
       headers,
     });
   } catch {
-    throw new Error('Cannot reach the server. Check your internet connection and API URL.');
+    throw new Error(i18n.t('errors.network'));
   }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     const message = (data as { message?: string }).message;
-    if (response.status === 404) {
-      throw new Error(message || 'This feature is not available on the server yet. Please update the backend.');
+    const code = (data as { code?: string }).code;
+    if (response.status === 503 && code === 'MAINTENANCE') {
+      notifyMaintenanceMode(message || i18n.t('maintenance.defaultMessage'));
+      throw new Error(message || i18n.t('maintenance.defaultMessage'));
     }
-    throw new Error(message || 'Something went wrong');
+    if (response.status === 404) {
+      throw new Error(message || i18n.t('errors.featureUnavailable'));
+    }
+    throw new Error(message || i18n.t('errors.generic'));
   }
 
   return data as T;

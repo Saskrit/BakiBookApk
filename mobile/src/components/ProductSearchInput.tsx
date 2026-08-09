@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createProduct, fetchProducts } from '../api/products';
 import { colors } from '../theme/colors';
@@ -40,6 +41,7 @@ export default function ProductSearchInput({
   onSelectProduct,
   enableCatalogAdd = false,
 }: Props) {
+  const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -100,7 +102,7 @@ export default function ProductSearchInput({
       const res = await createProduct({ name: trimmed });
       handleSelect(res.product);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not add product';
+      const msg = err instanceof Error ? err.message : t('products.addProductFailed');
       if (msg.toLowerCase().includes('already exists')) {
         onChangeText(trimmed);
         setModalOpen(false);
@@ -119,26 +121,26 @@ export default function ProductSearchInput({
   };
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputRow}>
+    <View style={psiStyles.psiWrap}>
+      <Text style={psiStyles.psiLabel}>{label}</Text>
+      <View style={psiStyles.psiInputRow}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder="Enter product name"
+          placeholder={t('products.enterProductName')}
           placeholderTextColor={colors.textMuted}
-          style={styles.input}
+          style={psiStyles.psiInput}
           autoCorrect={false}
         />
         <Pressable
           onPress={openSearch}
-          style={styles.searchBtn}
-          accessibilityLabel="Search products"
+          style={psiStyles.psiSearchBtn}
+          accessibilityLabel={t('products.searchProducts')}
         >
           <SearchIcon color="#FFFFFF" />
         </Pressable>
       </View>
-      <Text style={styles.hint}>Type a new product or tap search to pick an existing one</Text>
+      <Text style={psiStyles.psiHint}>{t('products.productHint')}</Text>
 
       <Modal
         visible={modalOpen}
@@ -146,76 +148,75 @@ export default function ProductSearchInput({
         transparent
         onRequestClose={() => setModalOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Search Products</Text>
+        <View style={psiStyles.psiModalBackdrop}>
+          <View style={psiStyles.psiModalCard}>
+            <View style={psiStyles.psiModalHeader}>
+              <Text style={psiStyles.psiModalTitle}>{t('products.searchProductsTitle')}</Text>
               <Pressable onPress={() => setModalOpen(false)} hitSlop={8}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={psiStyles.psiModalClose}>✕</Text>
               </Pressable>
             </View>
 
-            <View style={styles.modalSearchRow}>
+            <View style={psiStyles.psiModalSearchRow}>
               <SearchIcon />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search by product name..."
+                placeholder={t('products.searchByProductName')}
                 placeholderTextColor={colors.textMuted}
-                style={styles.modalSearchInput}
+                style={psiStyles.psiModalSearchInput}
                 autoFocus
                 autoCorrect={false}
               />
             </View>
 
             {loading ? (
-              <View style={styles.centerRow}>
+              <View style={psiStyles.psiCenterRow}>
                 <ActivityIndicator color={colors.primary} />
-                <Text style={styles.loadingText}>Searching…</Text>
+                <Text style={psiStyles.psiLoadingText}>{t('products.searching')}</Text>
               </View>
             ) : searched && products.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>No products found</Text>
-                <Text style={styles.emptyText}>
+              <View style={psiStyles.psiEmptyBox}>
+                <Text style={psiStyles.psiEmptyTitle}>{t('products.noProductsFound')}</Text>
+                <Text style={psiStyles.psiEmptyText}>
                   {query.trim()
-                    ? `No match for "${query.trim()}". Tap below to use this name.`
-                    : 'No saved products yet. Type a name in the search box.'}
+                    ? t('products.noMatchFor', { name: query.trim() })
+                    : t('products.noSavedProducts')}
                 </Text>
                 {query.trim() ? (
                   <>
-                    {addError ? <Text style={styles.addError}>{addError}</Text> : null}
+                    {addError ? <Text style={psiStyles.psiAddError}>{addError}</Text> : null}
                     <Pressable
                       onPress={handleAddNew}
                       disabled={adding}
-                      style={[styles.addNewBtn, adding && styles.addNewBtnDisabled]}
+                      style={[psiStyles.psiAddNewBtn, adding && psiStyles.psiAddNewBtnDisabled]}
                     >
-                      <Text style={styles.addNewBtnText}>
+                      <Text style={psiStyles.psiAddNewBtnText}>
                         {adding
-                          ? 'Adding…'
+                          ? t('products.adding')
                           : enableCatalogAdd
-                            ? `Add "${query.trim()}" to catalog`
-                            : `Use "${query.trim()}"`}
+                            ? t('products.addToCatalog', { name: query.trim() })
+                            : t('products.useProductName', { name: query.trim() })}
                       </Text>
                     </Pressable>
                   </>
                 ) : null}
               </View>
             ) : (
-              <ScrollView keyboardShouldPersistTaps="handled" style={styles.results}>
+              <ScrollView keyboardShouldPersistTaps="handled" style={psiStyles.psiResults}>
                 {products.map((product) => (
                   <Pressable
                     key={product.id}
                     onPress={() => handleSelect(product)}
-                    style={styles.resultRow}
+                    style={psiStyles.psiResultRow}
                   >
-                    <View style={styles.resultBody}>
-                      <Text style={styles.resultName}>{product.name}</Text>
-                      <Text style={styles.resultMeta}>
-                        Used {product.usageCount ?? 0} time
-                        {(product.usageCount ?? 0) === 1 ? '' : 's'}
+                    <View style={psiStyles.psiResultBody}>
+                      <Text style={psiStyles.psiResultName}>{product.name}</Text>
+                      <Text style={psiStyles.psiResultMeta}>
+                        {t('products.usedTimes', { count: product.usageCount ?? 0 })}
                       </Text>
                     </View>
-                    <Text style={styles.resultPrice}>{formatRs(product.lastPrice ?? 0)}</Text>
+                    <Text style={psiStyles.psiResultPrice}>{formatRs(product.lastPrice ?? 0)}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -227,20 +228,20 @@ export default function ProductSearchInput({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { marginBottom: 14 },
-  label: {
+const psiStyles = StyleSheet.create({
+  psiWrap: { marginBottom: 14 },
+  psiLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 6,
   },
-  inputRow: {
+  psiInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  input: {
+  psiInput: {
     flex: 1,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  searchBtn: {
+  psiSearchBtn: {
     width: 48,
     height: 48,
     borderRadius: 12,
@@ -259,25 +260,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hint: {
+  psiHint: {
     marginTop: 6,
     fontSize: 12,
     color: colors.textMuted,
     lineHeight: 16,
   },
-  modalBackdrop: {
+  psiModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
-  modalCard: {
+  psiModalCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '75%',
     paddingBottom: 24,
   },
-  modalHeader: {
+  psiModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -285,9 +286,9 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 12,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  modalClose: { fontSize: 20, color: colors.textMuted, padding: 4 },
-  modalSearchRow: {
+  psiModalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  psiModalClose: { fontSize: 20, color: colors.textMuted, padding: 4 },
+  psiModalSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -300,62 +301,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  modalSearchInput: {
+  psiModalSearchInput: {
     flex: 1,
     fontSize: 15,
     color: colors.text,
     padding: 0,
   },
-  centerRow: {
+  psiCenterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     padding: 24,
   },
-  loadingText: { fontSize: 14, color: colors.textMuted },
-  emptyBox: {
+  psiLoadingText: { fontSize: 14, color: colors.textMuted },
+  psiEmptyBox: {
     paddingHorizontal: 24,
     paddingVertical: 32,
     alignItems: 'center',
   },
-  emptyTitle: {
+  psiEmptyTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
   },
-  emptyText: {
+  psiEmptyText: {
     fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 12,
   },
-  addError: {
+  psiAddError: {
     fontSize: 13,
     color: colors.danger,
     textAlign: 'center',
     marginBottom: 10,
   },
-  addNewBtn: {
+  psiAddNewBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 4,
   },
-  addNewBtnDisabled: { opacity: 0.7 },
-  addNewBtnText: {
+  psiAddNewBtnDisabled: { opacity: 0.7 },
+  psiAddNewBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
   },
-  results: {
+  psiResults: {
     paddingHorizontal: 20,
   },
-  resultRow: {
+  psiResultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -363,8 +364,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  resultBody: { flex: 1, paddingRight: 12 },
-  resultName: { fontSize: 15, fontWeight: '600', color: colors.text },
-  resultMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  resultPrice: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  psiResultBody: { flex: 1, paddingRight: 12 },
+  psiResultName: { fontSize: 15, fontWeight: '600', color: colors.text },
+  psiResultMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  psiResultPrice: { fontSize: 14, fontWeight: '700', color: colors.primary },
 });

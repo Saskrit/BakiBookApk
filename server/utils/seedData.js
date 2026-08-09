@@ -76,13 +76,14 @@ const daysAgo = (n) => {
   return d;
 };
 
-async function upsertUser({ role, fullName, email, shopName, shopLocation, password }) {
+async function upsertUser({ role, fullName, email, shopName, shopLocation, phone, password }) {
   let user = await User.findOne({ email, role }).select('+password');
 
   if (user) {
     user.fullName = fullName;
     user.password = password;
     user.isEmailVerified = true;
+    if (phone) user.phone = phone;
     if (role === 'shopkeeper') {
       user.shopName = shopName;
       user.shopLocation = shopLocation;
@@ -98,6 +99,7 @@ async function upsertUser({ role, fullName, email, shopName, shopLocation, passw
     fullName,
     email,
     password,
+    phone: phone || undefined,
     isEmailVerified: true,
     shopName: shopName || '',
     shopLocation: shopLocation || '',
@@ -106,10 +108,112 @@ async function upsertUser({ role, fullName, email, shopName, shopLocation, passw
   });
 }
 
+/** Ensure Ram customer account is linked to Sharma Kirana for demo logins. */
+async function ensureDemoCustomerLink(shopkeeper, customerUser) {
+  let customer = await Customer.findOne({
+    shopkeeper: shopkeeper._id,
+    email: CUSTOMER_EMAIL,
+  });
+
+  if (!customer) {
+    customer = await Customer.findOne({
+      shopkeeper: shopkeeper._id,
+      linkedUser: customerUser._id,
+    });
+  }
+
+  if (!customer) {
+    const createdAt = daysAgo(15);
+    customer = await Customer.create({
+      shopkeeper: shopkeeper._id,
+      linkedUser: customerUser._id,
+      linkStatus: 'linked',
+      name: customerUser.fullName || 'Ram Bahadur Thapa',
+      phone: customerUser.phone || '9801111111',
+      email: CUSTOMER_EMAIL,
+      address: 'New Road, Itahari, Sunsari',
+      status: 'active',
+      notes: 'Demo linked customer',
+      balance: 5250,
+      creditScore: 'Good',
+      lastCreditDate: createdAt,
+      lastPaymentDate: daysAgo(5),
+    });
+
+    const creditAt = daysAgo(3);
+    await Transaction.create({
+      shopkeeper: shopkeeper._id,
+      customer: customer._id,
+      items: [
+        { name: 'Milk', qty: 2, price: 80 },
+        { name: 'Bread', qty: 1, price: 55 },
+        { name: 'Rice 5kg', qty: 1, price: 650 },
+      ],
+      total: 865,
+      note: 'Demo credit',
+      createdAt: creditAt,
+      updatedAt: creditAt,
+    });
+
+    const payAt = daysAgo(5);
+    await Payment.create({
+      shopkeeper: shopkeeper._id,
+      customer: customer._id,
+      amount: 2000,
+      method: 'eSewa',
+      note: 'Demo payment',
+      receiptNo: 'RCP-DEMO-0001',
+      createdAt: payAt,
+      updatedAt: payAt,
+    });
+
+    console.log('  Linked new demo customer record for portal use.');
+  } else {
+    customer.linkedUser = customerUser._id;
+    customer.linkStatus = 'linked';
+    customer.email = CUSTOMER_EMAIL;
+    if (!customer.phone) customer.phone = customerUser.phone || '9801111111';
+    if (!customer.name) customer.name = customerUser.fullName;
+    await customer.save();
+    console.log('  Ensured demo customer is linked to shopkeeper.');
+  }
+
+  return customer;
+}
+
 export async function seedDemoData({ force = false } = {}) {
   const existing = await User.findOne({ email: SHOPKEEPER_EMAIL });
+
+  // Always keep demo login accounts in sync (password + verified flags),
+  // and always ensure the customer portal is linked to the demo shop.
   if (existing && !force) {
-    return { skipped: true };
+    const shopkeeper = await upsertUser({
+      role: 'shopkeeper',
+      fullName: 'Ram Sharma',
+      email: SHOPKEEPER_EMAIL,
+      shopName: existing.shopName || 'Sharma Kirana Store',
+      shopLocation: existing.shopLocation || 'New Road, Itahari, Sunsari',
+      phone: existing.phone || '9801234567',
+      password: DEMO_PASSWORD,
+    });
+    const customerUser = await upsertUser({
+      role: 'customer',
+      fullName: 'Ram Bahadur Thapa',
+      email: CUSTOMER_EMAIL,
+      phone: '9801111111',
+      password: DEMO_PASSWORD,
+    });
+    await ensureDemoCustomerLink(shopkeeper, customerUser);
+
+    console.log('\n✅ Demo accounts synced & linked\n');
+    console.log('Shopkeeper:');
+    console.log(`  Email:    ${SHOPKEEPER_EMAIL}`);
+    console.log(`  Password: ${DEMO_PASSWORD}\n`);
+    console.log('Customer:');
+    console.log(`  Email:    ${CUSTOMER_EMAIL}`);
+    console.log(`  Password: ${DEMO_PASSWORD}\n`);
+
+    return { skipped: true, shopkeeper, customerUser };
   }
 
   if (force) {
@@ -126,8 +230,9 @@ export async function seedDemoData({ force = false } = {}) {
     role: 'shopkeeper',
     fullName: 'Ram Sharma',
     email: SHOPKEEPER_EMAIL,
-    shopName: 'Sharma Kirana',
-    shopLocation: 'Baneshwor, Kathmandu',
+    shopName: 'Sharma Kirana Store',
+    shopLocation: 'New Road, Itahari, Sunsari',
+    phone: '9801234567',
     password: DEMO_PASSWORD,
   });
 
@@ -135,6 +240,7 @@ export async function seedDemoData({ force = false } = {}) {
     role: 'customer',
     fullName: 'Ram Bahadur Thapa',
     email: CUSTOMER_EMAIL,
+    phone: '9801111111',
     password: DEMO_PASSWORD,
   });
 
@@ -159,6 +265,9 @@ export async function seedDemoData({ force = false } = {}) {
     });
     createdCustomers.push(customer);
   }
+
+  // Extra safety if seedCustomers list changes
+  await ensureDemoCustomerLink(shopkeeper, customerUser);
 
   const [ram, sita, hari, gita, mohan] = createdCustomers;
 

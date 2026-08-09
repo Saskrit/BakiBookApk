@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import {
   changePassword,
@@ -23,7 +24,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/types';
 
 function SecureField({
@@ -37,11 +38,12 @@ function SecureField({
   onChangeText: (v: string) => void;
   placeholder?: string;
 }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.secureRow}>
+    <View style={secStyles.secFieldWrap}>
+      <Text style={secStyles.secFieldLabel}>{label}</Text>
+      <View style={secStyles.secSecureRow}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -50,10 +52,10 @@ function SecureField({
           secureTextEntry={!visible}
           autoCapitalize="none"
           autoCorrect={false}
-          style={styles.secureInput}
+          style={secStyles.secSecureInput}
         />
-        <Pressable onPress={() => setVisible((v) => !v)} hitSlop={8} style={styles.eyeBtn}>
-          <Text style={styles.eyeText}>{visible ? 'Hide' : 'Show'}</Text>
+        <Pressable onPress={() => setVisible((v) => !v)} hitSlop={8} style={secStyles.secEyeBtn}>
+          <Text style={secStyles.secEyeText}>{visible ? t('common.hide') : t('common.show')}</Text>
         </Pressable>
       </View>
     </View>
@@ -72,14 +74,15 @@ function StatusRow({
   const valueColor =
     tone === 'ok' ? colors.primary : tone === 'warn' ? colors.warning : colors.textMuted;
   return (
-    <View style={styles.statusRow}>
-      <Text style={styles.statusLabel}>{label}</Text>
-      <Text style={[styles.statusValue, { color: valueColor }]}>{value}</Text>
+    <View style={secStyles.secStatusRow}>
+      <Text style={secStyles.secStatusLabel}>{label}</Text>
+      <Text style={[secStyles.secStatusValue, { color: valueColor }]}>{value}</Text>
     </View>
   );
 }
 
 export default function SecurityScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { user, logout, refreshUser } = useAuth();
@@ -100,15 +103,15 @@ export default function SecurityScreen() {
     setSuccess('');
 
     if (!currentPassword.trim()) {
-      setError('Enter your current password');
+      setError(t('security.enterCurrentPassword'));
       return;
     }
     if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+      setError(t('security.passwordMinLength'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
+      setError(t('security.passwordMismatch'));
       return;
     }
 
@@ -121,9 +124,9 @@ export default function SecurityScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setSuccess(res.message || 'Password changed successfully');
+      setSuccess(res.message || t('security.passwordChanged'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change password');
+      setError(err instanceof Error ? err.message : t('security.changeFailed'));
     } finally {
       setSaving(false);
     }
@@ -132,20 +135,20 @@ export default function SecurityScreen() {
   const handleForgotPassword = () => {
     if (!user?.email) return;
     appAlert(
-      'Send reset email',
-      `Send a password reset link to ${user.email}?`,
+      t('security.sendResetTitle'),
+      t('security.sendResetBody', { email: user.email }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Send',
+          text: t('common.send'),
           onPress: async () => {
             setSendingReset(true);
             setError('');
             try {
               const res = await forgotPassword(user.email);
-              appAlert('Email sent', res.message);
+              appAlert(t('security.emailSent'), res.message);
             } catch (err) {
-              appAlert('Error', err instanceof Error ? err.message : 'Failed to send email');
+              appAlert(t('common.error'), err instanceof Error ? err.message : t('security.sendFailed'));
             } finally {
               setSendingReset(false);
             }
@@ -160,20 +163,20 @@ export default function SecurityScreen() {
     setError('');
     try {
       const res = await resendVerificationEmail();
-      appAlert('Verification email', res.message);
+      appAlert(t('security.verificationEmail'), res.message);
       await refreshUser();
     } catch (err) {
-      appAlert('Error', err instanceof Error ? err.message : 'Failed to resend email');
+      appAlert(t('common.error'), err instanceof Error ? err.message : t('security.resendFailed'));
     } finally {
       setResendingVerify(false);
     }
   };
 
   const handleSignOut = () => {
-    appAlert('Sign out', 'Sign out of BakiBook on this device?', [
-      { text: 'Cancel', style: 'cancel' },
+    appAlert(t('security.signOutTitle'), t('security.signOutBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Sign out',
+        text: t('common.signOut'),
         style: 'destructive',
         onPress: () => logout(),
       },
@@ -181,45 +184,45 @@ export default function SecurityScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={secStyles.secScreen}>
       <LinearGradient
         colors={[colors.primaryDark, colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
+        style={[secStyles.secHeader, { paddingTop: insets.top + 8 }]}
       >
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={styles.back}>‹ Back</Text>
+          <Text style={secStyles.secBack}>{t('common.back')}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Security</Text>
-        <Text style={styles.headerSubtitle}>Password, email and account access</Text>
+        <Text style={secStyles.secHeaderTitle}>{t('security.title')}</Text>
+        <Text style={secStyles.secHeaderSubtitle}>{t('security.subtitle')}</Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={secStyles.secFlex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+          contentContainerStyle={[secStyles.secContent, { paddingBottom: insets.bottom + 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Account</Text>
-            <StatusRow label="Email" value={user?.email || '—'} />
+          <View style={secStyles.secCard}>
+            <Text style={secStyles.secCardTitle}>{t('security.account')}</Text>
+            <StatusRow label={t('security.email')} value={user?.email || '—'} />
             <StatusRow
-              label="Email verified"
-              value={user?.isEmailVerified ? 'Verified' : 'Not verified'}
+              label={t('security.emailVerified')}
+              value={user?.isEmailVerified ? t('security.verified') : t('security.notVerified')}
               tone={user?.isEmailVerified ? 'ok' : 'warn'}
             />
             <StatusRow
-              label="Sign-in method"
-              value={isGoogleOnly ? 'Google' : 'Email & password'}
+              label={t('security.signInMethod')}
+              value={isGoogleOnly ? t('security.google') : t('security.emailPassword')}
               tone="muted"
             />
             {!user?.isEmailVerified ? (
               <Button
-                title={resendingVerify ? 'Sending…' : 'Resend verification email'}
+                title={resendingVerify ? t('common.sending') : t('security.resendVerification')}
                 variant="outline"
                 onPress={handleResendVerification}
                 loading={resendingVerify}
@@ -227,60 +230,73 @@ export default function SecurityScreen() {
             ) : null}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Change password</Text>
+          <View style={secStyles.secCard}>
+            <Text style={secStyles.secCardTitle}>{t('security.changePassword')}</Text>
             {isGoogleOnly ? (
-              <Text style={styles.hint}>
-                This account uses Google sign-in. Use “Send reset email” below to set a password,
-                or change it from your Google account settings.
-              </Text>
+              <Text style={secStyles.secHint}>{t('security.googleOnlyHint')}</Text>
             ) : (
               <>
                 {error ? <ErrorText message={error} /> : null}
-                {success ? <Text style={styles.success}>{success}</Text> : null}
+                {success ? <Text style={secStyles.secSuccess}>{success}</Text> : null}
                 <SecureField
-                  label="Current password"
+                  label={t('security.currentPassword')}
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
-                  placeholder="Enter current password"
+                  placeholder={t('security.currentPasswordPlaceholder')}
                 />
                 <SecureField
-                  label="New password"
+                  label={t('security.newPassword')}
                   value={newPassword}
                   onChangeText={setNewPassword}
-                  placeholder="At least 6 characters"
+                  placeholder={t('security.newPasswordPlaceholder')}
                 />
                 <SecureField
-                  label="Confirm new password"
+                  label={t('security.confirmPassword')}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="Re-enter new password"
+                  placeholder={t('security.confirmPasswordPlaceholder')}
                 />
-                <Button
-                  title={saving ? 'Updating…' : 'Update password'}
-                  onPress={handleChangePassword}
-                  loading={saving}
-                />
+                <View style={secStyles.secActionRow}>
+                  <View style={secStyles.secActionHalf}>
+                    <Button
+                      title={t('common.cancel')}
+                      variant="outline"
+                      onPress={() => {
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setError('');
+                        setSuccess('');
+                      }}
+                      disabled={saving}
+                    />
+                  </View>
+                  <View style={secStyles.secActionHalf}>
+                    <Button
+                      title={saving ? t('common.updating') : t('security.updatePassword')}
+                      onPress={handleChangePassword}
+                      loading={saving}
+                    />
+                  </View>
+                </View>
               </>
             )}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Password reset</Text>
-            <Text style={styles.hint}>
-              Forgot your password? We will email you a secure link to reset it.
-            </Text>
+          <View style={secStyles.secCard}>
+            <Text style={secStyles.secCardTitle}>{t('security.passwordReset')}</Text>
+            <Text style={secStyles.secHint}>{t('security.resetHint')}</Text>
             <Button
-              title={sendingReset ? 'Sending…' : 'Send reset email'}
+              title={sendingReset ? t('common.sending') : t('security.sendResetEmail')}
               variant="outline"
               onPress={handleForgotPassword}
               loading={sendingReset}
             />
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.tipRow}>
-              <View style={styles.tipIcon}>
+          <View style={secStyles.secCard}>
+            <View style={secStyles.secTipRow}>
+              <View style={secStyles.secTipIcon}>
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z"
@@ -289,11 +305,9 @@ export default function SecurityScreen() {
                   />
                 </Svg>
               </View>
-              <Text style={styles.tipText}>
-                Use a strong password you do not share. Sign out if you use a shared device.
-              </Text>
+              <Text style={secStyles.secTipText}>{t('security.tip')}</Text>
             </View>
-            <Button title="Sign out of this device" variant="danger" onPress={handleSignOut} />
+            <Button title={t('security.signOutDevice')} variant="danger" onPress={handleSignOut} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -301,20 +315,20 @@ export default function SecurityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  flex: { flex: 1 },
-  header: {
+const secStyles = StyleSheet.create({
+  secScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  secFlex: { flex: 1 },
+  secHeader: {
     paddingHorizontal: 16,
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
-  back: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600', marginBottom: 6 },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: t.body, marginTop: 4 },
-  content: { padding: 16, paddingTop: 14, gap: 12 },
-  card: {
+  secBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600', marginBottom: 6 },
+  secHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
+  secHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
+  secContent: { padding: 16, paddingTop: 14, gap: 12 },
+  secCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 16,
@@ -322,8 +336,8 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     gap: 10,
   },
-  cardTitle: { fontSize: t.md, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  statusRow: {
+  secCardTitle: { fontSize: ty.md, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  secStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -331,11 +345,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  statusLabel: { fontSize: t.body, color: colors.textMuted, fontWeight: '600' },
-  statusValue: { fontSize: t.body, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
-  fieldWrap: { marginTop: 4 },
-  fieldLabel: { fontSize: t.body, fontWeight: '600', color: colors.text, marginBottom: 6 },
-  secureRow: {
+  secStatusLabel: { fontSize: ty.body, color: colors.textMuted, fontWeight: '600' },
+  secStatusValue: { fontSize: ty.body, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
+  secFieldWrap: { marginTop: 4 },
+  secFieldLabel: { fontSize: ty.body, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  secSecureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
@@ -344,18 +358,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
   },
-  secureInput: {
+  secSecureInput: {
     flex: 1,
     paddingVertical: 12,
-    fontSize: t.md,
+    fontSize: ty.md,
     color: colors.text,
   },
-  eyeBtn: { paddingLeft: 8, paddingVertical: 8 },
-  eyeText: { fontSize: t.caption, fontWeight: '700', color: colors.primary },
-  hint: { fontSize: t.body, color: colors.textMuted, lineHeight: 18 },
-  success: { fontSize: t.body, color: colors.primary, fontWeight: '600' },
-  tipRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 4 },
-  tipIcon: {
+  secEyeBtn: { paddingLeft: 8, paddingVertical: 8 },
+  secEyeText: { fontSize: ty.caption, fontWeight: '700', color: colors.primary },
+  secHint: { fontSize: ty.body, color: colors.textMuted, lineHeight: 18 },
+  secSuccess: { fontSize: ty.body, color: colors.primary, fontWeight: '600' },
+  secActionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  secActionHalf: { flex: 1 },
+  secTipRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 4 },
+  secTipIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -363,5 +379,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tipText: { flex: 1, fontSize: t.body, color: colors.textMuted, lineHeight: 18 },
+  secTipText: { flex: 1, fontSize: ty.body, color: colors.textMuted, lineHeight: 18 },
 });

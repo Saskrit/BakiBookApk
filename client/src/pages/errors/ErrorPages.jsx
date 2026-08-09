@@ -49,12 +49,29 @@ export function AccessDeniedPage() {
 }
 
 export function MaintenancePage() {
+  const auth = getAuth();
+  const message =
+    'BakiBook is temporarily unavailable. Please check back soon.';
+
   return (
     <div className="error-page">
       <div className="error-page__card">
         <Wrench size={48} className="error-page__icon" />
         <h1>Under Maintenance</h1>
-        <p>BakiBook is temporarily unavailable. Please check back soon.</p>
+        <p>{message}</p>
+        {auth?.user?.isAdmin ? (
+          <Link to="/admin" className="app-btn app-btn--primary">
+            Back to Admin
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="app-btn app-btn--primary"
+            onClick={() => window.location.assign('/')}
+          >
+            Retry
+          </button>
+        )}
       </div>
     </div>
   );

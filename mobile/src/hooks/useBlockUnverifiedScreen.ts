@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { appAlert } from '../contexts/DialogContext';
 import { needsEmailVerification } from '../utils/authHelpers';
@@ -12,27 +13,28 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function useBlockUnverifiedScreen(screenLabel: string) {
   const { user } = useAuth();
   const navigation = useNavigation<Nav>();
+  const { t } = useTranslation();
 
   useFocusEffect(
     useCallback(() => {
       if (!needsEmailVerification(user)) return;
 
       appAlert(
-        'Verify your email first',
-        `Please verify ${user?.email || 'your email'} before using ${screenLabel}.`,
+        t('emailBanner.title'),
+        t('emailBanner.body', { email: user?.email || '' }),
         [
           {
-            text: 'Go back',
+            text: t('common.back'),
             style: 'cancel',
             onPress: () => {
               if (navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('VerifyEmail');
+              else navigation.navigate('Security');
             },
           },
-          { text: 'Verify email', onPress: () => navigation.navigate('VerifyEmail') },
+          { text: t('emailBanner.resend'), onPress: () => navigation.navigate('Security') },
         ],
       );
-    }, [navigation, screenLabel, user]),
+    }, [navigation, screenLabel, t, user]),
   );
 
   return needsEmailVerification(user);

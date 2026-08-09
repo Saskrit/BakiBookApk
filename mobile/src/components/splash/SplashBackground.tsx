@@ -128,15 +128,15 @@ export default function SplashBackground() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <BackgroundIcons width={width} />
-      <View style={[styles.landscapeWrap, { height: landscapeHeight }]}>
+      <View style={[sbStyles.sbLandscapeWrap, { height: landscapeHeight }]}>
         <Landscape width={width} height={landscapeHeight} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  landscapeWrap: {
+const sbStyles = StyleSheet.create({
+  sbLandscapeWrap: {
     position: 'absolute',
     bottom: 0,
     left: 0,

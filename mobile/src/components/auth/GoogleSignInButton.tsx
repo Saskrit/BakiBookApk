@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
+import { useTranslation } from 'react-i18next';
 import {
   configureGoogleSignIn,
   getGoogleIdToken,
   getGoogleSignInErrorMessage,
-  isGoogleSignInConfigured,
+  isGoogleSignInAvailable,
 } from '../../utils/googleSignIn';
 import { colors } from '../../theme/colors';
 
@@ -16,8 +16,19 @@ type Props = {
 };
 
 export default function GoogleSignInButton({ disabled, onCredential, onError }: Props) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const available = isGoogleSignInConfigured();
+  const available = isGoogleSignInAvailable();
+
+  const GoogleSigninButton = useMemo(() => {
+    if (!available) return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('@react-native-google-signin/google-signin').GoogleSigninButton;
+    } catch {
+      return null;
+    }
+  }, [available]);
 
   useEffect(() => {
     if (available) configureGoogleSignIn();
@@ -36,16 +47,16 @@ export default function GoogleSignInButton({ disabled, onCredential, onError }: 
     }
   }, [disabled, loading, onCredential, onError]);
 
-  if (!available) {
+  if (!available || !GoogleSigninButton) {
     return null;
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={gsStyles.gsWrap}>
       {loading ? (
-        <View style={styles.loadingRow}>
+        <View style={gsStyles.gsLoadingRow}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Signing in with Google…</Text>
+          <Text style={gsStyles.gsLoadingText}>{t('auth.signingInWithGoogle')}</Text>
         </View>
       ) : (
         <GoogleSigninButton
@@ -53,29 +64,29 @@ export default function GoogleSignInButton({ disabled, onCredential, onError }: 
           color={GoogleSigninButton.Color.Light}
           onPress={handlePress}
           disabled={disabled}
-          style={styles.btn}
+          style={gsStyles.gsBtn}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
+const gsStyles = StyleSheet.create({
+  gsWrap: {
     marginBottom: 4,
   },
-  btn: {
+  gsBtn: {
     width: '100%',
     height: 48,
   },
-  loadingRow: {
+  gsLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 14,
   },
-  loadingText: {
+  gsLoadingText: {
     fontSize: 14,
     color: colors.textMuted,
   },

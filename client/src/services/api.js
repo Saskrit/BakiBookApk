@@ -1,5 +1,23 @@
 const API_BASE = '/api';
 
+export class ApiError extends Error {
+  constructor(message, { status, code, data } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.data = data;
+  }
+}
+
+function redirectToMaintenanceIfNeeded(status, code) {
+  if (typeof window === 'undefined') return;
+  if (status !== 503 || code !== 'MAINTENANCE') return;
+  if (window.location.pathname.startsWith('/admin')) return;
+  if (window.location.pathname === '/maintenance') return;
+  window.location.assign('/maintenance');
+}
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('bakibook_token');
 
@@ -20,7 +38,12 @@ async function request(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    redirectToMaintenanceIfNeeded(response.status, data.code);
+    throw new ApiError(data.message || 'Something went wrong', {
+      status: response.status,
+      code: data.code,
+      data,
+    });
   }
 
   return data;

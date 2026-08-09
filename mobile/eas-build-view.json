@@ -1,0 +1,48 @@
+﻿{
+  "id": "4ae605ad-3401-4c67-bdb4-4db77a427a67",
+  "status": "ERRORED",
+  "platform": "ANDROID",
+  "error": {
+    "errorCode": "EAS_BUILD_UNKNOWN_GRADLE_ERROR",
+    "message": "Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information."
+  },
+  "artifacts": {},
+  "fingerprint": {
+    "id": "019fe6aa-f7a5-71ec-838c-22b4db563924",
+    "hash": "fefeba5fdba8a9a1c90fccc51520b809dc4f44ac"
+  },
+  "initiatingActor": {
+    "id": "42dfe142-9a98-4f46-8446-ba2987bf4b89",
+    "displayName": "saskreet"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/2a61e05a-bb22-4d04-9f06-2d7a4bfc5871/4ae605ad-3401-4c67-bdb4-4db77a427a67/2026-08-09T13%3A16%3A37Z-30095325-6aaa-4399-a35c-744eda687438.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260809%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260809T131817Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=27c6f8037d16646f78064cec9d83710717500ab5d53aaff48341ee40ae77445ca9b9298d48e8978d59b0b0e3ff3271165bde398bfcda09dcc751fcc0627cb92a9cce872ddc798a556c526af4d6e70ae643ea5986eceb444d7b9e3fbf0f8f4feff004acb08ef2e6ee6e0e167a0ece57513fd77fa1daf0176b8a42c131a92603936743082e0eeadecfbc8af8f14ab5a7bfb0eb83922491e95262c3735c85ebea261cf95ba713f5c61f9bb1e3b194062804d1caff36cb7e779f30eaff4091b8699a84930320ea8e0ddd5ca20e45ed9ed0e902db9e1c25fa0b1ac0a39c2832efb327925b3972b96229c48700409194979b8ea83de1389b783f35d56c0a186553646e"
+  ],
+  "project": {
+    "id": "2a61e05a-bb22-4d04-9f06-2d7a4bfc5871",
+    "name": "bakibook",
+    "slug": "bakibook",
+    "ownerAccount": {
+      "id": "d57eb20c-5ee6-400d-8506-f5176bc9848c",
+      "name": "saskreet"
+    }
+  },
+  "distribution": "INTERNAL",
+  "buildProfile": "preview",
+  "sdkVersion": "56.0.0",
+  "appVersion": "1.0.0",
+  "appBuildVersion": "7",
+  "gitCommitHash": "9f0c444dab2e5917e9673ff28060dc655e2daf49",
+  "gitCommitMessage": "adding some features",
+  "priority": "NORMAL_PLUS",
+  "createdAt": "2026-08-09T13:16:31.990Z",
+  "updatedAt": "2026-08-09T13:18:44.258Z",
+  "completedAt": "2026-08-09T13:18:44.052Z",
+  "expirationDate": "2026-08-23T13:16:32.027Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 5075,
+    "buildQueueTime": 4904,
+    "buildDuration": 122083
+  }
+}

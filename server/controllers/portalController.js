@@ -6,6 +6,7 @@ import Notification from '../models/Notification.js';
 import {
   formatDate,
   formatRelativeDate,
+  formatTime,
   formatPayment,
   formatNotification,
 } from '../utils/formatters.js';
@@ -16,7 +17,7 @@ const findLinkedCustomers = async (user) => {
   return Customer.find({
     linkedUser: user._id,
     linkStatus: 'linked',
-  }).populate('shopkeeper', 'shopName fullName');
+  }).populate('shopkeeper', 'shopName fullName phone shopLocation shopImage isShopVerified');
 };
 
 export const getPortalDashboard = async (req, res) => {
@@ -26,26 +27,60 @@ export const getPortalDashboard = async (req, res) => {
     if (!linked.length) {
       return res.json({
         success: true,
-        summary: { currentDue: 0, totalPurchases: 0, totalPaid: 0, lastPayment: null },
+        summary: {
+          currentDue: 0,
+          totalPurchases: 0,
+          totalPaid: 0,
+          lastPayment: null,
+          totalShops: 0,
+          totalTransactions: 0,
+        },
         shops: [],
       });
     }
 
     const customerIds = linked.map((c) => c._id);
 
-    const [creditAgg, paymentAgg, lastPaymentDoc] = await Promise.all([
-      Transaction.aggregate([
-        { $match: { customer: { $in: customerIds } } },
-        { $group: { _id: null, total: { $sum: '$total' } } },
-      ]),
-      Payment.aggregate([
-        { $match: { customer: { $in: customerIds } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Payment.findOne({ customer: { $in: customerIds } }).sort({ createdAt: -1 }),
-    ]);
+    const [creditAgg, paymentAgg, lastPaymentDoc, txCounts, lastTxByCustomer, lastPayByCustomer] =
+      await Promise.all([
+        Transaction.aggregate([
+          { $match: { customer: { $in: customerIds } } },
+          { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+        ]),
+        Payment.aggregate([
+          { $match: { customer: { $in: customerIds } } },
+          { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        ]),
+        Payment.findOne({ customer: { $in: customerIds } }).sort({ createdAt: -1 }),
+        Transaction.aggregate([
+          { $match: { customer: { $in: customerIds } } },
+          { $group: { _id: '$customer', count: { $sum: 1 } } },
+        ]),
+        Transaction.aggregate([
+          { $match: { customer: { $in: customerIds } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: '$customer', lastAt: { $first: '$createdAt' } } },
+        ]),
+        Payment.aggregate([
+          { $match: { customer: { $in: customerIds } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: '$customer', lastAt: { $first: '$createdAt' } } },
+        ]),
+      ]);
 
     const currentDue = linked.reduce((sum, c) => sum + c.balance, 0);
+    const txCountMap = Object.fromEntries(
+      txCounts.map((row) => [row._id.toString(), row.count])
+    );
+    const lastTxMap = Object.fromEntries(
+      lastTxByCustomer.map((row) => [row._id.toString(), row.lastAt])
+    );
+    const lastPayMap = Object.fromEntries(
+      lastPayByCustomer.map((row) => [row._id.toString(), row.lastAt])
+    );
+
+    const totalTransactions =
+      (creditAgg[0]?.count || 0) + (paymentAgg[0]?.count || 0);
 
     res.json({
       success: true,
@@ -54,12 +89,35 @@ export const getPortalDashboard = async (req, res) => {
         totalPurchases: creditAgg[0]?.total || 0,
         totalPaid: paymentAgg[0]?.total || 0,
         lastPayment: lastPaymentDoc ? formatDate(lastPaymentDoc.createdAt) : null,
+        totalShops: linked.length,
+        totalTransactions,
       },
-      shops: linked.map((c) => ({
-        shopName: c.shopkeeper?.shopName || 'Shop',
-        shopkeeper: c.shopkeeper?.fullName,
-        balance: c.balance,
-      })),
+      shops: linked.map((c) => {
+        const key = c._id.toString();
+        const lastCredit = lastTxMap[key] ? new Date(lastTxMap[key]).getTime() : 0;
+        const lastPay = lastPayMap[key] ? new Date(lastPayMap[key]).getTime() : 0;
+        const lastAt = Math.max(lastCredit, lastPay);
+        let badge = 'regular';
+        if (c.balance <= 0) badge = 'cleared';
+        else if (c.creditScore === 'Excellent' || c.creditScore === 'Good') badge = 'preferred';
+        else if (c.status === 'active') badge = 'active';
+
+        return {
+          id: key,
+          shopName: c.shopkeeper?.shopName || 'Shop',
+          shopkeeper: c.shopkeeper?.fullName || '',
+          phone: c.shopkeeper?.phone || '',
+          location: c.shopkeeper?.shopLocation || '',
+          shopImage: c.shopkeeper?.shopImage || '',
+          verified: !!c.shopkeeper?.isShopVerified,
+          balance: c.balance,
+          creditScore: c.creditScore || 'Average',
+          transactionCount: txCountMap[key] || 0,
+          lastTransactionAt: lastAt ? new Date(lastAt).toISOString() : null,
+          lastTransaction: lastAt ? formatDate(new Date(lastAt)) : null,
+          badge,
+        };
+      }),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -93,17 +151,106 @@ export const getPortalLedger = async (req, res) => {
         role: 'customer',
         filter,
         shopName: shopMap[key] || 'Shop',
-      });
+      }).map((entry) => ({
+        ...entry,
+        customerId: key,
+      }));
     });
 
     const ledger = ledgerByCustomer
       .flat()
-      .sort((a, b) => new Date(b.sortAt || b.date) - new Date(a.sortAt || a.date))
-      .map(({ sortAt, ...row }) => row);
+      .sort((a, b) => new Date(b.sortAt || b.date) - new Date(a.sortAt || a.date));
 
     res.json({
       success: true,
       ledger,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPortalShopDetail = async (req, res) => {
+  try {
+    const customer = await Customer.findOne({
+      _id: req.params.customerId,
+      linkedUser: req.user._id,
+      linkStatus: 'linked',
+    }).populate('shopkeeper', 'shopName fullName phone shopLocation shopImage isShopVerified');
+
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Shop not found' });
+    }
+
+    const customerId = customer._id;
+    const shopName = customer.shopkeeper?.shopName || 'Shop';
+
+    const [creditAgg, paymentAgg, lastPaymentDoc, transactions, payments] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { customer: customerId } },
+        { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+      ]),
+      Payment.aggregate([
+        { $match: { customer: customerId } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Payment.findOne({ customer: customerId }).sort({ createdAt: -1 }),
+      Transaction.find({ customer: customerId }).sort({ createdAt: -1 }).limit(200),
+      Payment.find({ customer: customerId })
+        .populate('submission', 'itemName payLabel payType itemIndex transaction')
+        .sort({ createdAt: -1 })
+        .limit(200),
+    ]);
+
+    const ledger = buildGroupedLedger({
+      transactions,
+      payments,
+      role: 'customer',
+      filter: 'active',
+      shopName,
+    });
+
+    const recentPurchaseItems = [];
+    for (const tx of transactions) {
+      const items = Array.isArray(tx.items) ? tx.items : [];
+      for (const item of items) {
+        if (item?.name && recentPurchaseItems.length < 8) {
+          recentPurchaseItems.push({
+            name: item.name,
+            qty: item.qty || 1,
+            price: item.price || 0,
+          });
+        }
+      }
+      if (recentPurchaseItems.length >= 8) break;
+    }
+
+    const scoreLabel = customer.creditScore || 'Average';
+
+    res.json({
+      success: true,
+      shop: {
+        customerId: customerId.toString(),
+        shopName,
+        shopkeeper: customer.shopkeeper?.fullName || '',
+        phone: customer.shopkeeper?.phone || '',
+        location: customer.shopkeeper?.shopLocation || '',
+        shopImage: customer.shopkeeper?.shopImage || '',
+        verified: !!customer.shopkeeper?.isShopVerified,
+        status: customer.status || 'active',
+        creditScore: scoreLabel,
+        balance: customer.balance || 0,
+      },
+      summary: {
+        currentDue: customer.balance || 0,
+        totalPurchases: creditAgg[0]?.total || 0,
+        totalPaid: paymentAgg[0]?.total || 0,
+        transactionCount: (creditAgg[0]?.count || 0) + (paymentAgg[0]?.count || 0),
+        lastPaymentAmount: lastPaymentDoc?.amount || 0,
+        lastPaymentDate: lastPaymentDoc ? formatDate(lastPaymentDoc.createdAt) : null,
+      },
+      ledger,
+      recentPurchaseItems,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -178,22 +325,69 @@ export const getPortalPayments = async (req, res) => {
     );
 
     const payments = await Payment.find({ customer: { $in: customerIds } })
-      .populate('submission', 'itemName payLabel payType itemIndex transaction')
+      .populate('submission', 'itemName payLabel payType itemIndex transaction screenshotUrl')
       .sort({ createdAt: -1 });
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = monthStart;
+
+    let thisMonthTotal = 0;
+    let lastMonthTotal = 0;
+    let allTimeTotal = 0;
+
+    const mapped = payments.map((p) => {
+      const formatted = formatPayment(p, '', { submission: p.submission });
+      const created = new Date(p.createdAt);
+      allTimeTotal += p.amount;
+      if (created >= monthStart) thisMonthTotal += p.amount;
+      else if (created >= lastMonthStart && created < lastMonthEnd) lastMonthTotal += p.amount;
+
+      const submissionId =
+        p.submission?._id?.toString?.() ||
+        (typeof p.submission === 'object' && p.submission?.id
+          ? String(p.submission.id)
+          : null) ||
+        (p.submission ? String(p.submission) : null);
+
+      return {
+        id: formatted.id,
+        customerId: p.customer?.toString?.() || p.customer,
+        amount: p.amount,
+        amountLabel: `NPR ${p.amount.toLocaleString('en-US')}`,
+        method: p.method,
+        shopName: shopMap[p.customer.toString()] || 'Shop',
+        paidFor: formatted.paidFor,
+        note: p.note || '',
+        screenshotUrl: p.screenshotUrl || p.submission?.screenshotUrl || '',
+        receiptNo: p.receiptNo || '',
+        submissionId,
+        status: 'verified',
+        date: formatDate(p.createdAt),
+        time: formatTime(p.createdAt),
+        relativeDate: formatRelativeDate(p.createdAt),
+        createdAt: p.createdAt,
+      };
+    });
+
+    const monthChange =
+      lastMonthTotal > 0
+        ? Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100)
+        : thisMonthTotal > 0
+          ? 100
+          : 0;
 
     res.json({
       success: true,
-      payments: payments.map((p) => {
-        const formatted = formatPayment(p, '', { submission: p.submission });
-        return {
-          id: formatted.id,
-          date: formatRelativeDate(p.createdAt),
-          amount: `Rs. ${p.amount.toLocaleString('en-NP')}`,
-          method: p.method,
-          shopName: shopMap[p.customer.toString()] || 'Shop',
-          paidFor: formatted.paidFor,
-        };
-      }),
+      summary: {
+        totalPaid: allTimeTotal,
+        thisMonth: thisMonthTotal,
+        lastMonth: lastMonthTotal,
+        monthChangePercent: monthChange,
+        shopCount: linked.length,
+      },
+      payments: mapped,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

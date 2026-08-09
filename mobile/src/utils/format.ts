@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 /** Parse amounts that may already include currency symbols or grouping. */
 export const parseMoneyAmount = (value: number | string | undefined): number => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -7,9 +9,18 @@ export const parseMoneyAmount = (value: number | string | undefined): number => 
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-/** Nepali Rupee (NPR) — always formatted as Rs. */
-export const formatRs = (amount: number | string | undefined) =>
-  `Rs. ${parseMoneyAmount(amount).toLocaleString('en-NP', { maximumFractionDigits: 0 })}`;
+/** Western digits + NPR grouping (Nepali Rupee — never INR ₹ / Hindi digits). */
+function formatNprAmount(amount: number): string {
+  const rounded = Math.round(Math.abs(amount));
+  const sign = amount < 0 ? '-' : '';
+  // Force Latin digits and standard thousand separators used on NPR receipts.
+  return `${sign}${rounded.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+
+/** Nepali Rupee (NPR) — always NPR prefix with Western digits; never Indian ₹ */
+export const formatRs = (amount: number | string | undefined) => {
+  return `NPR ${formatNprAmount(parseMoneyAmount(amount))}`;
+};
 
 export const isNewAccount = (createdAt?: string, withinHours = 48) => {
   if (!createdAt) return false;
@@ -21,7 +32,8 @@ export const isNewAccount = (createdAt?: string, withinHours = 48) => {
 export const formatDate = (value?: string | Date) => {
   if (!value) return '';
   const date = typeof value === 'string' ? new Date(value) : value;
-  return date.toLocaleDateString('en-NP', {
+  // en-GB keeps Latin month names; Nepali UI still gets translated labels elsewhere.
+  return date.toLocaleDateString(i18n.language === 'ne' ? 'en-GB' : 'en-NP', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -41,13 +53,13 @@ export const formatRelativeTime = (value?: string | Date) => {
   const date = typeof value === 'string' ? new Date(value) : value;
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffMins < 1) return i18n.t('common.justNow');
+  if (diffMins < 60) return i18n.t('common.minAgo', { count: diffMins });
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  if (diffHours < 24) return i18n.t('common.hourAgo', { count: diffHours });
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays === 1) return i18n.t('common.yesterday');
+  if (diffDays < 7) return i18n.t('common.daysAgo', { count: diffDays });
   return formatDate(date);
 };
 
@@ -68,7 +80,7 @@ export const formatLastTransaction = (creditDate?: string, paymentDate?: string)
   const credit = creditDate ? new Date(creditDate).getTime() : 0;
   const payment = paymentDate ? new Date(paymentDate).getTime() : 0;
   const latest = Math.max(credit, payment);
-  if (!latest) return 'No activity yet';
+  if (!latest) return i18n.t('common.noActivity');
 
   const date = new Date(latest);
   const now = new Date();
@@ -79,10 +91,10 @@ export const formatLastTransaction = (creditDate?: string, paymentDate?: string)
     hour12: true,
   });
 
-  if (diffDays === 0) return `Today, ${time}`;
-  if (diffDays === 1) return `Yesterday, ${time}`;
+  if (diffDays === 0) return `${i18n.t('common.today')}, ${time}`;
+  if (diffDays === 1) return `${i18n.t('common.yesterday')}, ${time}`;
 
-  const dateLabel = date.toLocaleDateString('en-US', {
+  const dateLabel = date.toLocaleDateString('en-GB', {
     month: 'short',
     day: 'numeric',
     ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
@@ -95,11 +107,11 @@ export const getTransactionBadge = (
   creditDate?: string,
   paymentDate?: string
 ): { label: string; tone: 'paid' | 'credit' } => {
-  if (balance <= 0) return { label: 'Paid', tone: 'paid' };
+  if (balance <= 0) return { label: i18n.t('common.paid'), tone: 'paid' };
   const credit = creditDate ? new Date(creditDate).getTime() : 0;
   const payment = paymentDate ? new Date(paymentDate).getTime() : 0;
-  if (payment > credit) return { label: 'Paid', tone: 'paid' };
-  return { label: 'New Credit', tone: 'credit' };
+  if (payment > credit) return { label: i18n.t('common.paid'), tone: 'paid' };
+  return { label: i18n.t('common.newCredit'), tone: 'credit' };
 };
 
 export const isOverdueCustomer = (

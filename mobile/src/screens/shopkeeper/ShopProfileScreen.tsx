@@ -10,6 +10,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import { updateProfile } from '../../api/auth';
 import ProfileImagePicker from '../../components/ProfileImagePicker';
@@ -17,20 +18,21 @@ import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { getInitials } from '../../utils/format';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShopProfile'>;
 
-function statusLabel(status?: string, verified?: boolean) {
-  if (status === 'verified' || verified) return { text: 'Verified', color: colors.primary, bg: '#DCFCE7' };
-  if (status === 'pending') return { text: 'Pending review', color: colors.warning, bg: '#FEF3C7' };
-  if (status === 'rejected') return { text: 'Needs update', color: colors.danger, bg: '#FEE2E2' };
-  return { text: 'Not set up', color: colors.textMuted, bg: '#F3F4F6' };
+function statusLabel(status: string | undefined, verified: boolean | undefined, t: (key: string) => string) {
+  if (status === 'verified' || verified) return { text: t('shopProfile.verified'), color: colors.primary, bg: '#DCFCE7' };
+  if (status === 'pending') return { text: t('shopProfile.pendingReview'), color: colors.warning, bg: '#FEF3C7' };
+  if (status === 'rejected') return { text: t('shopProfile.needsUpdate'), color: colors.danger, bg: '#FEE2E2' };
+  return { text: t('shopProfile.notSetUp'), color: colors.textMuted, bg: '#F3F4F6' };
 }
 
 export default function ShopProfileScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
   const [editing, setEditing] = useState(!user?.shopName?.trim());
@@ -43,7 +45,7 @@ export default function ShopProfileScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const badge = statusLabel(user?.shopVerificationStatus, user?.isShopVerified);
+  const badge = statusLabel(user?.shopVerificationStatus, user?.isShopVerified, t);
   const hasShop = Boolean(user?.shopName?.trim());
 
   useEffect(() => {
@@ -66,11 +68,11 @@ export default function ShopProfileScreen({ navigation }: Props) {
 
   const handleSave = async () => {
     if (!shopName.trim()) {
-      setError('Shop name is required');
+      setError(t('shopProfile.shopNameRequired'));
       return;
     }
     if (!shopLocation.trim()) {
-      setError('Shop location is required');
+      setError(t('shopProfile.locationRequired'));
       return;
     }
 
@@ -86,10 +88,10 @@ export default function ShopProfileScreen({ navigation }: Props) {
         ...(shopImage.trim() ? { shopImage: shopImage.trim() } : {}),
       });
       await refreshUser();
-      setMessage(data.message || 'Profile saved');
+      setMessage(data.message || t('shopProfile.saved'));
       setEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile');
+      setError(err instanceof Error ? err.message : t('shopProfile.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -99,38 +101,38 @@ export default function ShopProfileScreen({ navigation }: Props) {
   const displayProfileImage = editing ? profileImage : user?.profileImage;
 
   return (
-    <View style={styles.screen}>
+    <View style={spfStyles.spfScreen}>
       <ScrollView
-        style={styles.scroll}
+        style={spfStyles.spfScroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
           colors={[colors.primaryDark, colors.primary]}
-          style={[styles.hero, { paddingTop: insets.top + 12 }]}
+          style={[spfStyles.spfHero, { paddingTop: insets.top + 12 }]}
         >
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-            <Text style={styles.backBtnText}>‹ Back</Text>
+          <Pressable onPress={() => navigation.goBack()} style={spfStyles.spfBackBtn} hitSlop={8}>
+            <Text style={spfStyles.spfBackBtnText}>{t('common.back')}</Text>
           </Pressable>
 
-          <View style={styles.heroImages}>
-            <View style={styles.shopImageWrap}>
+          <View style={spfStyles.spfHeroImages}>
+            <View style={spfStyles.spfShopImageWrap}>
               {displayShopImage ? (
-                <Image source={{ uri: displayShopImage }} style={styles.shopHeroImage} />
+                <Image source={{ uri: displayShopImage }} style={spfStyles.spfShopHeroImage} />
               ) : (
-                <View style={styles.shopHeroPlaceholder}>
-                  <Text style={styles.shopHeroInitial}>
+                <View style={spfStyles.spfShopHeroPlaceholder}>
+                  <Text style={spfStyles.spfShopHeroInitial}>
                     {getInitials(shopName || user?.shopName || 'Shop')}
                   </Text>
                 </View>
               )}
             </View>
-            <View style={styles.profileImageWrap}>
+            <View style={spfStyles.spfProfileImageWrap}>
               {displayProfileImage ? (
-                <Image source={{ uri: displayProfileImage }} style={styles.profileHeroImage} />
+                <Image source={{ uri: displayProfileImage }} style={spfStyles.spfProfileHeroImage} />
               ) : (
-                <View style={styles.profileHeroPlaceholder}>
-                  <Text style={styles.profileHeroInitial}>
+                <View style={spfStyles.spfProfileHeroPlaceholder}>
+                  <Text style={spfStyles.spfProfileHeroInitial}>
                     {getInitials(fullName || user?.fullName || 'U')}
                   </Text>
                 </View>
@@ -138,9 +140,9 @@ export default function ShopProfileScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <Text style={styles.heroTitle}>{hasShop ? user?.shopName : 'Register your shop'}</Text>
+          <Text style={spfStyles.spfHeroTitle}>{hasShop ? user?.shopName : t('shopProfile.registerShop')}</Text>
           {user?.shopLocation ? (
-            <View style={styles.locationRow}>
+            <View style={spfStyles.spfLocationRow}>
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M12 21 C12 21 19 14.5 19 10 C19 6.13 15.87 3 12 3 C8.13 3 5 6.13 5 10 C5 14.5 12 21 12 21 Z"
@@ -149,28 +151,28 @@ export default function ShopProfileScreen({ navigation }: Props) {
                 />
                 <Path d="M12 12 C13.1 12 14 11.1 14 10 C14 8.9 13.1 8 12 8 C10.9 8 10 8.9 10 10 C10 11.1 10.9 12 12 12 Z" fill="rgba(255,255,255,0.9)" />
               </Svg>
-              <Text style={styles.heroLocation}>{user.shopLocation}</Text>
+              <Text style={spfStyles.spfHeroLocation}>{user.shopLocation}</Text>
             </View>
           ) : null}
-          <Text style={styles.heroOwner}>{user?.fullName}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.statusBadgeText, { color: badge.color }]}>{badge.text}</Text>
+          <Text style={spfStyles.spfHeroOwner}>{user?.fullName}</Text>
+          <View style={[spfStyles.spfStatusBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[spfStyles.spfStatusBadgeText, { color: badge.color }]}>{badge.text}</Text>
           </View>
         </LinearGradient>
 
-        <View style={styles.body}>
+        <View style={spfStyles.spfBody}>
           <EmailVerificationBanner user={user} />
-          {message ? <Text style={styles.success}>{message}</Text> : null}
+          {message ? <Text style={spfStyles.spfSuccess}>{message}</Text> : null}
           {error ? <ErrorText message={error} /> : null}
 
           {editing ? (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{hasShop ? 'Edit profile' : 'Set up shop'}</Text>
-              <Text style={styles.cardSub}>Update your photo and shop details.</Text>
+            <View style={spfStyles.spfCard}>
+              <Text style={spfStyles.spfCardTitle}>{hasShop ? t('shopProfile.editProfile') : t('shopProfile.setUpShop')}</Text>
+              <Text style={spfStyles.spfCardSub}>{t('shopProfile.editSub')}</Text>
 
-              <View style={styles.pickerRow}>
+              <View style={spfStyles.spfPickerRow}>
                 <ProfileImagePicker
-                  label="Your photo"
+                  label={t('shopProfile.yourPhoto')}
                   value={profileImage}
                   onChange={setProfileImage}
                   onError={setError}
@@ -180,7 +182,7 @@ export default function ShopProfileScreen({ navigation }: Props) {
                   size={72}
                 />
                 <ProfileImagePicker
-                  label="Shop photo"
+                  label={t('shopProfile.shopPhoto')}
                   value={shopImage}
                   onChange={setShopImage}
                   onError={setError}
@@ -191,19 +193,19 @@ export default function ShopProfileScreen({ navigation }: Props) {
                 />
               </View>
 
-              <Input label="Your name" value={fullName} onChangeText={setFullName} />
-              <Input label="Shop name *" value={shopName} onChangeText={setShopName} />
+              <Input label={t('shopProfile.yourName')} value={fullName} onChangeText={setFullName} />
+              <Input label={t('shopProfile.shopName')} value={shopName} onChangeText={setShopName} />
               <Input
-                label="Shop location *"
+                label={t('shopProfile.shopLocation')}
                 value={shopLocation}
                 onChangeText={setShopLocation}
-                placeholder="e.g. Kathmandu, Nepal"
+                placeholder={t('shopProfile.locationPlaceholder')}
               />
 
-              <View style={styles.actions}>
+              <View style={spfStyles.spfActions}>
                 {hasShop ? (
                   <Button
-                    title="Cancel"
+                    title={t('common.cancel')}
                     variant="outline"
                     onPress={() => {
                       resetForm();
@@ -211,20 +213,20 @@ export default function ShopProfileScreen({ navigation }: Props) {
                     }}
                   />
                 ) : null}
-                <Button title="Save profile" onPress={handleSave} loading={loading} />
+                <Button title={t('shopProfile.saveProfile')} onPress={handleSave} loading={loading} />
               </View>
             </View>
           ) : (
             <>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Shop details</Text>
-                <InfoRow icon="shop" label="Shop name" value={user?.shopName || '—'} />
-                <InfoRow icon="pin" label="Location" value={user?.shopLocation || '—'} />
-                <InfoRow icon="user" label="Owner" value={user?.fullName || '—'} />
-                <InfoRow icon="mail" label="Email" value={user?.email || '—'} last />
+              <View style={spfStyles.spfCard}>
+                <Text style={spfStyles.spfCardTitle}>{t('shopProfile.shopDetails')}</Text>
+                <InfoRow icon="shop" label={t('shopProfile.shopNameLabel')} value={user?.shopName || '—'} />
+                <InfoRow icon="pin" label={t('shopProfile.location')} value={user?.shopLocation || '—'} />
+                <InfoRow icon="user" label={t('shopProfile.owner')} value={user?.fullName || '—'} />
+                <InfoRow icon="mail" label={t('security.email')} value={user?.email || '—'} last />
               </View>
 
-              <Button title="Edit profile & photos" onPress={() => setEditing(true)} />
+              <Button title={t('shopProfile.editProfilePhotos')} onPress={() => setEditing(true)} />
             </>
           )}
         </View>
@@ -246,8 +248,8 @@ function InfoRow({
 }) {
   const iconColor = colors.primary;
   return (
-    <View style={[styles.infoRow, !last && styles.infoRowBorder]}>
-      <View style={styles.infoIcon}>
+    <View style={[spfStyles.spfInfoRow, !last && spfStyles.spfInfoRowBorder]}>
+      <View style={spfStyles.spfInfoIcon}>
         {icon === 'shop' ? (
           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
             <Path d="M4 10 L12 4 L20 10 V19 C20 19.55 19.55 20 19 20 H5 C4.45 20 4 19.55 4 19 Z" stroke={iconColor} strokeWidth={2} />
@@ -268,42 +270,42 @@ function InfoRow({
           </Svg>
         )}
       </View>
-      <View style={styles.infoBody}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
+      <View style={spfStyles.spfInfoBody}>
+        <Text style={spfStyles.spfInfoLabel}>{label}</Text>
+        <Text style={spfStyles.spfInfoValue}>{value}</Text>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  scroll: { flex: 1 },
-  hero: {
+const spfStyles = StyleSheet.create({
+  spfScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  spfScroll: { flex: 1 },
+  spfHero: {
     paddingHorizontal: 16,
     paddingBottom: 24,
     alignItems: 'center',
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
-  backBtn: { alignSelf: 'flex-start', marginBottom: 8 },
-  backBtnText: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600' },
-  heroImages: {
+  spfBackBtn: { alignSelf: 'flex-start', marginBottom: 8 },
+  spfBackBtnText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  spfHeroImages: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'center',
     gap: 12,
     marginBottom: 14,
   },
-  shopImageWrap: {
+  spfShopImageWrap: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  shopHeroImage: { width: 88, height: 88, borderRadius: 18, borderWidth: 3, borderColor: '#FFFFFF' },
-  shopHeroPlaceholder: {
+  spfShopHeroImage: { width: 88, height: 88, borderRadius: 18, borderWidth: 3, borderColor: '#FFFFFF' },
+  spfShopHeroPlaceholder: {
     width: 88,
     height: 88,
     borderRadius: 18,
@@ -313,16 +315,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shopHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: t.xxl },
-  profileImageWrap: { marginBottom: -8 },
-  profileHeroImage: {
+  spfShopHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.xxl },
+  spfProfileImageWrap: { marginBottom: -8 },
+  spfProfileHeroImage: {
     width: 56,
     height: 56,
     borderRadius: 28,
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
-  profileHeroPlaceholder: {
+  spfProfileHeroPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -332,30 +334,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: t.lg },
-  heroTitle: {
-    fontSize: t.h2,
+  spfProfileHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.lg },
+  spfHeroTitle: {
+    fontSize: ty.h2,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
   },
-  locationRow: {
+  spfLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 4,
   },
-  heroLocation: { fontSize: t.body, color: 'rgba(255,255,255,0.9)' },
-  heroOwner: { fontSize: t.bodyLg, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
-  statusBadge: {
+  spfHeroLocation: { fontSize: ty.body, color: 'rgba(255,255,255,0.9)' },
+  spfHeroOwner: { fontSize: ty.bodyLg, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
+  spfStatusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,
   },
-  statusBadgeText: { fontSize: t.caption, fontWeight: '700' },
-  body: { padding: 16, marginTop: -8 },
-  card: {
+  spfStatusBadgeText: { fontSize: ty.caption, fontWeight: '700' },
+  spfBody: { padding: 16, marginTop: -8 },
+  spfCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
@@ -363,25 +365,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  cardTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  cardSub: { fontSize: t.body, color: colors.textMuted, marginBottom: 16 },
-  pickerRow: {
+  spfCardTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  spfCardSub: { fontSize: ty.body, color: colors.textMuted, marginBottom: 16 },
+  spfPickerRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 8,
     gap: 12,
   },
-  infoRow: {
+  spfInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     gap: 12,
   },
-  infoRowBorder: {
+  spfInfoRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2F5',
   },
-  infoIcon: {
+  spfInfoIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -389,9 +391,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoBody: { flex: 1 },
-  infoLabel: { fontSize: t.caption, color: colors.textMuted, marginBottom: 2 },
-  infoValue: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
-  success: { color: colors.primary, marginBottom: 10, fontWeight: '600', fontSize: t.bodyLg },
-  actions: { gap: 8, marginTop: 8 },
+  spfInfoBody: { flex: 1 },
+  spfInfoLabel: { fontSize: ty.caption, color: colors.textMuted, marginBottom: 2 },
+  spfInfoValue: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
+  spfSuccess: { color: colors.primary, marginBottom: 10, fontWeight: '600', fontSize: ty.bodyLg },
+  spfActions: { gap: 8, marginTop: 8 },
 });

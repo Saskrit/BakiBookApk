@@ -7,6 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: 'BakiBook',
     slug: 'bakibook',
+    scheme: 'bakibook',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -37,16 +38,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'expo-camera',
         {
           cameraPermission:
-            'Allow BakiBook to access your camera to scan customer QR codes and take photos.',
+            'Allow BakiBook to access your camera to scan QR codes and take photos. / BakiBook लाई QR स्क्यान र फोटो खिच्न क्यामेरा प्रयोग गर्न अनुमति दिनुहोस्।',
         },
       ],
       [
         'expo-image-picker',
         {
           photosPermission:
-            'Allow BakiBook to access your photos to update profile and shop images.',
+            'Allow BakiBook to access your photos to update profile and shop images. / प्रोफाइल र पसलका तस्बिर अपडेट गर्न BakiBook लाई फोटो पहुँच दिनुहोस्।',
           cameraPermission:
-            'Allow BakiBook to use your camera to take profile and shop photos.',
+            'Allow BakiBook to use your camera to take profile and shop photos. / प्रोफाइल र पसलका फोटो खिच्न BakiBook लाई क्यामेरा प्रयोग गर्न अनुमति दिनुहोस्।',
         },
       ],
     ],

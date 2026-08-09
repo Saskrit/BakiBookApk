@@ -15,19 +15,19 @@ export function CustomerCard({
   onPayment: () => void;
 }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(customer.name)}</Text>
+    <View style={ccStyles.ccCard}>
+      <View style={ccStyles.ccRow}>
+        <View style={ccStyles.ccAvatar}>
+          <Text style={ccStyles.ccAvatarText}>{getInitials(customer.name)}</Text>
         </View>
-        <View style={styles.info}>
-          <Text style={styles.name}>{customer.name}</Text>
-          <Text style={[styles.due, customer.balance > 0 && styles.dueActive]}>
+        <View style={ccStyles.ccInfo}>
+          <Text style={ccStyles.ccName}>{customer.name}</Text>
+          <Text style={[ccStyles.ccDue, customer.balance > 0 && ccStyles.ccDueActive]}>
             Due: {formatRs(customer.balance)}
           </Text>
         </View>
       </View>
-      <View style={styles.actions}>
+      <View style={ccStyles.ccActions}>
         <ActionChip label="View" onPress={onView} />
         <ActionChip label="Credit" onPress={onCredit} primary />
         <ActionChip label="Payment" onPress={onPayment} />
@@ -48,15 +48,15 @@ function ActionChip({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, primary && styles.chipPrimary]}
+      style={[ccStyles.ccChip, primary && ccStyles.ccChipPrimary]}
     >
-      <Text style={[styles.chipText, primary && styles.chipTextPrimary]}>{label}</Text>
+      <Text style={[ccStyles.ccChipText, primary && ccStyles.ccChipTextPrimary]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
+const ccStyles = StyleSheet.create({
+  ccCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
@@ -64,8 +64,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 12,
   },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  avatar: {
+  ccRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  ccAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -74,13 +74,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarText: { color: colors.primaryDark, fontWeight: '700', fontSize: 16 },
-  info: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '700', color: colors.text },
-  due: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  dueActive: { color: colors.danger, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 8 },
-  chip: {
+  ccAvatarText: { color: colors.primaryDark, fontWeight: '700', fontSize: 16 },
+  ccInfo: { flex: 1 },
+  ccName: { fontSize: 16, fontWeight: '700', color: colors.text },
+  ccDue: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+  ccDueActive: { color: colors.danger, fontWeight: '600' },
+  ccActions: { flexDirection: 'row', gap: 8 },
+  ccChip: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
   },
-  chipPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  chipTextPrimary: { color: '#fff' },
+  ccChipPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  ccChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  ccChipTextPrimary: { color: '#fff' },
 });

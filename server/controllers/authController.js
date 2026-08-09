@@ -6,6 +6,7 @@ import { createEmailToken, hashToken } from '../utils/emailToken.js';
 import {
   sendWelcomeEmail,
   sendVerificationEmail,
+  sendEmailChangeCode,
   sendPasswordResetEmail,
 } from '../utils/emailService.js';
 import { verifyGoogleToken } from '../utils/googleVerify.js';
@@ -14,6 +15,11 @@ import { resolveImageUrl } from '../utils/imageUpload.js';
 import { isAdminEmail, getAdminEmails, matchesAdminCredentials, getAdminEnvEmail, getAdminEnvPassword } from '../utils/adminCheck.js';
 import { notifyPendingInvitationsForUser } from './linkController.js';
 import { createNotification } from '../utils/notify.js';
+import {
+  formatTutorialProgress,
+  sanitizeTutorialStepIds,
+  TUTORIAL_STEP_ID_SET,
+} from '../utils/tutorialCatalog.js';
 
 const isShopDetailsComplete = (user) =>
   Boolean(user.shopName?.trim() && user.shopLocation?.trim() && user.shopImage);
@@ -63,6 +69,7 @@ const formatUser = (user) => {
     fullName: user.fullName,
     profileImage: user.profileImage || '',
     email: user.email,
+    phone: user.phone || '',
     shopName: user.shopName || '',
     shopLocation: user.shopLocation || '',
     shopImage: user.shopImage || '',
@@ -72,6 +79,8 @@ const formatUser = (user) => {
     shopVerificationStatus,
     needsShopSetup: user.role === 'shopkeeper' && shopVerificationStatus !== 'verified',
     isAdmin: isAdminEmail(user.email),
+    preferredLanguage: user.preferredLanguage === 'ne' ? 'ne' : 'en',
+    tutorialProgress: formatTutorialProgress(user),
     createdAt: user.createdAt,
   };
 };
@@ -735,6 +744,229 @@ export const completeShopProfile = async (req, res) => {
   }
 };
 
+export const requestEmailChange = async (req, res) => {
+  const newEmail = String(req.body.newEmail || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+
+  try {
+    const user = await User.findById(req.user._id).select(
+      '+password +pendingEmail +emailChangeCodeHash +emailChangeExpires ' +
+        '+emailChangeRequestedAt +emailChangePasswordAttempts +emailChangeLockedUntil'
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const now = Date.now();
+    if (user.emailChangeLockedUntil && user.emailChangeLockedUntil.getTime() > now) {
+      return res.status(429).json({
+        success: false,
+        message: 'Email changes are locked for 24 hours after three incorrect password attempts',
+        lockedUntil: user.emailChangeLockedUntil,
+      });
+    }
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter your password to continue',
+      });
+    }
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password confirmation is unavailable for this account',
+      });
+    }
+
+    const passwordMatches = await user.matchPassword(password);
+    if (!passwordMatches) {
+      const attempts = (user.emailChangePasswordAttempts || 0) + 1;
+      if (attempts >= 3) {
+        user.emailChangePasswordAttempts = 0;
+        user.emailChangeLockedUntil = new Date(now + 24 * 60 * 60 * 1000);
+        user.pendingEmail = undefined;
+        user.emailChangeCodeHash = undefined;
+        user.emailChangeExpires = undefined;
+        user.emailChangeRequestedAt = undefined;
+        await user.save();
+        return res.status(429).json({
+          success: false,
+          message: 'Incorrect password three times. Email changes are locked for 24 hours.',
+          lockedUntil: user.emailChangeLockedUntil,
+          remainingAttempts: 0,
+        });
+      }
+
+      user.emailChangePasswordAttempts = attempts;
+      await user.save();
+      const remainingAttempts = 3 - attempts;
+      return res.status(401).json({
+        success: false,
+        message: `Incorrect password. ${remainingAttempts} ${
+          remainingAttempts === 1 ? 'attempt' : 'attempts'
+        } remaining.`,
+        remainingAttempts,
+      });
+    }
+
+    user.emailChangePasswordAttempts = 0;
+    user.emailChangeLockedUntil = undefined;
+    await user.save();
+
+    if (!emailRegex.test(newEmail)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address' });
+    }
+    if (newEmail === user.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'This is already your current email address',
+      });
+    }
+
+    const existing = await User.exists({ email: newEmail, _id: { $ne: user._id } });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already registered',
+      });
+    }
+
+    if (
+      user.pendingEmail === newEmail &&
+      user.emailChangeRequestedAt &&
+      now - user.emailChangeRequestedAt.getTime() < 60_000
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: 'Please wait one minute before requesting another code',
+      });
+    }
+
+    const code = String(crypto.randomInt(100000, 1000000));
+    user.pendingEmail = newEmail;
+    user.emailChangeCodeHash = hashToken(code);
+    user.emailChangeExpires = new Date(now + 10 * 60 * 1000);
+    user.emailChangeRequestedAt = new Date(now);
+    await user.save();
+
+    try {
+      await sendEmailChangeCode(user, newEmail, code);
+    } catch (emailError) {
+      user.pendingEmail = undefined;
+      user.emailChangeCodeHash = undefined;
+      user.emailChangeExpires = undefined;
+      user.emailChangeRequestedAt = undefined;
+      await user.save();
+      return res.status(502).json({
+        success: false,
+        message: 'Could not send the confirmation code. Please try again.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Confirmation code sent to your new email',
+      pendingEmail: newEmail,
+      expiresInSeconds: 600,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to request email change',
+    });
+  }
+};
+
+export const confirmEmailChange = async (req, res) => {
+  const code = String(req.body.code || '').trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Enter the 6-digit confirmation code',
+    });
+  }
+
+  try {
+    const user = await User.findById(req.user._id).select(
+      '+pendingEmail +emailChangeCodeHash +emailChangeExpires +emailChangeRequestedAt ' +
+        '+emailChangeLockedUntil'
+    );
+    if (user?.emailChangeLockedUntil && user.emailChangeLockedUntil.getTime() > Date.now()) {
+      return res.status(429).json({
+        success: false,
+        message: 'Email changes are locked for 24 hours after three incorrect password attempts',
+        lockedUntil: user.emailChangeLockedUntil,
+      });
+    }
+    if (!user?.pendingEmail || !user.emailChangeCodeHash || !user.emailChangeExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request a new confirmation code first',
+      });
+    }
+    if (user.emailChangeExpires.getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Confirmation code has expired. Request a new code.',
+      });
+    }
+
+    const submittedHash = hashToken(code);
+    const expected = Buffer.from(user.emailChangeCodeHash, 'hex');
+    const submitted = Buffer.from(submittedHash, 'hex');
+    if (
+      expected.length !== submitted.length ||
+      !crypto.timingSafeEqual(expected, submitted)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Incorrect confirmation code',
+      });
+    }
+
+    const existing = await User.exists({
+      email: user.pendingEmail,
+      _id: { $ne: user._id },
+    });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already registered',
+      });
+    }
+
+    user.email = user.pendingEmail;
+    user.isEmailVerified = true;
+    user.pendingEmail = undefined;
+    user.emailChangeCodeHash = undefined;
+    user.emailChangeExpires = undefined;
+    user.emailChangeRequestedAt = undefined;
+    await user.save();
+
+    if (user.role === 'customer') {
+      await notifyPendingInvitationsForUser(user).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      message: 'Email changed successfully',
+      user: formatUser(user),
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already registered',
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to confirm email change',
+    });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('+password');
@@ -743,21 +975,51 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { fullName, profileImage, password, shopName, shopLocation, shopImage } = req.body;
+    const {
+      fullName,
+      phone,
+      profileImage,
+      password,
+      shopName,
+      shopLocation,
+      shopImage,
+      preferredLanguage,
+    } = req.body;
 
     if (fullName?.trim()) {
       user.fullName = fullName.trim();
+    }
+
+    if (phone !== undefined) {
+      const cleaned = String(phone || '').trim();
+      if (cleaned) {
+        const digits = cleaned.replace(/[^\d+]/g, '');
+        if (digits.replace(/\D/g, '').length < 7 || digits.replace(/\D/g, '').length > 15) {
+          return res.status(400).json({
+            success: false,
+            message: 'Enter a valid phone number',
+          });
+        }
+        user.phone = digits;
+      } else {
+        user.phone = undefined;
+      }
+    }
+
+    if (preferredLanguage === 'en' || preferredLanguage === 'ne') {
+      user.preferredLanguage = preferredLanguage;
     }
 
     if (profileImage) {
       user.profileImage = await resolveImageUrl(profileImage, 'profiles');
     }
 
+    // Password changes must go through /change-password (requires current password).
     if (password) {
-      if (password.length < 6) {
-        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
-      }
-      user.password = password;
+      return res.status(400).json({
+        success: false,
+        message: 'Use change password to update your password',
+      });
     }
 
     if (user.role === 'shopkeeper') {
@@ -847,6 +1109,66 @@ export const changePassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to change password',
+    });
+  }
+};
+
+export const updateTutorialProgress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.role !== 'shopkeeper') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tutorial progress is only available for shopkeepers',
+      });
+    }
+
+    const { stepId, completed, completedStepIds, reset } = req.body;
+    const current = sanitizeTutorialStepIds(user.tutorialProgress?.completedStepIds || []);
+    let next = [...current];
+
+    if (reset === true) {
+      next = [];
+    } else if (Array.isArray(completedStepIds)) {
+      next = sanitizeTutorialStepIds(completedStepIds);
+    } else if (typeof stepId === 'string') {
+      if (!TUTORIAL_STEP_ID_SET.has(stepId)) {
+        return res.status(400).json({ success: false, message: 'Unknown tutorial step' });
+      }
+      const set = new Set(next);
+      if (completed === false) {
+        set.delete(stepId);
+      } else {
+        set.add(stepId);
+      }
+      next = [...set];
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Provide stepId, completedStepIds, or reset',
+      });
+    }
+
+    user.tutorialProgress = {
+      completedStepIds: next,
+      updatedAt: new Date(),
+    };
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Tutorial progress updated',
+      user: formatUser(user),
+      tutorialProgress: formatTutorialProgress(user),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update tutorial progress',
     });
   }
 };

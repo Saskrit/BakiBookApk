@@ -14,8 +14,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import Sparkline from '../../components/dashboard/Sparkline';
+import NotificationBell from '../../components/NotificationBell';
 import { LoadingState } from '../../components/ui';
 import {
   fetchDashboardStats,
@@ -24,7 +26,7 @@ import {
   type DashboardTopDueCustomer,
 } from '../../api/shop';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import {
   avatarColor,
   formatRelativeTime,
@@ -42,9 +44,9 @@ type DashboardNav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-const parseCustomerName = (text: string) => {
+const parseCustomerName = (text: string, fallback: string) => {
   const match = text.match(/(?:to|from)\s+(.+)$/i);
-  return match?.[1]?.trim() || 'Customer';
+  return match?.[1]?.trim() || fallback;
 };
 
 function SectionHeader({
@@ -54,12 +56,13 @@ function SectionHeader({
   title: string;
   onViewAll?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={dbStyles.dbSectionHeader}>
+      <Text style={dbStyles.dbSectionTitle}>{title}</Text>
       {onViewAll ? (
         <Pressable onPress={onViewAll}>
-          <Text style={styles.viewAll}>View All ›</Text>
+          <Text style={dbStyles.dbViewAll}>{t('common.viewAll')}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -84,11 +87,11 @@ function StatCard({
   iconBg: string;
 }) {
   return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIconWrap, { backgroundColor: iconBg }]}>{icon}</View>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
-      <Text style={[styles.statTrend, trendUp ? styles.trendUp : styles.trendDown]}>
+    <View style={dbStyles.dbStatCard}>
+      <View style={[dbStyles.dbStatIconWrap, { backgroundColor: iconBg }]}>{icon}</View>
+      <Text style={dbStyles.dbStatLabel}>{label}</Text>
+      <Text style={[dbStyles.dbStatValue, { color: valueColor }]}>{value}</Text>
+      <Text style={[dbStyles.dbStatTrend, trendUp ? dbStyles.dbTrendUp : dbStyles.dbTrendDown]}>
         {trendUp ? '▲' : '▼'} {trend}
       </Text>
     </View>
@@ -105,33 +108,36 @@ function QuickAction({
   icon: ReactNode;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.quickAction}>
-      <View style={styles.quickActionIcon}>{icon}</View>
-      <Text style={styles.quickActionLabel}>{label}</Text>
+    <Pressable onPress={onPress} style={dbStyles.dbQuickAction}>
+      <View style={dbStyles.dbQuickActionIcon}>{icon}</View>
+      <Text style={dbStyles.dbQuickActionLabel}>{label}</Text>
     </Pressable>
   );
 }
 
 function TransactionRow({ item }: { item: DashboardRecentTransaction }) {
-  const name = parseCustomerName(item.text);
+  const { t } = useTranslation();
+  const name = parseCustomerName(item.text, t('common.customer'));
   const isPayment = item.type === 'payment';
   const amount = parseMoneyAmount(item.amount);
 
   return (
-    <View style={styles.txRow}>
-      <View style={[styles.avatar, { backgroundColor: avatarColor(name) }]}>
-        <Text style={styles.avatarText}>{getInitials(name)}</Text>
+    <View style={dbStyles.dbTxRow}>
+      <View style={[dbStyles.dbAvatar, { backgroundColor: avatarColor(name) }]}>
+        <Text style={dbStyles.dbAvatarText}>{getInitials(name)}</Text>
       </View>
-      <View style={styles.txBody}>
-        <Text style={styles.txName}>{name}</Text>
-        <Text style={styles.txType}>{isPayment ? 'Payment Received' : 'Credit Added'}</Text>
+      <View style={dbStyles.dbTxBody}>
+        <Text style={dbStyles.dbTxName}>{name}</Text>
+        <Text style={dbStyles.dbTxType}>
+          {isPayment ? t('dashboard.paymentReceived') : t('dashboard.creditAdded')}
+        </Text>
       </View>
-      <View style={styles.txMeta}>
-        <Text style={[styles.txAmount, isPayment ? styles.amountGreen : styles.amountOrange]}>
+      <View style={dbStyles.dbTxMeta}>
+        <Text style={[dbStyles.dbTxAmount, isPayment ? dbStyles.dbAmountGreen : dbStyles.dbAmountOrange]}>
           {isPayment ? '+' : ''}
           {formatRs(amount)}
         </Text>
-        <Text style={styles.txTime}>{formatRelativeTime(item.time)}</Text>
+        <Text style={dbStyles.dbTxTime}>{formatRelativeTime(item.time)}</Text>
       </View>
     </View>
   );
@@ -147,39 +153,40 @@ function OutstandingRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.outRow}>
-      <Text style={styles.outRank}>{rank}</Text>
-      <Text style={styles.outName} numberOfLines={1}>
+    <Pressable onPress={onPress} style={dbStyles.dbOutRow}>
+      <Text style={dbStyles.dbOutRank}>{rank}</Text>
+      <Text style={dbStyles.dbOutName} numberOfLines={1}>
         {item.name}
       </Text>
-      <Text style={styles.outAmount}>{formatRs(item.amount)}</Text>
+      <Text style={dbStyles.dbOutAmount}>{formatRs(item.amount)}</Text>
     </Pressable>
   );
 }
 
 function ReminderRow({ item }: { item: DashboardDueReminder }) {
+  const { t } = useTranslation();
   const dueLabel =
     item.daysOverdue === 0
-      ? 'Today'
+      ? t('common.today')
       : item.daysOverdue === 1
-        ? 'Yesterday'
-        : item.daysLabel || `${item.daysOverdue} days ago`;
+        ? t('common.yesterday')
+        : item.daysLabel || t('common.daysAgo', { count: item.daysOverdue });
 
   return (
-    <View style={styles.reminderRow}>
-      <View style={styles.reminderIcon}>
+    <View style={dbStyles.dbReminderRow}>
+      <View style={dbStyles.dbReminderIcon}>
         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
           <Rect x={3} y={5} width={18} height={16} rx={2} stroke={colors.primary} strokeWidth={2} />
           <Path d="M3 10 H21" stroke={colors.primary} strokeWidth={2} />
         </Svg>
       </View>
-      <View style={styles.reminderBody}>
-        <Text style={styles.reminderName}>{item.name}</Text>
-        <Text style={styles.reminderAmount}>
-          {formatRs(item.amount)} due · {dueLabel}
+      <View style={dbStyles.dbReminderBody}>
+        <Text style={dbStyles.dbReminderName}>{item.name}</Text>
+        <Text style={dbStyles.dbReminderAmount}>
+          {t('customer.due', { amount: formatRs(item.amount) })} · {dueLabel}
         </Text>
       </View>
-      <Text style={styles.reminderWhen}>{dueLabel}</Text>
+      <Text style={dbStyles.dbReminderWhen}>{dueLabel}</Text>
     </View>
   );
 }
@@ -187,6 +194,7 @@ function ReminderRow({ item }: { item: DashboardDueReminder }) {
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(true);
@@ -228,10 +236,10 @@ export default function DashboardScreen() {
       setError('');
       load()
         .catch((err) =>
-          setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+          setError(err instanceof Error ? err.message : t('dashboard.loadFailed'))
         )
         .finally(() => setLoading(false));
-    }, [load])
+    }, [load, t])
   );
 
   const onRefresh = async () => {
@@ -253,20 +261,22 @@ export default function DashboardScreen() {
   const monthCredit = sumSlice(chart.credit, -30, chart.credit.length);
   const monthNet = monthCollection - monthCredit;
 
-  const firstName = user?.fullName?.split(' ')[0] || 'Shopkeeper';
+  const firstName = user?.fullName?.split(' ')[0] || t('auth.shopkeeper');
   const hasShop = Boolean(user?.shopName?.trim());
   const isNewUser = isNewAccount(user?.createdAt);
-  const greetingLine = isNewUser ? `Welcome, ${firstName}` : `Welcome back, ${firstName}`;
+  const greetingLine = isNewUser
+    ? t('dashboard.welcome', { name: firstName })
+    : t('dashboard.welcomeBack', { name: firstName });
   const openShopProfile = () => navigation.getParent()?.navigate('ShopProfile');
-  const avatarLabel = hasShop ? user!.shopName! : user?.fullName || 'Shopkeeper';
+  const avatarLabel = hasShop ? user!.shopName! : user?.fullName || t('auth.shopkeeper');
 
   if (loading) return <LoadingState />;
 
   return (
-    <View style={styles.screen}>
+    <View style={dbStyles.dbScreen}>
       <ScrollView
         ref={scrollRef}
-        style={styles.scroll}
+        style={dbStyles.dbScroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
@@ -275,96 +285,87 @@ export default function DashboardScreen() {
           colors={[colors.primaryDark, colors.primary, '#7A9249']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 10 }]}
+          style={[dbStyles.dbHeader, { paddingTop: insets.top + 10 }]}
         >
-          <View style={styles.headerOrbLarge} />
-          <View style={styles.headerOrbSmall} />
+          <View style={dbStyles.dbHeaderOrbLarge} />
+          <View style={dbStyles.dbHeaderOrbSmall} />
 
-          <View style={styles.headerTop}>
-            <Pressable style={styles.headerGlassBtn} onPress={() => navigation.navigate('Settings')}>
+          <View style={dbStyles.dbHeaderTop}>
+            <Pressable style={dbStyles.dbHeaderGlassBtn} onPress={() => navigation.navigate('Settings')}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                 <Path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
               </Svg>
             </Pressable>
-            <Text style={styles.headerBrand}>BakiBook</Text>
-            <View style={styles.headerActions}>
-              <Pressable style={styles.headerGlassBtn}>
-                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M12 4 C8 4 5 7 5 10 C5 16 3 17 3 17 H21 C21 17 19 16 19 10 C19 7 16 4 12 4 Z"
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                  />
-                </Svg>
-                {reminders.length > 0 ? (
-                  <View style={styles.notifBadge}>
-                    <Text style={styles.notifBadgeText}>{Math.min(reminders.length, 9)}</Text>
-                  </View>
-                ) : null}
-              </Pressable>
+            <Text style={dbStyles.dbHeaderBrand}>BakiBook</Text>
+            <View style={dbStyles.dbHeaderActions}>
+              <View style={dbStyles.dbHeaderGlassBtn}>
+                <NotificationBell tint="#FFFFFF" />
+              </View>
             </View>
           </View>
 
-          <View style={styles.headerHero}>
-            <Pressable onPress={openShopProfile} style={styles.headerAvatarWrap}>
+          <View style={dbStyles.dbHeaderHero}>
+            <Pressable onPress={openShopProfile} style={dbStyles.dbHeaderAvatarWrap}>
               {user?.shopImage ? (
-                <Image source={{ uri: user.shopImage }} style={styles.headerAvatar} />
+                <Image source={{ uri: user.shopImage }} style={dbStyles.dbHeaderAvatar} />
               ) : (
-                <View style={styles.headerAvatarPlaceholder}>
-                  <Text style={styles.headerAvatarInitial}>{getInitials(avatarLabel)}</Text>
+                <View style={dbStyles.dbHeaderAvatarPlaceholder}>
+                  <Text style={dbStyles.dbHeaderAvatarInitial}>{getInitials(avatarLabel)}</Text>
                 </View>
               )}
-              {!hasShop ? <View style={styles.headerAvatarDot} /> : null}
+              {!hasShop ? <View style={dbStyles.dbHeaderAvatarDot} /> : null}
             </Pressable>
 
-            <View style={styles.headerGreeting}>
-              <Text style={styles.welcomeText}>
+            <View style={dbStyles.dbHeaderGreeting}>
+              <Text style={dbStyles.dbWelcomeText}>
                 {greetingLine} {isNewUser ? '✨' : '👋'}
               </Text>
               {hasShop ? (
-                <Pressable onPress={openShopProfile} style={styles.shopRow}>
-                  <Text style={styles.shopName} numberOfLines={1}>
+                <Pressable onPress={openShopProfile} style={dbStyles.dbShopRow}>
+                  <Text style={dbStyles.dbShopName} numberOfLines={1}>
                     {user!.shopName}
                   </Text>
-                  <Text style={styles.shopChevron}>▾</Text>
+                  <Text style={dbStyles.dbShopChevron}>▾</Text>
                 </Pressable>
               ) : (
-                <Pressable onPress={openShopProfile} style={styles.registerShopBtn}>
-                  <Text style={styles.registerShopText}>Register your shop</Text>
-                  <Text style={styles.registerShopArrow}>›</Text>
+                <Pressable onPress={openShopProfile} style={dbStyles.dbRegisterShopBtn}>
+                  <Text style={dbStyles.dbRegisterShopText}>{t('dashboard.registerYourShop')}</Text>
+                  <Text style={dbStyles.dbRegisterShopArrow}>›</Text>
                 </Pressable>
               )}
               {!hasShop ? (
-                <Text style={styles.shopHint}>Add shop name, location & photo to get started</Text>
+                <Text style={dbStyles.dbShopHint}>{t('dashboard.shopHint')}</Text>
               ) : null}
             </View>
           </View>
 
-          <View style={styles.headerFooter}>
-            <Pressable style={styles.overviewBtn} onPress={() => navigation.navigate('Reports')}>
-              <Text style={styles.overviewBtnText}>Business Overview</Text>
-              <Text style={styles.overviewBtnArrow}>›</Text>
+          <View style={dbStyles.dbHeaderFooter}>
+            <Pressable style={dbStyles.dbOverviewBtn} onPress={() => navigation.navigate('Reports')}>
+              <Text style={dbStyles.dbOverviewBtnText}>{t('dashboard.businessOverview')}</Text>
+              <Text style={dbStyles.dbOverviewBtnArrow}>›</Text>
             </Pressable>
-            <View style={styles.headerStatPill}>
-              <Text style={styles.headerStatLabel}>Outstanding</Text>
-              <Text style={styles.headerStatValue}>{formatRs(stats.totalOutstanding)}</Text>
+            <View style={dbStyles.dbHeaderStatPill}>
+              <Text style={dbStyles.dbHeaderStatLabel}>{t('dashboard.outstanding')}</Text>
+              <Text style={dbStyles.dbHeaderStatValue}>{formatRs(stats.totalOutstanding)}</Text>
             </View>
           </View>
         </LinearGradient>
 
-        <View style={styles.body}>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={dbStyles.dbBody}>
+          {error ? <Text style={dbStyles.dbError}>{error}</Text> : null}
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsScroll}
+            contentContainerStyle={dbStyles.dbStatsScroll}
           >
             <StatCard
-              label="Total Outstanding"
+              label={t('dashboard.totalOutstanding')}
               value={formatRs(stats.totalOutstanding)}
               valueColor={colors.danger}
-              trend={`${Math.abs(trendPercent(last7Credit, prev7Credit))}% vs last week`}
+              trend={t('dashboard.vsLastWeek', {
+                percent: Math.abs(trendPercent(last7Credit, prev7Credit)),
+              })}
               trendUp={stats.totalOutstanding <= 0}
               iconBg="#FEE2E2"
               icon={
@@ -375,10 +376,12 @@ export default function DashboardScreen() {
               }
             />
             <StatCard
-              label="Today's Collection"
+              label={t('dashboard.todaysCollection')}
               value={formatRs(todayCollection)}
               valueColor={colors.primary}
-              trend={`${Math.abs(trendPercent(last7Pay, prev7Pay))}% vs last week`}
+              trend={t('dashboard.vsLastWeek', {
+                percent: Math.abs(trendPercent(last7Pay, prev7Pay)),
+              })}
               trendUp={trendPercent(last7Pay, prev7Pay) >= 0}
               iconBg="#DCFCE7"
               icon={
@@ -389,10 +392,12 @@ export default function DashboardScreen() {
               }
             />
             <StatCard
-              label="Today's New Credit"
+              label={t('dashboard.todaysNewCredit')}
               value={formatRs(todayCredit)}
               valueColor={colors.warning}
-              trend={`${Math.abs(trendPercent(last7Credit, prev7Credit))}% vs last week`}
+              trend={t('dashboard.vsLastWeek', {
+                percent: Math.abs(trendPercent(last7Credit, prev7Credit)),
+              })}
               trendUp={trendPercent(last7Credit, prev7Credit) <= 0}
               iconBg="#FEF3C7"
               icon={
@@ -403,10 +408,14 @@ export default function DashboardScreen() {
               }
             />
             <StatCard
-              label="Total Customers"
+              label={t('dashboard.totalCustomers')}
               value={String(stats.totalCustomers)}
               valueColor="#2563EB"
-              trend={`${stats.weekPayment > 0 ? 'Active' : 'Growing'} this week`}
+              trend={
+                stats.weekPayment > 0
+                  ? t('dashboard.activeThisWeek')
+                  : t('dashboard.growingThisWeek')
+              }
               trendUp
               iconBg="#DBEAFE"
               icon={
@@ -419,10 +428,10 @@ export default function DashboardScreen() {
             />
           </ScrollView>
 
-          <SectionHeader title="Quick Actions" onViewAll={() => navigation.navigate('Customers')} />
-          <View style={styles.quickGrid}>
+          <SectionHeader title={t('dashboard.quickActions')} onViewAll={() => navigation.navigate('Customers')} />
+          <View style={dbStyles.dbQuickGrid}>
             <QuickAction
-              label="Add Customer"
+              label={t('dashboard.addCustomer')}
               onPress={() => navigation.navigate('AddCustomer')}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -433,7 +442,7 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label="Add Credit"
+              label={t('dashboard.addCredit')}
               onPress={() => navigation.navigate('AddCredit')}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -443,7 +452,7 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label="Receive Payment"
+              label={t('dashboard.receivePayment')}
               onPress={() => navigation.navigate('Customers')}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -453,7 +462,7 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label="Customers"
+              label={t('dashboard.customers')}
               onPress={() => navigation.navigate('Customers')}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -463,7 +472,7 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label="Reminders"
+              label={t('dashboard.reminders')}
               onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -473,7 +482,7 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label="Scan QR"
+              label={t('dashboard.scanQr')}
               onPress={() => navigation.navigate('Scan')}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -486,23 +495,23 @@ export default function DashboardScreen() {
             />
           </View>
 
-          <View style={styles.twoCol}>
-            <View style={styles.colCard}>
-              <SectionHeader title="Recent Transactions" />
+          <View style={dbStyles.dbTwoCol}>
+            <View style={dbStyles.dbColCard}>
+              <SectionHeader title={t('dashboard.recentTransactions')} />
               {recent.length === 0 ? (
-                <Text style={styles.emptyText}>No recent transactions.</Text>
+                <Text style={dbStyles.dbEmptyText}>{t('dashboard.noRecent')}</Text>
               ) : (
                 recent.slice(0, 4).map((item) => <TransactionRow key={item.id} item={item} />)
               )}
             </View>
 
-            <View style={styles.colCard}>
+            <View style={dbStyles.dbColCard}>
               <SectionHeader
-                title="Top Outstanding"
+                title={t('dashboard.topOutstanding')}
                 onViewAll={() => navigation.navigate('Customers')}
               />
               {topDue.length === 0 ? (
-                <Text style={styles.emptyText}>No outstanding dues.</Text>
+                <Text style={dbStyles.dbEmptyText}>{t('dashboard.noOutstanding')}</Text>
               ) : (
                 topDue.map((item, index) => (
                   <OutstandingRow
@@ -514,36 +523,39 @@ export default function DashboardScreen() {
                 ))
               )}
               <Pressable
-                style={styles.viewAllBtn}
+                style={dbStyles.dbViewAllBtn}
                 onPress={() => navigation.navigate('Customers')}
               >
-                <Text style={styles.viewAllBtnText}>View All Outstanding ›</Text>
+                <Text style={dbStyles.dbViewAllBtnText}>{t('dashboard.viewAllOutstanding')}</Text>
               </Pressable>
             </View>
           </View>
 
-          <View style={styles.card}>
-            <SectionHeader title="Business Overview (This Month)" onViewAll={() => navigation.navigate('Reports')} />
-            <View style={styles.overviewGrid}>
-              <View style={styles.overviewItem}>
-                <Text style={styles.overviewLabel}>Total Collection</Text>
-                <Text style={[styles.overviewValue, { color: colors.primary }]}>
+          <View style={dbStyles.dbCard}>
+            <SectionHeader
+              title={t('dashboard.businessOverviewMonth')}
+              onViewAll={() => navigation.navigate('Reports')}
+            />
+            <View style={dbStyles.dbOverviewGrid}>
+              <View style={dbStyles.dbOverviewItem}>
+                <Text style={dbStyles.dbOverviewLabel}>{t('dashboard.totalCollection')}</Text>
+                <Text style={[dbStyles.dbOverviewValue, { color: colors.primary }]}>
                   {formatRs(monthCollection)}
                 </Text>
                 <Sparkline data={chart.payment.slice(-14)} color={colors.primary} />
               </View>
-              <View style={styles.overviewItem}>
-                <Text style={styles.overviewLabel}>New Credit</Text>
-                <Text style={[styles.overviewValue, { color: colors.warning }]}>
+              <View style={dbStyles.dbOverviewItem}>
+                <Text style={dbStyles.dbOverviewLabel}>{t('dashboard.newCredit')}</Text>
+                <Text style={[dbStyles.dbOverviewValue, { color: colors.warning }]}>
                   {formatRs(monthCredit)}
                 </Text>
                 <Sparkline data={chart.credit.slice(-14)} color={colors.warning} />
               </View>
-              <View style={styles.overviewItem}>
-                <Text style={styles.overviewLabel}>Net Balance</Text>
+              <View style={dbStyles.dbOverviewItem}>
+                <Text style={dbStyles.dbOverviewLabel}>{t('dashboard.netBalance')}</Text>
                 <Text
                   style={[
-                    styles.overviewValue,
+                    dbStyles.dbOverviewValue,
                     { color: monthNet >= 0 ? colors.primary : colors.danger },
                   ]}
                 >
@@ -557,10 +569,13 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          <View style={styles.card}>
-            <SectionHeader title="Upcoming Reminders" onViewAll={() => navigation.navigate('Customers')} />
+          <View style={dbStyles.dbCard}>
+            <SectionHeader
+              title={t('dashboard.upcomingReminders')}
+              onViewAll={() => navigation.navigate('Customers')}
+            />
             {reminders.length === 0 ? (
-              <Text style={styles.emptyText}>No payment reminders right now.</Text>
+              <Text style={dbStyles.dbEmptyText}>{t('dashboard.noReminders')}</Text>
             ) : (
               reminders.slice(0, 4).map((item) => (
                 <ReminderRow key={item.customerId} item={item} />
@@ -573,17 +588,17 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F3F4F6' },
-  scroll: { flex: 1 },
-  header: {
+const dbStyles = StyleSheet.create({
+  dbScreen: { flex: 1, backgroundColor: '#F3F4F6' },
+  dbScroll: { flex: 1 },
+  dbHeader: {
     paddingHorizontal: 16,
     paddingBottom: 22,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',
   },
-  headerOrbLarge: {
+  dbHeaderOrbLarge: {
     position: 'absolute',
     width: 180,
     height: 180,
@@ -592,7 +607,7 @@ const styles = StyleSheet.create({
     top: -40,
     right: -30,
   },
-  headerOrbSmall: {
+  dbHeaderOrbSmall: {
     position: 'absolute',
     width: 90,
     height: 90,
@@ -601,22 +616,22 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: -20,
   },
-  headerTop: {
+  dbHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 18,
   },
-  headerBrand: {
+  dbHeaderBrand: {
     color: '#FFFFFF',
-    fontSize: t.lg,
+    fontSize: ty.lg,
     fontWeight: '800',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     opacity: 0.95,
   },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerGlassBtn: {
+  dbHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dbHeaderGlassBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
@@ -626,7 +641,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  notifBadge: {
+  dbNotifBadge: {
     position: 'absolute',
     top: 6,
     right: 6,
@@ -638,22 +653,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  notifBadgeText: { color: '#FFF', fontSize: t.sm, fontWeight: '700' },
-  headerHero: {
+  dbNotifBadgeText: { color: '#FFF', fontSize: ty.sm, fontWeight: '700' },
+  dbHeaderHero: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     marginBottom: 16,
   },
-  headerAvatarWrap: { position: 'relative' },
-  headerAvatar: {
+  dbHeaderAvatarWrap: { position: 'relative' },
+  dbHeaderAvatar: {
     width: 56,
     height: 56,
     borderRadius: 18,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.35)',
   },
-  headerAvatarPlaceholder: {
+  dbHeaderAvatarPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 18,
@@ -663,8 +678,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.35)',
   },
-  headerAvatarInitial: { color: '#FFF', fontWeight: '800', fontSize: t.lg },
-  headerAvatarDot: {
+  dbHeaderAvatarInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.lg },
+  dbHeaderAvatarDot: {
     position: 'absolute',
     bottom: -2,
     right: -2,
@@ -675,12 +690,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primaryDark,
   },
-  headerGreeting: { flex: 1 },
-  welcomeText: { color: '#FFFFFF', fontSize: t.xl, fontWeight: '800', marginBottom: 6 },
-  shopRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  shopName: { color: 'rgba(255,255,255,0.92)', fontSize: t.md, fontWeight: '600', flexShrink: 1 },
-  shopChevron: { color: 'rgba(255,255,255,0.75)', fontSize: t.body },
-  registerShopBtn: {
+  dbHeaderGreeting: { flex: 1 },
+  dbWelcomeText: { color: '#FFFFFF', fontSize: ty.xl, fontWeight: '800', marginBottom: 6 },
+  dbShopRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  dbShopName: { color: 'rgba(255,255,255,0.92)', fontSize: ty.md, fontWeight: '600', flexShrink: 1 },
+  dbShopChevron: { color: 'rgba(255,255,255,0.75)', fontSize: ty.body },
+  dbRegisterShopBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -692,20 +707,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.3)',
     gap: 4,
   },
-  registerShopText: { color: '#FFFFFF', fontSize: t.body, fontWeight: '700' },
-  registerShopArrow: { color: '#FFFFFF', fontSize: t.lg, fontWeight: '600' },
-  shopHint: {
+  dbRegisterShopText: { color: '#FFFFFF', fontSize: ty.body, fontWeight: '700' },
+  dbRegisterShopArrow: { color: '#FFFFFF', fontSize: ty.lg, fontWeight: '600' },
+  dbShopHint: {
     color: 'rgba(255,255,255,0.72)',
-    fontSize: t.sm,
+    fontSize: ty.sm,
     marginTop: 6,
     lineHeight: 18,
   },
-  headerFooter: {
+  dbHeaderFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  overviewBtn: {
+  dbOverviewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -716,9 +731,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
   },
-  overviewBtnText: { color: '#FFFFFF', fontSize: t.body, fontWeight: '700' },
-  overviewBtnArrow: { color: 'rgba(255,255,255,0.85)', fontSize: t.lg, fontWeight: '600' },
-  headerStatPill: {
+  dbOverviewBtnText: { color: '#FFFFFF', fontSize: ty.body, fontWeight: '700' },
+  dbOverviewBtnArrow: { color: 'rgba(255,255,255,0.85)', fontSize: ty.lg, fontWeight: '600' },
+  dbHeaderStatPill: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.12)',
     borderRadius: 14,
@@ -727,12 +742,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  headerStatLabel: { color: 'rgba(255,255,255,0.75)', fontSize: t.xs, fontWeight: '600' },
-  headerStatValue: { color: '#FFFFFF', fontSize: t.md, fontWeight: '800', marginTop: 2 },
-  body: { paddingHorizontal: 16, paddingTop: 16 },
-  error: { color: colors.danger, marginBottom: 12, fontSize: t.bodyLg },
-  statsScroll: { gap: 12, paddingBottom: 4, paddingRight: 4 },
-  statCard: {
+  dbHeaderStatLabel: { color: 'rgba(255,255,255,0.75)', fontSize: ty.xs, fontWeight: '600' },
+  dbHeaderStatValue: { color: '#FFFFFF', fontSize: ty.md, fontWeight: '800', marginTop: 2 },
+  dbBody: { paddingHorizontal: 16, paddingTop: 16 },
+  dbError: { color: colors.danger, marginBottom: 12, fontSize: ty.bodyLg },
+  dbStatsScroll: { gap: 12, paddingBottom: 4, paddingRight: 4 },
+  dbStatCard: {
     width: 168,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -743,7 +758,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  statIconWrap: {
+  dbStatIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -751,34 +766,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  statLabel: { fontSize: t.sm, color: colors.textMuted, marginBottom: 4, fontWeight: '500' },
-  statValue: { fontSize: t.xl, fontWeight: '800', marginBottom: 6 },
-  statTrend: { fontSize: t.xs, fontWeight: '600' },
-  trendUp: { color: colors.primary },
-  trendDown: { color: colors.danger },
-  sectionHeader: {
+  dbStatLabel: { fontSize: ty.sm, color: colors.textMuted, marginBottom: 4, fontWeight: '500' },
+  dbStatValue: { fontSize: ty.xl, fontWeight: '800', marginBottom: 6 },
+  dbStatTrend: { fontSize: ty.xs, fontWeight: '600' },
+  dbTrendUp: { color: colors.primary },
+  dbTrendDown: { color: colors.danger },
+  dbSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
     marginTop: 8,
   },
-  sectionTitle: { fontSize: t.lg, fontWeight: '700', color: colors.text },
-  viewAll: { fontSize: t.body, color: colors.primary, fontWeight: '600' },
-  quickGrid: {
+  dbSectionTitle: { fontSize: ty.lg, fontWeight: '700', color: colors.text },
+  dbViewAll: { fontSize: ty.body, color: colors.primary, fontWeight: '600' },
+  dbQuickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
     marginBottom: 8,
   },
-  quickAction: {
+  dbQuickAction: {
     width: '31%',
     minWidth: 100,
     flexGrow: 1,
     alignItems: 'center',
     marginBottom: 4,
   },
-  quickActionIcon: {
+  dbQuickActionIcon: {
     width: 56,
     height: 56,
     borderRadius: 14,
@@ -789,14 +804,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  quickActionLabel: {
-    fontSize: t.sm,
+  dbQuickActionLabel: {
+    fontSize: ty.sm,
     color: colors.text,
     textAlign: 'center',
     fontWeight: '500',
   },
-  twoCol: { gap: 12, marginTop: 8 },
-  colCard: {
+  dbTwoCol: { gap: 12, marginTop: 8 },
+  dbColCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
@@ -807,15 +822,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  emptyText: { color: colors.textMuted, fontSize: t.bodyLg, paddingVertical: 8 },
-  txRow: {
+  dbEmptyText: { color: colors.textMuted, fontSize: ty.bodyLg, paddingVertical: 8 },
+  dbTxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  avatar: {
+  dbAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -823,34 +838,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  avatarText: { color: '#FFF', fontWeight: '700', fontSize: t.body },
-  txBody: { flex: 1 },
-  txName: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
-  txType: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  txMeta: { alignItems: 'flex-end' },
-  txAmount: { fontSize: t.bodyLg, fontWeight: '700' },
-  amountGreen: { color: colors.primary },
-  amountOrange: { color: colors.warning },
-  txTime: { fontSize: t.sm, color: colors.textMuted, marginTop: 2 },
-  outRow: {
+  dbAvatarText: { color: '#FFF', fontWeight: '700', fontSize: ty.body },
+  dbTxBody: { flex: 1 },
+  dbTxName: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
+  dbTxType: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  dbTxMeta: { alignItems: 'flex-end' },
+  dbTxAmount: { fontSize: ty.bodyLg, fontWeight: '700' },
+  dbAmountGreen: { color: colors.primary },
+  dbAmountOrange: { color: colors.warning },
+  dbTxTime: { fontSize: ty.sm, color: colors.textMuted, marginTop: 2 },
+  dbOutRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  outRank: { width: 22, fontSize: t.bodyLg, fontWeight: '700', color: colors.textMuted },
-  outName: { flex: 1, fontSize: t.bodyLg, fontWeight: '600', color: colors.text, marginRight: 8 },
-  outAmount: { fontSize: t.bodyLg, fontWeight: '700', color: colors.danger },
-  viewAllBtn: {
+  dbOutRank: { width: 22, fontSize: ty.bodyLg, fontWeight: '700', color: colors.textMuted },
+  dbOutName: { flex: 1, fontSize: ty.bodyLg, fontWeight: '600', color: colors.text, marginRight: 8 },
+  dbOutAmount: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.danger },
+  dbViewAllBtn: {
     marginTop: 10,
     backgroundColor: '#ECFDF5',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  viewAllBtnText: { color: colors.primary, fontWeight: '700', fontSize: t.bodyLg },
-  card: {
+  dbViewAllBtnText: { color: colors.primary, fontWeight: '700', fontSize: ty.bodyLg },
+  dbCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
@@ -861,24 +876,24 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  overviewItem: {
+  dbOverviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  dbOverviewItem: {
     width: '47%',
     flexGrow: 1,
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 12,
   },
-  overviewLabel: { fontSize: t.caption, color: colors.textMuted, marginBottom: 4 },
-  overviewValue: { fontSize: t.lg, fontWeight: '800', marginBottom: 6 },
-  reminderRow: {
+  dbOverviewLabel: { fontSize: ty.caption, color: colors.textMuted, marginBottom: 4 },
+  dbOverviewValue: { fontSize: ty.lg, fontWeight: '800', marginBottom: 6 },
+  dbReminderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  reminderIcon: {
+  dbReminderIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -887,8 +902,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  reminderBody: { flex: 1 },
-  reminderName: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
-  reminderAmount: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  reminderWhen: { fontSize: t.caption, color: colors.primary, fontWeight: '600' },
+  dbReminderBody: { flex: 1 },
+  dbReminderName: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
+  dbReminderAmount: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  dbReminderWhen: { fontSize: ty.caption, color: colors.primary, fontWeight: '600' },
 });

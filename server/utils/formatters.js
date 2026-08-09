@@ -172,8 +172,9 @@ export const formatNotification = (n) => ({
   type: n.type,
   date: formatNotificationWhen(n.createdAt),
   time: formatTime(n.createdAt),
+  createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : null,
   read: n.read,
   archived: Boolean(n.archived),
   linkPath: n.linkPath || '',
-  customerId: n.customer?.toString?.() || null,
+  customerId: n.customer?.toString?.() || n.customer || null,
 });

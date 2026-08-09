@@ -2,7 +2,9 @@ import User from '../models/User.js';
 import Customer from '../models/Customer.js';
 import Transaction from '../models/Transaction.js';
 import Payment from '../models/Payment.js';
+import SystemSetting from '../models/SystemSetting.js';
 import { createNotification } from '../utils/notify.js';
+import { getAdminEmails } from '../utils/adminCheck.js';
 
 const resolveShopStatus = (shopkeeper) => {
   if (shopkeeper.shopVerificationStatus === 'verified' || shopkeeper.isShopVerified) {
@@ -13,15 +15,27 @@ const resolveShopStatus = (shopkeeper) => {
   return 'incomplete';
 };
 
+const nonAdminFilter = () => {
+  const adminEmails = getAdminEmails();
+  if (!adminEmails.length) return {};
+  return { email: { $nin: adminEmails } };
+};
+
+const shopkeeperFilter = () => ({
+  role: 'shopkeeper',
+  ...nonAdminFilter(),
+});
+
 export const getAdminDashboard = async (_req, res) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    const excludeAdmins = nonAdminFilter();
 
     const [shopkeepers, customers, users, creditAgg, txToday] = await Promise.all([
-      User.countDocuments({ role: 'shopkeeper' }),
-      User.countDocuments({ role: 'customer' }),
-      User.countDocuments(),
+      User.countDocuments(shopkeeperFilter()),
+      User.countDocuments({ role: 'customer', ...excludeAdmins }),
+      User.countDocuments(excludeAdmins),
       Transaction.aggregate([{ $group: { _id: null, total: { $sum: '$total' } } }]),
       Transaction.countDocuments({ createdAt: { $gte: startOfToday } }),
     ]);
@@ -43,7 +57,7 @@ export const getAdminDashboard = async (_req, res) => {
 
 export const getAdminShops = async (_req, res) => {
   try {
-    const shopkeepers = await User.find({ role: 'shopkeeper' }).sort({ createdAt: -1 });
+    const shopkeepers = await User.find(shopkeeperFilter()).sort({ createdAt: -1 });
 
     const shops = await Promise.all(
       shopkeepers.map(async (sk) => {
@@ -78,7 +92,7 @@ export const getAdminShops = async (_req, res) => {
 
 export const getAdminUsers = async (_req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 }).select('-password');
+    const users = await User.find(nonAdminFilter()).sort({ createdAt: -1 }).select('-password');
 
     res.json({
       success: true,
@@ -161,7 +175,7 @@ export const getAdminAnalytics = async (_req, res) => {
         },
       ]),
       User.aggregate([
-        { $match: { createdAt: { $gte: start } } },
+        { $match: { createdAt: { $gte: start }, ...nonAdminFilter() } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
@@ -169,13 +183,13 @@ export const getAdminAnalytics = async (_req, res) => {
           },
         },
       ]),
-      User.countDocuments({ role: 'shopkeeper' }),
-      User.countDocuments({ role: 'customer' }),
-      User.countDocuments(),
+      User.countDocuments(shopkeeperFilter()),
+      User.countDocuments({ role: 'customer', ...nonAdminFilter() }),
+      User.countDocuments(nonAdminFilter()),
       Transaction.aggregate([{ $group: { _id: null, total: { $sum: '$total' } } }]),
       Payment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]),
       Transaction.countDocuments(),
-      User.find({ role: 'shopkeeper' }).select('shopName fullName shopVerificationStatus isShopVerified'),
+      User.find(shopkeeperFilter()).select('shopName fullName shopVerificationStatus isShopVerified'),
     ]);
 
     const shopVerification = { verified: 0, pending: 0, rejected: 0, incomplete: 0 };
@@ -315,7 +329,7 @@ export const rejectShop = async (req, res) => {
 export const getPlatformStats = async (_req, res) => {
   try {
     const [shopkeepers, txCount, creditAgg] = await Promise.all([
-      User.countDocuments({ role: 'shopkeeper' }),
+      User.countDocuments(shopkeeperFilter()),
       Transaction.countDocuments(),
       Transaction.aggregate([{ $group: { _id: null, total: { $sum: '$total' } } }]),
     ]);
@@ -327,6 +341,58 @@ export const getPlatformStats = async (_req, res) => {
       transactions: txCount >= 1000 ? `${Math.floor(txCount / 1000)}K+` : `${txCount}+`,
       creditManaged: creditTotal >= 10000000 ? `Rs. ${(creditTotal / 10000000).toFixed(1)}Cr+` : `Rs. ${creditTotal.toLocaleString('en-NP')}+`,
       satisfaction: '99%',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const formatMaintenanceSettings = (settings) => ({
+  maintenanceMode: Boolean(settings.maintenanceMode),
+  maintenanceMessage:
+    settings.maintenanceMessage ||
+    'BakiBook is temporarily unavailable. Please check back soon.',
+  updatedAt: settings.updatedAt,
+  updatedBy: settings.updatedBy || null,
+});
+
+export const getMaintenanceSettings = async (_req, res) => {
+  try {
+    const settings = await SystemSetting.getGlobal();
+    res.json({
+      success: true,
+      settings: formatMaintenanceSettings(settings),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateMaintenanceSettings = async (req, res) => {
+  try {
+    const { maintenanceMode, maintenanceMessage } = req.body;
+    if (typeof maintenanceMode !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'maintenanceMode must be a boolean',
+      });
+    }
+
+    const settings = await SystemSetting.getGlobal();
+    settings.maintenanceMode = maintenanceMode;
+    if (typeof maintenanceMessage === 'string') {
+      const trimmed = maintenanceMessage.trim();
+      if (trimmed) settings.maintenanceMessage = trimmed;
+    }
+    settings.updatedBy = req.user?._id || null;
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: maintenanceMode
+        ? 'Maintenance mode enabled'
+        : 'Maintenance mode disabled',
+      settings: formatMaintenanceSettings(settings),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

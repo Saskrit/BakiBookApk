@@ -1,10 +1,20 @@
 export type UserRole = 'shopkeeper' | 'customer';
+export type AppLanguage = 'en' | 'ne';
+
+export interface TutorialProgress {
+  completedStepIds: string[];
+  updatedAt?: string | null;
+  totalSteps: number;
+  completedCount: number;
+  percent: number;
+}
 
 export interface User {
   id: string;
   role: UserRole;
   fullName: string;
   email: string;
+  phone?: string;
   profileImage?: string;
   shopName?: string;
   shopLocation?: string;
@@ -16,6 +26,8 @@ export interface User {
   needsShopSetup?: boolean;
   isAdmin?: boolean;
   pendingLinkCount?: number;
+  preferredLanguage?: AppLanguage;
+  tutorialProgress?: TutorialProgress;
   createdAt?: string;
 }
 

@@ -1,6 +1,8 @@
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
+import i18n from '../i18n';
+
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
 
 function resolveGoogleWebClientId(): string {
   const fromEnv = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
@@ -11,16 +13,39 @@ function resolveGoogleWebClientId(): string {
 }
 
 const webClientId = resolveGoogleWebClientId();
-
 let configured = false;
+let googleModule: GoogleSigninModule | null | undefined;
+
+function loadGoogleModule(): GoogleSigninModule | null {
+  if (googleModule !== undefined) return googleModule;
+
+  // Expo Go / missing native binary — avoid hard crash on import
+  if (!NativeModules.RNGoogleSignin) {
+    googleModule = null;
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    googleModule = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+  } catch {
+    googleModule = null;
+  }
+  return googleModule;
+}
+
+export function isGoogleSignInAvailable(): boolean {
+  return Boolean(webClientId && loadGoogleModule());
+}
 
 export function isGoogleSignInConfigured(): boolean {
-  return Boolean(webClientId);
+  return isGoogleSignInAvailable();
 }
 
 export function configureGoogleSignIn() {
-  if (!isGoogleSignInConfigured() || configured) return;
-  GoogleSignin.configure({
+  const mod = loadGoogleModule();
+  if (!webClientId || !mod || configured) return;
+  mod.GoogleSignin.configure({
     webClientId,
     offlineAccess: false,
   });
@@ -28,44 +53,44 @@ export function configureGoogleSignIn() {
 }
 
 export async function getGoogleIdToken(): Promise<string> {
-  if (!isGoogleSignInConfigured()) {
-    throw new Error('Google sign-in is not configured for this app build.');
+  const mod = loadGoogleModule();
+  if (!webClientId || !mod) {
+    throw new Error(i18n.t('auth.googleNativeBuild'));
   }
 
   configureGoogleSignIn();
 
   if (Platform.OS === 'android') {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    await mod.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }
 
-  const response = await GoogleSignin.signIn();
+  const response = await mod.GoogleSignin.signIn();
   if (response.type === 'cancelled') {
-    throw new Error('Google sign-in was cancelled');
+    throw new Error(i18n.t('auth.googleCancelled'));
   }
 
-  const idToken = response.data.idToken ?? (await GoogleSignin.getTokens()).idToken;
+  const idToken = response.data.idToken ?? (await mod.GoogleSignin.getTokens()).idToken;
   if (!idToken) {
-    throw new Error('Google sign-in did not return a token. Check your Google OAuth client setup.');
+    throw new Error(i18n.t('auth.googleNoToken'));
   }
 
   return idToken;
 }
 
 export function getGoogleSignInErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error && 'code' in error) {
+  const mod = loadGoogleModule();
+  const codes = mod?.statusCodes;
+
+  if (codes && typeof error === 'object' && error && 'code' in error) {
     const code = String((error as { code: string }).code);
-    if (code === statusCodes.SIGN_IN_CANCELLED) {
-      return 'Google sign-in was cancelled';
-    }
-    if (code === statusCodes.IN_PROGRESS) {
-      return 'Google sign-in is already in progress';
-    }
-    if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      return 'Google Play Services is not available on this device';
+    if (code === codes.SIGN_IN_CANCELLED) return i18n.t('auth.googleCancelled');
+    if (code === codes.IN_PROGRESS) return i18n.t('auth.googleInProgress');
+    if (code === codes.PLAY_SERVICES_NOT_AVAILABLE) {
+      return i18n.t('auth.googlePlayServicesUnavailable');
     }
   }
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return 'Google sign-in failed. Please try again.';
+  return i18n.t('auth.googleTryAgain');
 }

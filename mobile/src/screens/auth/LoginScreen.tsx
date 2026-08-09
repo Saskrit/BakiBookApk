@@ -12,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import LoginBackground from '../../components/auth/LoginBackground';
@@ -33,6 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: Props) {
   const { login, googleSignIn } = useAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [email, setEmail] = useState(__DEV__ ? 'shopkeeper@bakibook.demo' : '');
   const [password, setPassword] = useState(__DEV__ ? 'Demo@123' : '');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,11 +44,11 @@ export default function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError('Please enter your email address');
+      setError(t('auth.enterEmail'));
       return;
     }
     if (!password) {
-      setError('Please enter your password');
+      setError(t('auth.enterPassword'));
       return;
     }
     setError('');
@@ -55,17 +57,14 @@ export default function LoginScreen({ navigation }: Props) {
       const user = await login(trimmedEmail, password);
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    appAlert(
-      'Forgot Password?',
-      'Password reset is available on the BakiBook web portal. Enter your registered email there to receive a reset link.',
-    );
+    appAlert(t('auth.forgotPassword'), t('auth.forgotPasswordBody'));
   };
 
   const handleGoogleCredential = async (credential: string) => {
@@ -75,7 +74,7 @@ export default function LoginScreen({ navigation }: Props) {
       const user = await googleSignIn({ credential, mode: 'login' });
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+      setError(err instanceof Error ? err.message : t('auth.googleFailed'));
     } finally {
       setLoading(false);
     }
@@ -101,18 +100,18 @@ export default function LoginScreen({ navigation }: Props) {
           <AuthHeader />
 
           <View style={authStyles.card}>
-            <Text style={authStyles.cardTitle}>Welcome Back!</Text>
-            <Text style={authStyles.cardSubtitle}>Login to continue to your account</Text>
+            <Text style={authStyles.cardTitle}>{t('auth.loginTitle')}</Text>
+            <Text style={authStyles.cardSubtitle}>{t('auth.loginSubtitle')}</Text>
 
             {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
-            <Text style={authStyles.label}>Email Address</Text>
+            <Text style={authStyles.label}>{t('auth.email')}</Text>
             <View style={authStyles.inputRow}>
               <EmailIcon />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter your email address"
+                placeholder={t('auth.email')}
                 placeholderTextColor={colors.textMuted}
                 style={authStyles.input}
                 autoCapitalize="none"
@@ -123,13 +122,13 @@ export default function LoginScreen({ navigation }: Props) {
               />
             </View>
 
-            <Text style={authStyles.label}>Password</Text>
+            <Text style={authStyles.label}>{t('auth.password')}</Text>
             <View style={authStyles.inputRow}>
               <LockIcon />
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter your password"
+                placeholder={t('auth.password')}
                 placeholderTextColor={colors.textMuted}
                 style={authStyles.input}
                 secureTextEntry={!showPassword}
@@ -139,14 +138,14 @@ export default function LoginScreen({ navigation }: Props) {
               <Pressable
                 onPress={() => setShowPassword((v) => !v)}
                 hitSlop={8}
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 <EyeIcon visible={showPassword} />
               </Pressable>
             </View>
 
             <Pressable onPress={handleForgotPassword} style={styles.forgotWrap}>
-              <Text style={styles.forgotLink}>Forgot Password?</Text>
+              <Text style={styles.forgotLink}>{t('auth.forgotPassword')}</Text>
             </Pressable>
 
             <Pressable
@@ -162,7 +161,7 @@ export default function LoginScreen({ navigation }: Props) {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={authStyles.primaryBtnText}>Login</Text>
+                  <Text style={authStyles.primaryBtnText}>{t('auth.signIn')}</Text>
                   <Text style={authStyles.primaryBtnArrow}>→</Text>
                 </>
               )}
@@ -177,9 +176,9 @@ export default function LoginScreen({ navigation }: Props) {
             />
 
             <View style={authStyles.altRow}>
-              <Text style={authStyles.altText}>Don&apos;t have an account? </Text>
+              <Text style={authStyles.altText}>{t('auth.noAccount')} </Text>
               <Pressable onPress={() => navigation.navigate('Register')}>
-                <Text style={authStyles.altLink}>Register Now</Text>
+                <Text style={authStyles.altLink}>{t('auth.signUp')}</Text>
               </Pressable>
             </View>
           </View>

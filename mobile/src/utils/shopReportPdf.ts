@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import {
   PDF_STYLES,
   buildTableHtml,
@@ -20,18 +21,22 @@ type CompleteReportPayload = {
   outstanding?: Array<Record<string, unknown>>;
 };
 
+function t(key: string, options?: Record<string, unknown>) {
+  return i18n.t(key, options);
+}
+
 function summaryItems(report: Record<string, unknown>) {
   return [
-    ['Period start', formatReportDate(String(report.periodStart || ''))],
-    ['Period end', formatReportDate(String(report.periodEnd || ''))],
-    ['Credit given', formatRs(Number(report.creditGiven || 0))],
-    ['Payments received', formatRs(Number(report.paymentsReceived || 0))],
-    ['Credit transactions', String(report.transactionCount ?? 0)],
-    ['Payment records', String(report.paymentCount ?? 0)],
-    ['Product line items', String(report.productCount ?? 0)],
-    ['Total customers', String(report.customerCount ?? 0)],
-    ['Customers with dues', String(report.customersWithDues ?? 0)],
-    ['Total outstanding', formatRs(Number(report.totalOutstanding || 0))],
+    [t('pdf.periodStart'), formatReportDate(String(report.periodStart || ''))],
+    [t('pdf.periodEnd'), formatReportDate(String(report.periodEnd || ''))],
+    [t('pdf.creditGiven'), formatRs(Number(report.creditGiven || 0))],
+    [t('pdf.paymentsReceived'), formatRs(Number(report.paymentsReceived || 0))],
+    [t('pdf.creditTransactions'), String(report.transactionCount ?? 0)],
+    [t('pdf.paymentRecords'), String(report.paymentCount ?? 0)],
+    [t('pdf.productLineItems'), String(report.productCount ?? 0)],
+    [t('pdf.totalCustomers'), String(report.customerCount ?? 0)],
+    [t('pdf.customersWithDues'), String(report.customersWithDues ?? 0)],
+    [t('pdf.totalOutstanding'), formatRs(Number(report.totalOutstanding || 0))],
   ];
 }
 
@@ -42,70 +47,71 @@ export async function exportCompleteShopReportPdf(data: CompleteReportPayload) {
     .join('');
 
   const creditsHtml = buildTableHtml(data.credits, [
-    { label: 'Date', key: 'date' },
-    { label: 'Customer', key: 'customer' },
-    { label: 'Products', key: 'products' },
-    { label: 'Total', key: 'total', format: (v) => formatRs(Number(v)) },
-    { label: 'Note', key: 'note' },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colCustomer'), key: 'customer' },
+    { label: t('pdf.colProducts'), key: 'products' },
+    { label: t('pdf.colTotal'), key: 'total', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colNote'), key: 'note' },
   ]);
 
   const paymentsHtml = buildTableHtml(data.payments, [
-    { label: 'Date', key: 'date' },
-    { label: 'Customer', key: 'customer' },
-    { label: 'Paid for', key: 'paidFor' },
-    { label: 'Amount', key: 'amount', format: (v) => formatRs(Number(v)) },
-    { label: 'Method', key: 'method' },
-    { label: 'Receipt', key: 'receiptNo' },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colCustomer'), key: 'customer' },
+    { label: t('pdf.colPaidFor'), key: 'paidFor' },
+    { label: t('pdf.colAmount'), key: 'amount', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colMethod'), key: 'method' },
+    { label: t('pdf.colReceipt'), key: 'receiptNo' },
   ]);
 
   const productsHtml = buildTableHtml(data.products, [
-    { label: 'Date', key: 'date' },
-    { label: 'Customer', key: 'customer' },
-    { label: 'Product', key: 'product' },
-    { label: 'Qty', key: 'qty' },
-    { label: 'Unit price', key: 'price', format: (v) => formatRs(Number(v)) },
-    { label: 'Line total', key: 'total', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colCustomer'), key: 'customer' },
+    { label: t('pdf.colProduct'), key: 'product' },
+    { label: t('pdf.colQty'), key: 'qty' },
+    { label: t('pdf.colUnitPrice'), key: 'price', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colLineTotal'), key: 'total', format: (v) => formatRs(Number(v)) },
   ]);
 
   const activityHtml = buildTableHtml(data.activity, [
-    { label: 'Date', key: 'date' },
-    { label: 'Type', key: 'type' },
-    { label: 'Customer', key: 'customer' },
-    { label: 'Details', key: 'details' },
-    { label: 'Amount', key: 'amount', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colDate'), key: 'date' },
+    { label: t('pdf.colType'), key: 'type' },
+    { label: t('pdf.colCustomer'), key: 'customer' },
+    { label: t('pdf.colDetails'), key: 'details' },
+    { label: t('pdf.colAmount'), key: 'amount', format: (v) => formatRs(Number(v)) },
   ]);
 
   const customersHtml = buildTableHtml(data.customers, [
-    { label: 'Name', key: 'name' },
-    { label: 'Phone', key: 'phone' },
-    { label: 'Balance', key: 'balance', format: (v) => formatRs(Number(v)) },
-    { label: 'Credit score', key: 'creditScore' },
-    { label: 'Status', key: 'status' },
+    { label: t('pdf.colName'), key: 'name' },
+    { label: t('pdf.colPhone'), key: 'phone' },
+    { label: t('pdf.colBalance'), key: 'balance', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colCreditScore'), key: 'creditScore' },
+    { label: t('pdf.colStatus'), key: 'status' },
   ]);
 
   const outstandingHtml = buildTableHtml(data.outstanding, [
-    { label: 'Name', key: 'name' },
-    { label: 'Phone', key: 'phone' },
-    { label: 'Outstanding', key: 'balance', format: (v) => formatRs(Number(v)) },
-    { label: 'Credit score', key: 'creditScore' },
+    { label: t('pdf.colName'), key: 'name' },
+    { label: t('pdf.colPhone'), key: 'phone' },
+    { label: t('pdf.colOutstanding'), key: 'balance', format: (v) => formatRs(Number(v)) },
+    { label: t('pdf.colCreditScore'), key: 'creditScore' },
   ]);
 
+  const generatedDate = formatReportDate(new Date().toISOString());
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${PDF_STYLES}</style></head><body>
-    <h1>BakiBook — ${escapeHtml(period)} report</h1>
+    <h1>${escapeHtml(t('pdf.shopReportTitle', { period }))}</h1>
     <div class="meta">
-      <div><strong>${escapeHtml(shopName || 'Shop')}</strong>${shopOwner ? ` · ${escapeHtml(shopOwner)}` : ''}</div>
-      <div>Generated: ${formatReportDate(new Date().toISOString())}</div>
+      <div><strong>${escapeHtml(shopName || t('pdf.shop'))}</strong>${shopOwner ? ` · ${escapeHtml(shopOwner)}` : ''}</div>
+      <div>${escapeHtml(t('pdf.generated', { date: generatedDate }))}</div>
     </div>
-    <h2>Summary</h2>
+    <h2>${escapeHtml(t('pdf.summary'))}</h2>
     <div class="stats">${statsHtml}</div>
-    <h2>Credit transactions</h2>${creditsHtml}
-    <h2>Payments received</h2>${paymentsHtml}
-    <h2>Products sold on credit</h2>${productsHtml}
-    <h2>Activity log</h2>${activityHtml}
-    <h2>All customers</h2>${customersHtml}
-    <h2>Outstanding balances</h2>${outstandingHtml}
-    <div class="footer">BakiBook shop report</div>
+    <h2>${escapeHtml(t('pdf.creditTransactions'))}</h2>${creditsHtml}
+    <h2>${escapeHtml(t('pdf.paymentsReceived'))}</h2>${paymentsHtml}
+    <h2>${escapeHtml(t('pdf.productsSoldOnCredit'))}</h2>${productsHtml}
+    <h2>${escapeHtml(t('pdf.activityLog'))}</h2>${activityHtml}
+    <h2>${escapeHtml(t('pdf.allCustomers'))}</h2>${customersHtml}
+    <h2>${escapeHtml(t('pdf.outstandingBalances'))}</h2>${outstandingHtml}
+    <div class="footer">${escapeHtml(t('pdf.footerShop'))}</div>
   </body></html>`;
 
-  await shareHtmlAsPdf(html, 'Export shop report');
+  await shareHtmlAsPdf(html, t('pdf.exportShopReport'));
 }

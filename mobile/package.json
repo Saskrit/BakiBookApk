@@ -12,18 +12,22 @@
     "expo-camera": "~56.0.8",
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.18",
+    "expo-file-system": "~56.0.8",
     "expo-image-picker": "~56.0.18",
     "expo-linear-gradient": "~56.0.4",
     "expo-print": "~56.0.4",
     "expo-sharing": "~56.0.18",
     "expo-status-bar": "~56.0.4",
+    "i18next": "^26.3.6",
     "react": "19.2.3",
+    "react-i18next": "^17.0.10",
     "react-native": "0.85.3",
     "react-native-chart-kit": "^6.12.3",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
-    "react-native-svg": "15.15.4"
+    "react-native-svg": "15.15.4",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -34,7 +38,7 @@
   },
   "scripts": {
     "postinstall": "node ./scripts/patch-gradle.js",
-    "start": "expo start",
+    "start": "expo start --dev-client",
     "android": "powershell -ExecutionPolicy Bypass -File ./scripts/run-android.ps1",
     "android:expo-go": "expo start --android",
     "web": "expo start --web",

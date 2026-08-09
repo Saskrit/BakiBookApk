@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { appAlert } from '../../contexts/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -20,7 +21,7 @@ import { createTransaction } from '../../api/transactions';
 import ProductSearchInput from '../../components/ProductSearchInput';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
 import type { Customer, LineItem } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -46,9 +47,9 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      {subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
+    <View style={adStyles.adCard}>
+      <Text style={adStyles.adCardTitle}>{title}</Text>
+      {subtitle ? <Text style={adStyles.adCardSubtitle}>{subtitle}</Text> : null}
       {children}
     </View>
   );
@@ -71,40 +72,43 @@ function ProductFormFields({
   setDraftPrice: (v: string) => void;
   draftTotal: number;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <ProductSearchInput
-        label="Product name *"
+        label={t('credit.productName')}
         value={draftName}
         onChangeText={setDraftName}
         onSelectProduct={(product) => setDraftName(product.name)}
       />
-      <View style={styles.qtyPriceRow}>
-        <View style={styles.qtyCol}>
-          <Text style={styles.fieldLabel}>Qty</Text>
+      <View style={adStyles.adQtyPriceRow}>
+        <View style={adStyles.adQtyCol}>
+          <Text style={adStyles.adFieldLabel}>{t('credit.qty')}</Text>
           <TextInput
             value={draftQty}
             onChangeText={setDraftQty}
             keyboardType="numeric"
-            style={styles.fieldInput}
+            style={adStyles.adFieldInput}
             placeholder="1"
             placeholderTextColor={colors.textMuted}
           />
         </View>
-        <View style={styles.priceCol}>
-          <Text style={styles.fieldLabel}>Price (Rs) *</Text>
+        <View style={adStyles.adPriceCol}>
+          <Text style={adStyles.adFieldLabel}>{t('credit.priceRs')}</Text>
           <TextInput
             value={draftPrice}
             onChangeText={setDraftPrice}
             keyboardType="numeric"
-            style={styles.fieldInput}
+            style={adStyles.adFieldInput}
             placeholder="0"
             placeholderTextColor={colors.textMuted}
           />
         </View>
       </View>
       {draftName.trim() && draftPrice.trim() ? (
-        <Text style={styles.draftLineTotal}>Line total: {formatRs(draftTotal)}</Text>
+        <Text style={adStyles.adDraftLineTotal}>
+          {t('credit.lineTotal', { amount: formatRs(draftTotal) })}
+        </Text>
       ) : null}
     </>
   );
@@ -119,33 +123,34 @@ function LineItemRow({
   onRemove: () => void;
   onEdit: () => void;
 }) {
+  const { t } = useTranslation();
   const total = lineTotal(item);
   return (
-    <Pressable onPress={onEdit} style={styles.lineRow}>
-      <View style={styles.lineIcon}>
+    <Pressable onPress={onEdit} style={adStyles.adLineRow}>
+      <View style={adStyles.adLineIcon}>
         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
           <Rect x={4} y={6} width={16} height={14} rx={2} stroke="#EA580C" strokeWidth={2} />
         </Svg>
       </View>
-      <View style={styles.lineBody}>
-        <Text style={styles.lineName} numberOfLines={1}>
+      <View style={adStyles.adLineBody}>
+        <Text style={adStyles.adLineName} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={styles.lineMeta}>
-          Qty {item.qty} × {formatRs(item.price)}
+        <Text style={adStyles.adLineMeta}>
+          {t('credit.qtyMeta', { qty: item.qty, price: formatRs(item.price) })}
         </Text>
       </View>
-      <View style={styles.lineRight}>
-        <Text style={styles.lineAmount}>{formatRs(total)}</Text>
+      <View style={adStyles.adLineRight}>
+        <Text style={adStyles.adLineAmount}>{formatRs(total)}</Text>
         <Pressable
           onPress={(e) => {
             e.stopPropagation?.();
             onRemove();
           }}
           hitSlop={8}
-          style={styles.removeBtn}
+          style={adStyles.adRemoveBtn}
         >
-          <Text style={styles.removeBtnText}>Remove</Text>
+          <Text style={adStyles.adRemoveBtnText}>{t('credit.remove')}</Text>
         </Pressable>
       </View>
     </Pressable>
@@ -153,6 +158,7 @@ function LineItemRow({
 }
 
 export default function AddCreditScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const presetCustomerId = route.params?.customerId;
   const presetCustomerName = route.params?.customerName;
   const insets = useSafeAreaInsets();
@@ -163,7 +169,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     presetCustomerId
-      ? { id: presetCustomerId, name: presetCustomerName || 'Customer', balance: 0 }
+      ? { id: presetCustomerId, name: presetCustomerName || t('common.customer'), balance: 0 }
       : null
   );
 
@@ -192,11 +198,11 @@ export default function AddCreditScreen({ route, navigation }: Props) {
         if (match) setSelectedCustomer(match);
       }
     } catch {
-      setError('Failed to load customers');
+      setError(t('credit.loadFailed'));
     } finally {
       setCustomersLoading(false);
     }
-  }, [presetCustomerId]);
+  }, [presetCustomerId, t]);
 
   useEffect(() => {
     if (!lockedCustomer) loadCustomers();
@@ -247,14 +253,14 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   const resolveCustomerId = async (): Promise<string> => {
     if (mode === 'existing') {
       if (!selectedCustomer?.id) {
-        throw new Error('Please select a customer');
+        throw new Error(t('credit.selectCustomerError'));
       }
       return selectedCustomer.id;
     }
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      throw new Error('Customer name is required for a new customer');
+      throw new Error(t('credit.nameRequiredNew'));
     }
 
     const list = Array.isArray(customers) ? customers : [];
@@ -279,16 +285,16 @@ export default function AddCreditScreen({ route, navigation }: Props) {
 
   const parseDraft = (silent = false): LineItem | null => {
     if (!draftName.trim()) {
-      if (!silent) setError('Enter a product name');
+      if (!silent) setError(t('credit.enterProductName'));
       return null;
     }
     if (!draftPrice.trim() || Number(draftPrice) <= 0) {
-      if (!silent) setError('Enter a valid price for this product');
+      if (!silent) setError(t('credit.enterValidPrice'));
       return null;
     }
     const qty = Number(draftQty) || 1;
     if (qty <= 0) {
-      if (!silent) setError('Quantity must be at least 1');
+      if (!silent) setError(t('credit.qtyMinOne'));
       return null;
     }
     return {
@@ -351,13 +357,13 @@ export default function AddCreditScreen({ route, navigation }: Props) {
     setError('');
     const items = buildItemsForSave();
     if (!items.length) {
-      setError('Add at least one product to this credit');
+      setError(t('credit.addOneProduct'));
       return;
     }
 
     const total = items.reduce((sum, item) => sum + lineTotal(item), 0);
     if (total <= 0) {
-      setError('Total must be greater than zero');
+      setError(t('credit.totalMustBePositive'));
       return;
     }
 
@@ -369,10 +375,10 @@ export default function AddCreditScreen({ route, navigation }: Props) {
         items,
         note: note.trim() || undefined,
       });
-      appAlert('Saved', `Credit of ${formatRs(total)} recorded successfully`);
+      appAlert(t('common.saved'), t('credit.savedSuccess', { amount: formatRs(total) }));
       navigation.goBack();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save credit');
+      setError(err instanceof Error ? err.message : t('credit.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -380,36 +386,36 @@ export default function AddCreditScreen({ route, navigation }: Props) {
 
   const customerLabel =
     lockedCustomer || mode === 'existing'
-      ? selectedCustomer?.name || presetCustomerName || 'Select customer'
-      : newName.trim() || 'New customer';
+      ? selectedCustomer?.name || presetCustomerName || t('credit.selectCustomer')
+      : newName.trim() || t('credit.newCustomer');
 
   return (
-    <View style={styles.screen}>
+    <View style={adStyles.adScreen}>
       <LinearGradient
         colors={[colors.primaryDark, colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
+        style={[adStyles.adHeader, { paddingTop: insets.top + 8 }]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Text style={styles.backText}>‹ Back</Text>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={adStyles.adBackBtn}>
+          <Text style={adStyles.adBackText}>{t('common.back')}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Add Credit</Text>
-        <Text style={styles.headerSubtitle}>Record credit with one or more products</Text>
-        <View style={styles.headerCustomer}>
-          <View style={[styles.headerAvatar, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-            <Text style={styles.headerAvatarText}>{getInitials(customerLabel)}</Text>
+        <Text style={adStyles.adHeaderTitle}>{t('credit.title')}</Text>
+        <Text style={adStyles.adHeaderSubtitle}>{t('credit.subtitle')}</Text>
+        <View style={adStyles.adHeaderCustomer}>
+          <View style={[adStyles.adHeaderAvatar, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+            <Text style={adStyles.adHeaderAvatarText}>{getInitials(customerLabel)}</Text>
           </View>
-          <View style={styles.headerCustomerBody}>
-            <Text style={styles.headerCustomerLabel}>Customer</Text>
-            <Text style={styles.headerCustomerName} numberOfLines={1}>
+          <View style={adStyles.adHeaderCustomerBody}>
+            <Text style={adStyles.adHeaderCustomerLabel}>{t('credit.customerLabel')}</Text>
+            <Text style={adStyles.adHeaderCustomerName} numberOfLines={1}>
               {customerLabel}
             </Text>
           </View>
           {lines.length > 0 ? (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>
-                {lines.length} item{lines.length === 1 ? '' : 's'}
+            <View style={adStyles.adHeaderBadge}>
+              <Text style={adStyles.adHeaderBadgeText}>
+                {t('common.items', { count: lines.length })}
               </Text>
             </View>
           ) : null}
@@ -418,40 +424,40 @@ export default function AddCreditScreen({ route, navigation }: Props) {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
+        style={adStyles.adFlex}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
+          contentContainerStyle={[adStyles.adContent, { paddingBottom: insets.bottom + 120 }]}
           showsVerticalScrollIndicator={false}
         >
           {error ? <ErrorText message={error} /> : null}
 
           {!lockedCustomer ? (
-            <SectionCard title="Customer" subtitle="Who is this credit for?">
-              <View style={styles.modeRow}>
+            <SectionCard title={t('credit.customerSection')} subtitle={t('credit.customerSectionSub')}>
+              <View style={adStyles.adModeRow}>
                 <Pressable
                   onPress={() => setMode('existing')}
-                  style={[styles.modeChip, mode === 'existing' && styles.modeChipActive]}
+                  style={[adStyles.adModeChip, mode === 'existing' && adStyles.adModeChipActive]}
                 >
-                  <Text style={[styles.modeChipText, mode === 'existing' && styles.modeChipTextActive]}>
-                    Existing
+                  <Text style={[adStyles.adModeChipText, mode === 'existing' && adStyles.adModeChipTextActive]}>
+                    {t('credit.existing')}
                   </Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setMode('new')}
-                  style={[styles.modeChip, mode === 'new' && styles.modeChipActive]}
+                  style={[adStyles.adModeChip, mode === 'new' && adStyles.adModeChipActive]}
                 >
-                  <Text style={[styles.modeChipText, mode === 'new' && styles.modeChipTextActive]}>
-                    New customer
+                  <Text style={[adStyles.adModeChipText, mode === 'new' && adStyles.adModeChipTextActive]}>
+                    {t('credit.newCustomerMode')}
                   </Text>
                 </Pressable>
               </View>
 
               {mode === 'existing' ? (
                 <>
-                  <View style={styles.searchBox}>
+                  <View style={adStyles.adSearchBox}>
                     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                       <Circle cx={11} cy={11} r={7} stroke={colors.textMuted} strokeWidth={2} />
                       <Path
@@ -464,39 +470,37 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                     <TextInput
                       value={search}
                       onChangeText={setSearch}
-                      placeholder="Search name or phone"
+                      placeholder={t('credit.searchPlaceholder')}
                       placeholderTextColor={colors.textMuted}
-                      style={styles.searchInput}
+                      style={adStyles.adSearchInput}
                     />
                   </View>
                   {customersLoading ? (
-                    <Text style={styles.hint}>Loading customers…</Text>
+                    <Text style={adStyles.adHint}>{t('credit.loadingCustomers')}</Text>
                   ) : filteredCustomers.length === 0 ? (
-                    <Text style={styles.hint}>
-                      No customers found. Switch to New customer to create one on save.
-                    </Text>
+                    <Text style={adStyles.adHint}>{t('credit.noCustomersHint')}</Text>
                   ) : (
-                    <View style={styles.customerList}>
+                    <View style={adStyles.adCustomerList}>
                       {filteredCustomers.slice(0, 8).map((item) => {
                         const selected = selectedCustomer?.id === item.id;
                         return (
                           <Pressable
                             key={item.id}
                             onPress={() => setSelectedCustomer(item)}
-                            style={[styles.customerRow, selected && styles.customerRowSelected]}
+                            style={[adStyles.adCustomerRow, selected && adStyles.adCustomerRowSelected]}
                           >
                             <View
-                              style={[styles.avatar, { backgroundColor: avatarColor(item.name) }]}
+                              style={[adStyles.adAvatar, { backgroundColor: avatarColor(item.name) }]}
                             >
-                              <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
+                              <Text style={adStyles.adAvatarText}>{getInitials(item.name)}</Text>
                             </View>
-                            <View style={styles.customerInfo}>
-                              <Text style={styles.customerName}>{item.name}</Text>
+                            <View style={adStyles.adCustomerInfo}>
+                              <Text style={adStyles.adCustomerName}>{item.name}</Text>
                               {item.phone ? (
-                                <Text style={styles.customerMeta}>{item.phone}</Text>
+                                <Text style={adStyles.adCustomerMeta}>{item.phone}</Text>
                               ) : null}
                             </View>
-                            {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+                            {selected ? <Text style={adStyles.adCheckMark}>✓</Text> : null}
                           </Pressable>
                         );
                       })}
@@ -505,12 +509,10 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                 </>
               ) : (
                 <>
-                  <Text style={styles.hint}>
-                    Customer will be created automatically when you save this credit.
-                  </Text>
-                  <Input label="Customer name *" value={newName} onChangeText={setNewName} />
+                  <Text style={adStyles.adHint}>{t('credit.autoCreateHint')}</Text>
+                  <Input label={t('credit.customerName')} value={newName} onChangeText={setNewName} />
                   <Input
-                    label="Phone (optional)"
+                    label={t('credit.phoneOptional')}
                     value={newPhone}
                     onChangeText={setNewPhone}
                     keyboardType="phone-pad"
@@ -522,8 +524,8 @@ export default function AddCreditScreen({ route, navigation }: Props) {
 
           {lines.length > 0 ? (
             <SectionCard
-              title="Products"
-              subtitle={`${lines.length} product${lines.length === 1 ? '' : 's'} in this credit`}
+              title={t('credit.products')}
+              subtitle={t('credit.productsInCredit', { count: lines.length })}
             >
               {lines.map((line) => (
                 <LineItemRow
@@ -533,20 +535,20 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                   onEdit={() => handleEditLine(line)}
                 />
               ))}
-              <View style={styles.subtotalRow}>
-                <Text style={styles.subtotalLabel}>Subtotal</Text>
-                <Text style={styles.subtotalValue}>{formatRs(linesTotal)}</Text>
+              <View style={adStyles.adSubtotalRow}>
+                <Text style={adStyles.adSubtotalLabel}>{t('credit.subtotal')}</Text>
+                <Text style={adStyles.adSubtotalValue}>{formatRs(linesTotal)}</Text>
               </View>
               <Pressable
                 onPress={() => openProductModal('add')}
-                style={styles.plusOnlyBtn}
-                accessibilityLabel="Add another product"
+                style={adStyles.adPlusOnlyBtn}
+                accessibilityLabel={t('credit.addAnotherProduct')}
               >
-                <Text style={styles.plusOnlyText}>+</Text>
+                <Text style={adStyles.adPlusOnlyText}>+</Text>
               </Pressable>
             </SectionCard>
           ) : (
-            <SectionCard title="Product" subtitle="One product? Fill and save. Multiple? Tap + after filling.">
+            <SectionCard title={t('credit.product')} subtitle={t('credit.productSub')}>
               <ProductFormFields
                 draftName={draftName}
                 setDraftName={setDraftName}
@@ -559,22 +561,22 @@ export default function AddCreditScreen({ route, navigation }: Props) {
               {draftName.trim() && draftPrice.trim() && Number(draftPrice) > 0 ? (
                 <Pressable
                   onPress={handleAddFirstToList}
-                  style={styles.plusOnlyBtn}
-                  accessibilityLabel="Add product and add more"
+                  style={adStyles.adPlusOnlyBtn}
+                  accessibilityLabel={t('credit.addProductMore')}
                 >
-                  <Text style={styles.plusOnlyText}>+</Text>
+                  <Text style={adStyles.adPlusOnlyText}>+</Text>
                 </Pressable>
               ) : null}
             </SectionCard>
           )}
 
-          <SectionCard title="Notes" subtitle="Optional note for this credit">
+          <SectionCard title={t('credit.notes')} subtitle={t('credit.notesSub')}>
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder="e.g. Delivered tomorrow"
+              placeholder={t('credit.notesPlaceholder')}
               placeholderTextColor={colors.textMuted}
-              style={[styles.fieldInput, styles.noteInput]}
+              style={[adStyles.adFieldInput, adStyles.adNoteInput]}
               multiline
             />
           </SectionCard>
@@ -588,15 +590,15 @@ export default function AddCreditScreen({ route, navigation }: Props) {
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalBackdrop}
+            style={adStyles.adModalBackdrop}
           >
-            <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingLineId ? 'Edit product' : 'Add product'}
+            <View style={[adStyles.adModalSheet, { paddingBottom: insets.bottom + 16 }]}>
+              <View style={adStyles.adModalHeader}>
+                <Text style={adStyles.adModalTitle}>
+                  {editingLineId ? t('credit.editProduct') : t('credit.addProduct')}
                 </Text>
                 <Pressable onPress={closeProductModal} hitSlop={8}>
-                  <Text style={styles.modalClose}>✕</Text>
+                  <Text style={adStyles.adModalClose}>✕</Text>
                 </Pressable>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled">
@@ -609,9 +611,9 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                   setDraftPrice={setDraftPrice}
                   draftTotal={draftTotal}
                 />
-                <Pressable onPress={handleAddLine} style={styles.addLineBtn}>
-                  <Text style={styles.addLineBtnText}>
-                    {editingLineId ? 'Update product' : 'Add product'}
+                <Pressable onPress={handleAddLine} style={adStyles.adAddLineBtn}>
+                  <Text style={adStyles.adAddLineBtnText}>
+                    {editingLineId ? t('credit.updateProduct') : t('credit.addProduct')}
                   </Text>
                 </Pressable>
               </ScrollView>
@@ -619,18 +621,18 @@ export default function AddCreditScreen({ route, navigation }: Props) {
           </KeyboardAvoidingView>
         </Modal>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <View style={styles.footerTotal}>
-            <Text style={styles.footerTotalLabel}>Credit total</Text>
-            <Text style={styles.footerTotalValue}>{formatRs(grandTotal)}</Text>
-            <Text style={styles.footerHint}>
+        <View style={[adStyles.adFooter, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={adStyles.adFooterTotal}>
+            <Text style={adStyles.adFooterTotalLabel}>{t('credit.creditTotal')}</Text>
+            <Text style={adStyles.adFooterTotalValue}>{formatRs(grandTotal)}</Text>
+            <Text style={adStyles.adFooterHint}>
               {lines.length === 0
-                ? 'Fill product above, then save'
-                : `${lines.length} product${lines.length === 1 ? '' : 's'}`}
+                ? t('credit.fillThenSave')
+                : t('common.productsCount', { count: lines.length })}
             </Text>
           </View>
           <Button
-            title={loading ? 'Saving…' : 'Save credit'}
+            title={loading ? t('common.saving') : t('credit.saveCredit')}
             onPress={handleSave}
             loading={loading}
             disabled={grandTotal <= 0}
@@ -641,20 +643,20 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  flex: { flex: 1 },
-  header: {
+const adStyles = StyleSheet.create({
+  adScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  adFlex: { flex: 1 },
+  adHeader: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
-  backBtn: { alignSelf: 'flex-start', marginBottom: 4 },
-  backText: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600' },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: t.body, marginTop: 4 },
-  headerCustomer: {
+  adBackBtn: { alignSelf: 'flex-start', marginBottom: 4 },
+  adBackText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  adHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
+  adHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
+  adHeaderCustomer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -663,26 +665,26 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
   },
-  headerAvatar: {
+  adHeaderAvatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerAvatarText: { color: '#FFF', fontWeight: '800', fontSize: t.caption },
-  headerCustomerBody: { flex: 1 },
-  headerCustomerLabel: { color: 'rgba(255,255,255,0.8)', fontSize: t.sm },
-  headerCustomerName: { color: '#FFF', fontSize: t.md, fontWeight: '700', marginTop: 2 },
-  headerBadge: {
+  adHeaderAvatarText: { color: '#FFF', fontWeight: '800', fontSize: ty.caption },
+  adHeaderCustomerBody: { flex: 1 },
+  adHeaderCustomerLabel: { color: 'rgba(255,255,255,0.8)', fontSize: ty.sm },
+  adHeaderCustomerName: { color: '#FFF', fontSize: ty.md, fontWeight: '700', marginTop: 2 },
+  adHeaderBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  headerBadgeText: { color: '#FFF', fontSize: t.sm, fontWeight: '700' },
-  content: { padding: 16, paddingTop: 14 },
-  card: {
+  adHeaderBadgeText: { color: '#FFF', fontSize: ty.sm, fontWeight: '700' },
+  adContent: { padding: 16, paddingTop: 14 },
+  adCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 16,
@@ -690,9 +692,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  cardTitle: { fontSize: t.md, fontWeight: '800', color: colors.text },
-  cardSubtitle: { fontSize: t.caption, color: colors.textMuted, marginTop: 2, marginBottom: 12 },
-  modeRow: {
+  adCardTitle: { fontSize: ty.md, fontWeight: '800', color: colors.text },
+  adCardSubtitle: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2, marginBottom: 12 },
+  adModeRow: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 12,
@@ -700,16 +702,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 4,
   },
-  modeChip: {
+  adModeChip: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
-  modeChipActive: { backgroundColor: '#FFF' },
-  modeChipText: { fontSize: t.caption, fontWeight: '700', color: colors.textMuted },
-  modeChipTextActive: { color: colors.primaryDark },
-  searchBox: {
+  adModeChipActive: { backgroundColor: '#FFF' },
+  adModeChipText: { fontSize: ty.caption, fontWeight: '700', color: colors.textMuted },
+  adModeChipTextActive: { color: colors.primaryDark },
+  adSearchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -721,9 +723,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  searchInput: { flex: 1, fontSize: t.md, color: colors.text, padding: 0 },
-  customerList: { maxHeight: 240 },
-  customerRow: {
+  adSearchInput: { flex: 1, fontSize: ty.md, color: colors.text, padding: 0 },
+  adCustomerList: { maxHeight: 240 },
+  adCustomerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
@@ -733,11 +735,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: '#FAFAFA',
   },
-  customerRowSelected: {
+  adCustomerRowSelected: {
     borderColor: colors.primary,
     backgroundColor: '#F3F7EC',
   },
-  avatar: {
+  adAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -745,13 +747,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  avatarText: { color: '#FFF', fontWeight: '700', fontSize: t.caption },
-  customerInfo: { flex: 1 },
-  customerName: { fontSize: t.bodyLg, fontWeight: '600', color: colors.text },
-  customerMeta: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  checkMark: { color: colors.primary, fontWeight: '800', fontSize: t.lg },
-  hint: { fontSize: t.body, color: colors.textMuted, marginBottom: 10, lineHeight: 18 },
-  lineRow: {
+  adAvatarText: { color: '#FFF', fontWeight: '700', fontSize: ty.caption },
+  adCustomerInfo: { flex: 1 },
+  adCustomerName: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
+  adCustomerMeta: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  adCheckMark: { color: colors.primary, fontWeight: '800', fontSize: ty.lg },
+  adHint: { fontSize: ty.body, color: colors.textMuted, marginBottom: 10, lineHeight: 18 },
+  adLineRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -759,7 +761,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F1F3',
   },
-  lineIcon: {
+  adLineIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -767,44 +769,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lineBody: { flex: 1 },
-  lineName: { fontSize: t.bodyLg, fontWeight: '700', color: colors.text },
-  lineMeta: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  lineRight: { alignItems: 'flex-end' },
-  lineAmount: { fontSize: t.bodyLg, fontWeight: '800', color: colors.danger },
-  removeBtn: { marginTop: 4 },
-  removeBtnText: { fontSize: t.sm, color: colors.danger, fontWeight: '600' },
-  subtotalRow: {
+  adLineBody: { flex: 1 },
+  adLineName: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.text },
+  adLineMeta: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  adLineRight: { alignItems: 'flex-end' },
+  adLineAmount: { fontSize: ty.bodyLg, fontWeight: '800', color: colors.danger },
+  adRemoveBtn: { marginTop: 4 },
+  adRemoveBtnText: { fontSize: ty.sm, color: colors.danger, fontWeight: '600' },
+  adSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 12,
     marginTop: 4,
   },
-  subtotalLabel: { fontSize: t.body, fontWeight: '600', color: colors.textMuted },
-  subtotalValue: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  fieldLabel: { fontSize: t.body, fontWeight: '600', color: colors.text, marginBottom: 6 },
-  qtyPriceRow: { flexDirection: 'row', gap: 10 },
-  qtyCol: { width: 88 },
-  priceCol: { flex: 1 },
-  fieldInput: {
+  adSubtotalLabel: { fontSize: ty.body, fontWeight: '600', color: colors.textMuted },
+  adSubtotalValue: { fontSize: ty.lg, fontWeight: '800', color: colors.text },
+  adFieldLabel: { fontSize: ty.body, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  adQtyPriceRow: { flexDirection: 'row', gap: 10 },
+  adQtyCol: { width: 88 },
+  adPriceCol: { flex: 1 },
+  adFieldInput: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: t.md,
+    fontSize: ty.md,
     color: colors.text,
   },
-  noteInput: { minHeight: 72, textAlignVertical: 'top' },
-  draftLineTotal: {
-    fontSize: t.body,
+  adNoteInput: { minHeight: 72, textAlignVertical: 'top' },
+  adDraftLineTotal: {
+    fontSize: ty.body,
     fontWeight: '700',
     color: colors.primaryDark,
     marginTop: 10,
   },
-  plusOnlyBtn: {
+  adPlusOnlyBtn: {
     alignSelf: 'center',
     width: 48,
     height: 48,
@@ -814,27 +816,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 14,
   },
-  plusOnlyText: {
+  adPlusOnlyText: {
     color: '#FFF',
     fontSize: 28,
     fontWeight: '300',
     lineHeight: 30,
     marginTop: -2,
   },
-  addLineBtn: {
+  adAddLineBtn: {
     backgroundColor: colors.primaryDark,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
-  addLineBtnText: { color: '#FFF', fontWeight: '700', fontSize: t.bodyLg },
-  modalBackdrop: {
+  adAddLineBtnText: { color: '#FFF', fontWeight: '700', fontSize: ty.bodyLg },
+  adModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
-  modalSheet: {
+  adModalSheet: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -842,15 +844,15 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     maxHeight: '85%',
   },
-  modalHeader: {
+  adModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  modalTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 20, color: colors.textMuted, padding: 4 },
-  footer: {
+  adModalTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text },
+  adModalClose: { fontSize: 20, color: colors.textMuted, padding: 4 },
+  adFooter: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -866,8 +868,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  footerTotal: { marginBottom: 10 },
-  footerTotalLabel: { fontSize: t.caption, color: colors.textMuted, fontWeight: '600' },
-  footerTotalValue: { fontSize: t.xxl, fontWeight: '800', color: colors.danger, marginTop: 2 },
-  footerHint: { fontSize: t.sm, color: colors.textMuted, marginTop: 2 },
+  adFooterTotal: { marginBottom: 10 },
+  adFooterTotalLabel: { fontSize: ty.caption, color: colors.textMuted, fontWeight: '600' },
+  adFooterTotalValue: { fontSize: ty.xxl, fontWeight: '800', color: colors.danger, marginTop: 2 },
+  adFooterHint: { fontSize: ty.sm, color: colors.textMuted, marginTop: 2 },
 });

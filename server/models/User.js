@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const userSchema = new mongoose.Schema(
   {
@@ -42,6 +43,13 @@ const userSchema = new mongoose.Schema(
     shopImage: {
       type: String,
       default: '',
+    },
+    /** Account-level QR identity (independent of Customer.qrCode). */
+    qrCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
     },
     googleId: {
       type: String,
@@ -95,6 +103,33 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    pendingEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      select: false,
+    },
+    emailChangeCodeHash: {
+      type: String,
+      select: false,
+    },
+    emailChangeExpires: {
+      type: Date,
+      select: false,
+    },
+    emailChangeRequestedAt: {
+      type: Date,
+      select: false,
+    },
+    emailChangePasswordAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    emailChangeLockedUntil: {
+      type: Date,
+      select: false,
+    },
     passwordResetToken: {
       type: String,
       select: false,
@@ -103,6 +138,21 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    preferredLanguage: {
+      type: String,
+      enum: ['en', 'ne'],
+      default: 'en',
+    },
+    tutorialProgress: {
+      completedStepIds: {
+        type: [String],
+        default: [],
+      },
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   { timestamps: true }
 );
@@ -110,8 +160,16 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ email: 1, role: 1 }, { unique: true });
 
 userSchema.pre('validate', function validateRequiredFields(next) {
-  if (!this.googleId && !this.password) {
+  if (this.isNew && !this.googleId && !this.password) {
     this.invalidate('password', 'Password is required');
+  }
+  next();
+});
+
+userSchema.pre('save', function generateAccountQr(next) {
+  if (!this.qrCode) {
+    const prefix = this.role === 'shopkeeper' ? 'BBS' : 'BBC';
+    this.qrCode = `${prefix}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
   }
   next();
 });

@@ -1,6 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   ScrollView,
@@ -10,281 +9,668 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Constants from 'expo-constants';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { fetchLegalDocuments } from '../../api/legal';
+import { useAuth } from '../../contexts/AuthContext';
+import { appAlert } from '../../contexts/DialogContext';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
 import type { RootStackParamList } from '../../navigation/types';
 
 const SUPPORT_EMAIL = 'support@bakibook.com';
+const SUPPORT_PHONE = '01-5971234';
+const SUPPORT_WHATSAPP = '9801234567';
+const SUPPORT_HOURS = '8:00 AM – 8:00 PM';
 
-const FAQS = [
-  {
-    q: 'How do I add credit for a customer?',
-    a: 'Tap the + tab at the bottom, choose a customer (or create a new one), enter product name, quantity and price, then Save credit. Use + to add multiple products in one credit.',
-  },
-  {
-    q: 'How do I record a payment?',
-    a: 'Open a customer from Customers, tap their profile, then use Record payment. Enter the amount received and optional note.',
-  },
-  {
-    q: 'How do I export reports?',
-    a: 'Go to Reports tab, pick Today / This week / This month, then tap Export full PDF report at the bottom.',
-  },
-  {
-    q: 'How do I track shop expenses?',
-    a: 'Open More → Expenses. Add rent, stock, utilities and other costs. Filter by month and category.',
-  },
-  {
-    q: 'How do I manage my product catalog?',
-    a: 'Open More → Products to add, edit or search products. Products also save automatically when you add credit.',
-  },
-  {
-    q: 'How do I change my password?',
-    a: 'Go to More → Security. Enter your current password and a new one, or use Send reset email.',
-  },
-  {
-    q: 'The app says it cannot reach the server',
-    a: 'Check your internet connection. If the problem continues, contact support — the server may be updating.',
-  },
-];
+type TopicKey =
+  | 'makePayment'
+  | 'uploadScreenshot'
+  | 'paymentVerified'
+  | 'creditScore'
+  | 'scanShopQr'
+  | 'downloadStatement'
+  | 'addCredit'
+  | 'recordPayment'
+  | 'exportReports'
+  | 'trackExpenses'
+  | 'manageProducts'
+  | 'changePassword'
+  | 'serverUnreachable'
+  | 'howItWorks'
+  | 'safety'
+  | 'forShops';
 
-function FaqItem({ question, answer }: { question: string; answer: string }) {
+function FaqExpand({
+  question,
+  answer,
+  icon,
+}: {
+  question: string;
+  answer: string;
+  icon: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Pressable
       onPress={() => setOpen((v) => !v)}
-      style={({ pressed }) => [styles.faqItem, pressed && styles.faqItemPressed]}
+      style={({ pressed }) => [hsStyles.hsTopicRow, pressed && { opacity: 0.9 }]}
     >
-      <View style={styles.faqHeader}>
-        <Text style={styles.faqQuestion}>{question}</Text>
-        <Text style={styles.faqChevron}>{open ? '▾' : '›'}</Text>
+      <View style={hsStyles.hsTopicIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={hsStyles.hsTopicTitle}>{question}</Text>
+        {open ? <Text style={hsStyles.hsTopicAnswer}>{answer}</Text> : null}
       </View>
-      {open ? <Text style={styles.faqAnswer}>{answer}</Text> : null}
-    </Pressable>
-  );
-}
-
-function ActionRow({
-  label,
-  subtitle,
-  onPress,
-  icon,
-}: {
-  label: string;
-  subtitle?: string;
-  onPress: () => void;
-  icon: ReactNode;
-}) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}>
-      <View style={styles.actionIcon}>{icon}</View>
-      <View style={styles.actionBody}>
-        <Text style={styles.actionLabel}>{label}</Text>
-        {subtitle ? <Text style={styles.actionSub}>{subtitle}</Text> : null}
-      </View>
-      <Text style={styles.actionChevron}>›</Text>
+      <Text style={hsStyles.hsChevron}>{open ? '▾' : '›'}</Text>
     </Pressable>
   );
 }
 
 export default function HelpSupportScreen() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
-  const [legalDocs, setLegalDocs] = useState<Array<{ slug: string; title: string }>>([]);
-  const [loadingLegal, setLoadingLegal] = useState(true);
+  const isCustomer = user?.role === 'customer';
 
-  const appVersion = Constants.expoConfig?.version || '1.0.0';
-
-  useEffect(() => {
-    fetchLegalDocuments()
-      .then((res) => setLegalDocs(res.documents || []))
-      .catch(() => {
-        setLegalDocs([
-          { slug: 'terms', title: 'Terms & Conditions' },
-          { slug: 'privacy', title: 'Privacy Policy' },
-        ]);
-      })
-      .finally(() => setLoadingLegal(false));
-  }, []);
+  const popularTopics = useMemo(() => {
+    if (isCustomer) {
+      return [
+        'makePayment',
+        'uploadScreenshot',
+        'paymentVerified',
+        'creditScore',
+        'scanShopQr',
+        'downloadStatement',
+      ] as TopicKey[];
+    }
+    return [
+      'addCredit',
+      'recordPayment',
+      'exportReports',
+      'trackExpenses',
+      'manageProducts',
+      'changePassword',
+    ] as TopicKey[];
+  }, [isCustomer]);
 
   const openEmail = () => {
     Linking.openURL(
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('BakiBook Support Request')}`
-    ).catch(() => {
-      Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {});
-    });
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('help.supportSubject'))}`
+    ).catch(() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {}));
+  };
+
+  const openWhatsApp = () => {
+    const digits = SUPPORT_WHATSAPP.replace(/[^\d]/g, '');
+    Linking.openURL(`https://wa.me/977${digits}`).catch(() =>
+      appAlert(t('common.error'), t('help.whatsappFailed'))
+    );
+  };
+
+  const openCall = () => {
+    Linking.openURL(`tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`).catch(() =>
+      appAlert(t('common.error'), t('help.callFailed'))
+    );
+  };
+
+  const openLiveChat = () => {
+    appAlert(t('help.liveChat'), t('help.liveChatBody'), [
+      { text: t('help.emailSupport'), onPress: openEmail },
+      { text: t('customer.whatsapp'), onPress: openWhatsApp },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
+  const openTickets = () => {
+    appAlert(t('help.myTickets'), t('help.myTicketsBody'), [
+      { text: t('help.emailSupport'), onPress: openEmail },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
+  const openQuick = (key: 'faqs' | 'howItWorks' | 'safety' | 'forShops') => {
+    if (key === 'faqs') {
+      appAlert(t('help.quickFaqs'), t('help.quickFaqsBody'));
+      return;
+    }
+    if (key === 'howItWorks') {
+      if (!isCustomer) {
+        navigation.navigate('Tutorial');
+        return;
+      }
+      appAlert(t('help.howItWorks'), t('help.howItWorksBody'));
+      return;
+    }
+    if (key === 'safety') {
+      navigation.navigate('LegalDocument', {
+        slug: 'privacy',
+        title: t('help.privacy'),
+      });
+      return;
+    }
+    appAlert(t('help.forShops'), t('help.forShopsBody'));
+  };
+
+  const topicIcon = (key: TopicKey) => {
+    const stroke = colors.primary;
+    if (key === 'makePayment' || key === 'recordPayment') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Rect x={3} y={6} width={18} height={12} rx={2} stroke={stroke} strokeWidth={2} />
+          <Path d="M3 10 H21" stroke={stroke} strokeWidth={2} />
+        </Svg>
+      );
+    }
+    if (key === 'uploadScreenshot') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 16 V7 M8 10 L12 6 L16 10 M5 18 H19"
+            stroke={stroke}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </Svg>
+      );
+    }
+    if (key === 'paymentVerified' || key === 'safety') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z"
+            stroke={stroke}
+            strokeWidth={2}
+          />
+        </Svg>
+      );
+    }
+    if (key === 'creditScore') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M4 16 L9 10 L13 13 L20 6"
+            stroke={stroke}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx={20} cy={6} r={1.5} fill={stroke} />
+        </Svg>
+      );
+    }
+    if (key === 'scanShopQr') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Rect x={4} y={4} width={7} height={7} stroke={stroke} strokeWidth={2} />
+          <Rect x={13} y={13} width={7} height={7} stroke={stroke} strokeWidth={2} />
+        </Svg>
+      );
+    }
+    if (key === 'downloadStatement' || key === 'exportReports') {
+      return (
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 4 V14 M8 10 L12 14 L16 10 M5 18 H19"
+            stroke={stroke}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </Svg>
+      );
+    }
+    return (
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Circle cx={12} cy={12} r={8} stroke={stroke} strokeWidth={2} />
+        <Path d="M12 11 V16 M12 8 V8.5" stroke={stroke} strokeWidth={2} />
+      </Svg>
+    );
   };
 
   return (
-    <View style={styles.screen}>
-      <LinearGradient
-        colors={[colors.primaryDark, colors.primary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
-      >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={styles.back}>‹ Back</Text>
+    <View style={[hsStyles.hsScreen, { paddingTop: insets.top }]}>
+      <View style={hsStyles.hsTopBar}>
+        <Pressable style={hsStyles.hsIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M15 6 L9 12 L15 18"
+              stroke={colors.primaryDark}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+            />
+          </Svg>
         </Pressable>
-        <Text style={styles.headerTitle}>Help & support</Text>
-        <Text style={styles.headerSubtitle}>Answers, contact and legal info</Text>
-      </LinearGradient>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={hsStyles.hsTitle}>{t('help.title')}</Text>
+          <Text style={hsStyles.hsSubtitle}>{t('help.heroSubtitle')}</Text>
+        </View>
+        <Pressable style={hsStyles.hsTicketsBtn} onPress={openTickets}>
+          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M4 8 H20 V11 C18.5 11 17.5 12 17.5 13.5 C17.5 15 18.5 16 20 16 V19 H4 V16 C5.5 16 6.5 15 6.5 13.5 C6.5 12 5.5 11 4 11 Z"
+              stroke={colors.primary}
+              strokeWidth={1.8}
+            />
+          </Svg>
+          <Text style={hsStyles.hsTicketsText}>{t('help.myTickets')}</Text>
+        </Pressable>
+      </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[hsStyles.hsContent, { paddingBottom: insets.bottom + 28 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Contact us</Text>
-          <Text style={styles.cardHint}>We typically reply within 1–2 business days.</Text>
-          <ActionRow
-            label="Email support"
-            subtitle={SUPPORT_EMAIL}
-            onPress={openEmail}
-            icon={
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Rect x={3} y={5} width={18} height={14} rx={2} stroke={colors.primary} strokeWidth={2} />
-                <Path d="M3 7 L12 13 L21 7" stroke={colors.primary} strokeWidth={2} />
-              </Svg>
-            }
-          />
-          <ActionRow
-            label="Account & security"
-            subtitle="Password, email verification"
-            onPress={() => navigation.navigate('Security')}
-            icon={
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z" stroke={colors.primary} strokeWidth={2} />
-              </Svg>
-            }
-          />
+        {/* Hero support card */}
+        <View style={hsStyles.hsHeroCard}>
+          <View style={hsStyles.hsHeroArt}>
+            <View style={hsStyles.hsHeroAvatar}>
+              <Text style={hsStyles.hsHeroAvatarText}>B</Text>
+            </View>
+            <Svg width={44} height={44} viewBox="0 0 48 48" fill="none">
+              <Circle cx={24} cy={16} r={8} fill="#4C5C2D" />
+              <Path
+                d="M8 40 C8 30 16 26 24 26 C32 26 40 30 40 40"
+                fill="#6A7E3F"
+              />
+              <Path
+                d="M30 14 C34 12 38 14 38 18"
+                stroke="#FFF"
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={hsStyles.hsHeroText}>{t('help.heroBody')}</Text>
+          </View>
+          <View style={hsStyles.hsHoursBox}>
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+              <Circle cx={12} cy={12} r={8} stroke="#FFF" strokeWidth={2} />
+              <Path d="M12 8 V12 L15 14" stroke="#FFF" strokeWidth={2} strokeLinecap="round" />
+            </Svg>
+            <Text style={hsStyles.hsHoursLabel}>{t('help.supportHours')}</Text>
+            <Text style={hsStyles.hsHoursValue}>{SUPPORT_HOURS}</Text>
+            <Text style={hsStyles.hsHoursEveryday}>{t('help.everyday')}</Text>
+          </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Frequently asked questions</Text>
-          {FAQS.map((item) => (
-            <FaqItem key={item.q} question={item.q} answer={item.a} />
+        {/* Quick help */}
+        <Text style={hsStyles.hsSectionTitle}>{t('help.quickHelp')}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={hsStyles.hsQuickRow}
+        >
+          {(
+            [
+              {
+                key: 'faqs' as const,
+                title: t('help.quickFaqs'),
+                sub: t('help.quickFaqsSub'),
+                bg: '#ECFDF5',
+                fg: colors.primary,
+              },
+              {
+                key: 'howItWorks' as const,
+                title: t('help.howItWorks'),
+                sub: t('help.howItWorksSub'),
+                bg: '#DBEAFE',
+                fg: '#2563EB',
+              },
+              {
+                key: 'safety' as const,
+                title: t('help.safety'),
+                sub: t('help.safetySub'),
+                bg: '#EDE9FE',
+                fg: '#7C3AED',
+              },
+              {
+                key: 'forShops' as const,
+                title: t('help.forShops'),
+                sub: t('help.forShopsSub'),
+                bg: '#FFEDD5',
+                fg: '#EA580C',
+              },
+            ]
+          ).map((item) => (
+            <Pressable
+              key={item.key}
+              style={hsStyles.hsQuickCard}
+              onPress={() => openQuick(item.key)}
+            >
+              <View style={[hsStyles.hsQuickIcon, { backgroundColor: item.bg }]}>
+                {item.key === 'faqs' ? (
+                  <Text style={{ color: item.fg, fontWeight: '900', fontSize: 16 }}>?</Text>
+                ) : item.key === 'howItWorks' ? (
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M7 4 H17 C18 4 19 5 19 6 V20 L12 17 L5 20 V6 C5 5 6 4 7 4 Z"
+                      stroke={item.fg}
+                      strokeWidth={2}
+                    />
+                  </Svg>
+                ) : item.key === 'safety' ? (
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M12 3 L20 7 V12 C20 17 16.5 20.5 12 21 C7.5 20.5 4 17 4 12 V7 Z"
+                      stroke={item.fg}
+                      strokeWidth={2}
+                    />
+                  </Svg>
+                ) : (
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M6 8 H18 L17 20 H7 Z M9 8 V6 C9 4.5 10 3.5 12 3.5 C14 3.5 15 4.5 15 6 V8"
+                      stroke={item.fg}
+                      strokeWidth={2}
+                    />
+                  </Svg>
+                )}
+              </View>
+              <Text style={hsStyles.hsQuickTitle}>{item.title}</Text>
+              <Text style={hsStyles.hsQuickSub}>{item.sub}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {/* Popular topics */}
+        <Text style={hsStyles.hsSectionTitle}>{t('help.popularTopics')}</Text>
+        <View style={hsStyles.hsCard}>
+          {popularTopics.map((key) => (
+            <FaqExpand
+              key={key}
+              question={t(`help.topics.${key}.q`)}
+              answer={t(`help.topics.${key}.a`)}
+              icon={topicIcon(key)}
+            />
           ))}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Legal</Text>
-          {loadingLegal ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
-          ) : (
-            legalDocs.map((doc) => (
-              <ActionRow
-                key={doc.slug}
-                label={doc.title}
-                onPress={() =>
-                  navigation.navigate('LegalDocument', { slug: doc.slug, title: doc.title })
-                }
-                icon={
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                    <Path d="M8 4 H16 C17 4 18 5 18 6 V20 C18 21 17 22 16 22 H8 C7 22 6 21 6 20 V6 C6 5 7 4 8 4 Z" stroke="#6B7280" strokeWidth={2} />
-                    <Path d="M9 9 H15 M9 13 H15 M9 17 H12" stroke="#6B7280" strokeWidth={2} />
-                  </Svg>
-                }
-              />
-            ))
-          )}
+        {/* Contact support */}
+        <Text style={hsStyles.hsSectionTitle}>{t('help.contactSupport')}</Text>
+        <View style={hsStyles.hsCard}>
+          <Pressable style={hsStyles.hsContactRow} onPress={openLiveChat}>
+            <View style={[hsStyles.hsContactIcon, { backgroundColor: '#ECFDF5' }]}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M5 6 H19 V16 H9 L5 19 Z"
+                  stroke={colors.primary}
+                  strokeWidth={2}
+                />
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={hsStyles.hsContactTitle}>{t('help.liveChat')}</Text>
+              <Text style={hsStyles.hsContactSub}>{t('help.liveChatSub')}</Text>
+            </View>
+            <View style={hsStyles.hsOnlineBadge}>
+              <Text style={hsStyles.hsOnlineText}>{t('help.online')}</Text>
+            </View>
+          </Pressable>
+
+          <Pressable style={hsStyles.hsContactRow} onPress={openWhatsApp}>
+            <View style={[hsStyles.hsContactIcon, { backgroundColor: '#DCFCE7' }]}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 3 C7 3 3 6.8 3 11.5 C3 13.2 3.6 14.8 4.6 16.1 L3.5 20.5 L8.1 19.2 C9.3 19.8 10.6 20.1 12 20.1 C17 20.1 21 16.3 21 11.6 C21 6.8 17 3 12 3 Z"
+                  stroke="#16A34A"
+                  strokeWidth={1.8}
+                />
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={hsStyles.hsContactTitle}>{t('help.whatsappSupport')}</Text>
+              <Text style={hsStyles.hsContactSub}>{t('help.whatsappSub')}</Text>
+            </View>
+            <Text style={hsStyles.hsContactValue}>{SUPPORT_WHATSAPP}</Text>
+          </Pressable>
+
+          <Pressable style={hsStyles.hsContactRow} onPress={openEmail}>
+            <View style={[hsStyles.hsContactIcon, { backgroundColor: '#DBEAFE' }]}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Rect x={3} y={5} width={18} height={14} rx={2} stroke="#2563EB" strokeWidth={2} />
+                <Path d="M3 7 L12 13 L21 7" stroke="#2563EB" strokeWidth={2} />
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={hsStyles.hsContactTitle}>{t('help.emailSupport')}</Text>
+              <Text style={hsStyles.hsContactSub}>{t('help.emailSub')}</Text>
+            </View>
+            <Text style={[hsStyles.hsContactValue, { fontSize: 11 }]}>{SUPPORT_EMAIL}</Text>
+          </Pressable>
+
+          <Pressable style={[hsStyles.hsContactRow, { borderBottomWidth: 0 }]} onPress={openCall}>
+            <View style={[hsStyles.hsContactIcon, { backgroundColor: '#FFEDD5' }]}>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M6 4 H10 L12 9 L9.5 10.5 C10.5 12.5 12 14 14 15 L15.5 12.5 L20.5 14.5 V18.5 C20.5 19.5 19.5 20.5 18.5 20.5 C10.5 20.5 3.5 13.5 3.5 5.5 C3.5 4.5 4.5 3.5 5.5 3.5"
+                  stroke="#EA580C"
+                  strokeWidth={1.8}
+                />
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={hsStyles.hsContactTitle}>{t('help.callSupport')}</Text>
+              <Text style={hsStyles.hsContactSub}>{t('help.callSub')}</Text>
+            </View>
+            <Text style={hsStyles.hsContactValue}>{SUPPORT_PHONE}</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.aboutCard}>
-          <View style={styles.aboutIcon}>
-            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-              <Circle cx={12} cy={12} r={9} stroke={colors.primary} strokeWidth={2} />
-              <Path d="M10 10 C10 8 14 8 14 10 C14 12 12 12 12 14" stroke={colors.primary} strokeWidth={2} />
+        <View style={hsStyles.hsResponseBanner}>
+          <View style={hsStyles.hsBellIcon}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M6 16 H18 L16.5 9.5 C16 7 14.2 5.5 12 5.5 C9.8 5.5 8 7 7.5 9.5 Z"
+                stroke="#CA8A04"
+                strokeWidth={2}
+              />
+              <Path
+                d="M10 18 C10 19.1 10.9 20 12 20 C13.1 20 14 19.1 14 18"
+                stroke="#CA8A04"
+                strokeWidth={2}
+              />
             </Svg>
           </View>
-          <Text style={styles.aboutTitle}>BakiBook</Text>
-          <Text style={styles.aboutText}>Digital credit management for shopkeepers</Text>
-          <Text style={styles.aboutVersion}>App version {appVersion}</Text>
+          <Text style={hsStyles.hsResponseText}>{t('help.responseBanner')}</Text>
         </View>
+
+        <Pressable
+          style={hsStyles.hsLegalLink}
+          onPress={() =>
+            navigation.navigate('LegalDocument', {
+              slug: 'terms',
+              title: t('help.terms'),
+            })
+          }
+        >
+          <Text style={hsStyles.hsLegalLinkText}>{t('help.terms')} · {t('help.privacy')}</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 18,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-  },
-  back: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600', marginBottom: 6 },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: t.body, marginTop: 4 },
-  content: { padding: 16, paddingTop: 14, gap: 12 },
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ECEEF2',
-  },
-  cardTitle: { fontSize: t.md, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  cardHint: { fontSize: t.caption, color: colors.textMuted, marginBottom: 12 },
-  actionRow: {
+const hsStyles = StyleSheet.create({
+  hsScreen: { flex: 1, backgroundColor: '#F7F8F4' },
+  hsTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F1F3',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
   },
-  actionRowPressed: { opacity: 0.85 },
-  actionIcon: {
+  hsIconBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionBody: { flex: 1 },
-  actionLabel: { fontSize: t.bodyLg, fontWeight: '700', color: colors.text },
-  actionSub: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  actionChevron: { fontSize: 20, color: colors.textMuted, fontWeight: '300' },
-  faqItem: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F1F3',
-    paddingVertical: 12,
+  hsTitle: { fontSize: 18, fontWeight: '800', color: colors.primaryDark },
+  hsSubtitle: { marginTop: 2, fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  hsTicketsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
   },
-  faqItemPressed: { backgroundColor: '#FAFAFA' },
-  faqHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  faqQuestion: { flex: 1, fontSize: t.bodyLg, fontWeight: '700', color: colors.text, lineHeight: 18 },
-  faqChevron: { fontSize: 18, color: colors.textMuted, marginTop: 1 },
-  faqAnswer: {
-    marginTop: 8,
-    fontSize: t.body,
-    color: colors.textMuted,
+  hsTicketsText: { color: colors.primary, fontWeight: '800', fontSize: 11 },
+  hsContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
+  hsHeroCard: {
+    backgroundColor: '#E8F0D8',
+    borderRadius: 20,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  hsHeroArt: { alignItems: 'center', justifyContent: 'center' },
+  hsHeroAvatar: {
+    position: 'absolute',
+    top: 2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  hsHeroAvatarText: { color: '#FFF', fontSize: 10, fontWeight: '900' },
+  hsHeroText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primaryDark,
     lineHeight: 18,
   },
-  aboutCard: {
+  hsHoursBox: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    padding: 10,
+    minWidth: 108,
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  hsHoursLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 10, fontWeight: '700', marginTop: 4 },
+  hsHoursValue: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  hsHoursEveryday: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '600' },
+  hsSectionTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.primaryDark,
+  },
+  hsQuickRow: { gap: 10, paddingVertical: 4, paddingRight: 8 },
+  hsQuickCard: {
+    width: 148,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+  },
+  hsQuickIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  hsQuickTitle: { fontSize: 13, fontWeight: '800', color: colors.primaryDark },
+  hsQuickSub: { marginTop: 4, fontSize: 11, color: '#6B7280', lineHeight: 15, fontWeight: '600' },
+  hsCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ECEEF2',
+    borderColor: '#E8EDE0',
+    overflow: 'hidden',
   },
-  aboutIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  hsTopicRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F2EC',
+  },
+  hsTopicIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
-  aboutTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text },
-  aboutText: { fontSize: t.body, color: colors.textMuted, marginTop: 4 },
-  aboutVersion: { fontSize: t.caption, color: colors.textMuted, marginTop: 8 },
+  hsTopicTitle: { fontSize: 14, fontWeight: '700', color: colors.text, lineHeight: 19 },
+  hsTopicAnswer: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 19,
+    fontWeight: '500',
+  },
+  hsChevron: { fontSize: 18, color: '#9CA3AF', marginTop: 6 },
+  hsContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F2EC',
+  },
+  hsContactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hsContactTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
+  hsContactSub: { marginTop: 2, fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  hsContactValue: { color: colors.primary, fontWeight: '800', fontSize: 12, maxWidth: 110, textAlign: 'right' },
+  hsOnlineBadge: {
+    backgroundColor: '#DCFCE7',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  hsOnlineText: { color: '#15803D', fontWeight: '800', fontSize: 11 },
+  hsResponseBanner: {
+    marginTop: 4,
+    backgroundColor: '#FEF9C3',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  hsBellIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#FEF08A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hsResponseText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#854D0E',
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  hsLegalLink: { alignItems: 'center', paddingVertical: 8 },
+  hsLegalLinkText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
 });

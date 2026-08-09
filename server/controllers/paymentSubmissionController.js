@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import PaymentSubmission from '../models/PaymentSubmission.js';
 import Payment from '../models/Payment.js';
 import Customer from '../models/Customer.js';
@@ -334,64 +335,149 @@ const finalizeReview = async (submission, customer, status, extra = {}) => {
 };
 
 export const acceptSubmission = async (req, res) => {
-  try {
-    const submission = await PaymentSubmission.findOne({
-      _id: req.params.id,
-      shopkeeper: getShopkeeperId(req),
-      status: 'pending',
-    }).populate('customer', 'name linkedUser linkStatus');
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    if (!submission) {
-      return res.status(404).json({ success: false, message: 'Pending submission not found' });
+  try {
+    const shopkeeperId = getShopkeeperId(req);
+    const reviewNote = req.body.note?.trim() || '';
+
+    const existing = await PaymentSubmission.findOne({
+      _id: req.params.id,
+      shopkeeper: shopkeeperId,
+    })
+      .populate('customer', 'name linkedUser linkStatus')
+      .session(session);
+
+    if (!existing) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'Submission not found' });
     }
 
-    const customer = submission.customer;
-    const receiptNo = await generateReceiptNo(getShopkeeperId(req));
-    const payLabel = buildPayLabel(submission);
-    const noteParts = [submission.note, payLabel].filter(Boolean);
+    if (existing.status === 'accepted' && existing.payment) {
+      await session.abortTransaction();
+      return res.json({
+        success: true,
+        message: 'Payment already accepted',
+        submission: formatPaymentSubmission(existing, {
+          customerName: existing.customer?.name,
+        }),
+        paymentId: existing.payment.toString(),
+      });
+    }
 
-    const payment = await Payment.create({
-      shopkeeper: submission.shopkeeper,
-      customer: customer._id,
-      amount: submission.amount,
-      method: submission.method,
-      note: noteParts.join(' | '),
-      receiptNo,
-      screenshotUrl: submission.screenshotUrl,
-      payType: submission.payType,
-      transaction: submission.transaction,
-      itemIndex: submission.itemIndex ?? null,
-      itemName: submission.itemName || '',
-      payLabel,
-      submission: submission._id,
-    });
+    if (existing.status !== 'pending') {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: `Submission is already ${existing.status}`,
+      });
+    }
 
-    await applyPayment(customer._id, submission.amount);
+    const claimed = await PaymentSubmission.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        shopkeeper: shopkeeperId,
+        status: 'pending',
+      },
+      {
+        $set: {
+          status: 'accepted',
+          reviewedAt: new Date(),
+          reviewNote,
+        },
+      },
+      { new: true, session }
+    ).populate('customer', 'name linkedUser linkStatus');
 
-    submission.payment = payment._id;
-    await finalizeReview(submission, customer, 'accepted', {
-      reviewNote: req.body.note?.trim() || '',
-    });
+    if (!claimed) {
+      await session.abortTransaction();
+      return res.status(409).json({
+        success: false,
+        message: 'Submission was already processed',
+      });
+    }
+
+    const customer = claimed.customer;
+    const receiptNo = await generateReceiptNo(shopkeeperId);
+    const payLabel = buildPayLabel(claimed);
+    const noteParts = [claimed.note, payLabel].filter(Boolean);
+
+    const [payment] = await Payment.create(
+      [
+        {
+          shopkeeper: claimed.shopkeeper,
+          customer: customer._id,
+          amount: claimed.amount,
+          method: claimed.method,
+          note: noteParts.join(' | '),
+          receiptNo,
+          screenshotUrl: claimed.screenshotUrl,
+          payType: claimed.payType,
+          transaction: claimed.transaction,
+          itemIndex: claimed.itemIndex ?? null,
+          itemName: claimed.itemName || '',
+          payLabel,
+          submission: claimed._id,
+        },
+      ],
+      { session }
+    );
+
+    await applyPayment(customer._id, claimed.amount, session);
+
+    claimed.payment = payment._id;
+    await claimed.save({ session });
+
+    await session.commitTransaction();
+
+    if (customer.linkedUser) {
+      await createNotification({
+        userId: customer.linkedUser,
+        title: 'Payment accepted',
+        body: `Your Rs. ${claimed.amount.toLocaleString('en-NP')} payment was accepted and recorded.${reviewNote ? ` Note: ${reviewNote}` : ''}`,
+        type: 'success',
+        customerId: customer._id,
+      });
+
+      emitToUser(customer.linkedUser.toString(), 'payment-submission:updated', {
+        submissionId: claimed._id.toString(),
+        status: 'accepted',
+        customerId: customer._id.toString(),
+        paymentId: payment._id.toString(),
+      });
+    }
 
     await createNotification({
-      userId: getShopkeeperId(req),
+      userId: shopkeeperId,
       title: 'Payment accepted',
-      body: `${customer.name} payment of Rs. ${submission.amount.toLocaleString('en-NP')} recorded.`,
+      body: `${customer.name} payment of Rs. ${claimed.amount.toLocaleString('en-NP')} recorded.`,
       type: 'success',
       customerId: customer._id,
       linkPath: `/shop/payments/${payment._id}`,
     });
 
-    await emitPendingSubmissionCount(getShopkeeperId(req));
+    await emitPendingSubmissionCount(shopkeeperId);
 
     res.json({
       success: true,
       message: 'Payment accepted and balance updated',
-      submission: formatPaymentSubmission(submission, { customerName: customer.name }),
+      submission: formatPaymentSubmission(claimed, { customerName: customer.name }),
       paymentId: payment._id.toString(),
     });
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Payment for this submission already exists',
+      });
+    }
     res.status(500).json({ success: false, message: error.message });
+  } finally {
+    session.endSession();
   }
 };
 

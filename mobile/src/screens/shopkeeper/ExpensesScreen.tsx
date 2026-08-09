@@ -15,6 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { appAlert } from '../../contexts/DialogContext';
 import {
@@ -25,7 +26,7 @@ import {
 } from '../../api/expenses';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import { formatDate, formatRs } from '../../utils/format';
 import { EXPENSE_CATEGORIES, type ShopExpense } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -46,9 +47,9 @@ function currentMonthKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function monthLabel(key: string) {
+function monthLabel(key: string, locale: string) {
   const [year, month] = key.split('-').map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString('en-NP', {
+  return new Date(year, month - 1, 1).toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
   });
@@ -60,6 +61,7 @@ function toDateInput(value?: string) {
 }
 
 export default function ExpensesScreen() {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const [expenses, setExpenses] = useState<ShopExpense[]>([]);
@@ -80,6 +82,9 @@ export default function ExpensesScreen() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-NP';
+  const monthDisplay = monthLabel(month, locale);
+
   const load = useCallback(async () => {
     const res = await fetchExpenses({
       month,
@@ -93,16 +98,16 @@ export default function ExpensesScreen() {
   useEffect(() => {
     setLoading(true);
     load()
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load expenses'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('expenses.loadFailed')))
       .finally(() => setLoading(false));
-  }, [load]);
+  }, [load, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh');
+      setError(err instanceof Error ? err.message : t('common.failedToRefresh'));
     } finally {
       setRefreshing(false);
     }
@@ -146,12 +151,12 @@ export default function ExpensesScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      setFormError('Title is required');
+      setFormError(t('expenses.titleRequired'));
       return;
     }
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
-      setFormError('Enter a valid amount');
+      setFormError(t('expenses.validAmount'));
       return;
     }
     setSaving(true);
@@ -172,24 +177,27 @@ export default function ExpensesScreen() {
       setModalOpen(false);
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save');
+      setFormError(err instanceof Error ? err.message : t('common.failedToSave'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (expense: ShopExpense) => {
-    appAlert('Delete expense', `Remove "${expense.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    appAlert(t('expenses.deleteTitle'), t('expenses.deleteConfirm', { title: expense.title }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await deleteExpense(expense.id);
             await load();
           } catch (err) {
-            appAlert('Error', err instanceof Error ? err.message : 'Failed to delete');
+            appAlert(
+              t('common.error'),
+              err instanceof Error ? err.message : t('common.failedToDelete')
+            );
           }
         },
       },
@@ -199,28 +207,28 @@ export default function ExpensesScreen() {
   if (loading) return <LoadingState />;
 
   const listHeader = (
-    <View style={styles.listHeader}>
+    <View style={exStyles.exListHeader}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
+        contentContainerStyle={exStyles.exFilterRow}
       >
         <Pressable
-          style={[styles.filterChip, categoryFilter === 'all' && styles.filterChipActive]}
+          style={[exStyles.exFilterChip, categoryFilter === 'all' && exStyles.exFilterChipActive]}
           onPress={() => setCategoryFilter('all')}
         >
-          <Text style={[styles.filterText, categoryFilter === 'all' && styles.filterTextActive]}>
-            All
+          <Text style={[exStyles.exFilterText, categoryFilter === 'all' && exStyles.exFilterTextActive]}>
+            {t('common.all')}
           </Text>
         </Pressable>
         {categories.map((cat) => (
           <Pressable
             key={cat}
-            style={[styles.filterChip, categoryFilter === cat && styles.filterChipActive]}
+            style={[exStyles.exFilterChip, categoryFilter === cat && exStyles.exFilterChipActive]}
             onPress={() => setCategoryFilter(cat)}
           >
-            <Text style={[styles.filterText, categoryFilter === cat && styles.filterTextActive]}>
-              {cat}
+            <Text style={[exStyles.exFilterText, categoryFilter === cat && exStyles.exFilterTextActive]}>
+              {t(`expenses.categories.${cat}`)}
             </Text>
           </Pressable>
         ))}
@@ -230,82 +238,82 @@ export default function ExpensesScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.breakdownRow}
+          contentContainerStyle={exStyles.exBreakdownRow}
         >
           {categoryBreakdown.map(([cat, total]) => (
-            <View key={cat} style={styles.breakdownPill}>
+            <View key={cat} style={exStyles.exBreakdownPill}>
               <View
-                style={[styles.breakdownDot, { backgroundColor: CATEGORY_COLORS[cat] || '#64748B' }]}
+                style={[exStyles.exBreakdownDot, { backgroundColor: CATEGORY_COLORS[cat] || '#64748B' }]}
               />
-              <Text style={styles.breakdownCat}>{cat}</Text>
-              <Text style={styles.breakdownAmt}>{formatRs(total)}</Text>
+              <Text style={exStyles.exBreakdownCat}>{t(`expenses.categories.${cat}`)}</Text>
+              <Text style={exStyles.exBreakdownAmt}>{formatRs(total)}</Text>
             </View>
           ))}
         </ScrollView>
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={exStyles.exError}>{error}</Text> : null}
     </View>
   );
 
   return (
-    <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerTop}>
+    <View style={exStyles.exScreen}>
+      <View style={[exStyles.exHeader, { paddingTop: insets.top + 12 }]}>
+        <View style={exStyles.exHeaderTop}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={styles.back}>‹ Back</Text>
+            <Text style={exStyles.exBack}>{t('common.back')}</Text>
           </Pressable>
-          <Pressable style={styles.addBtn} onPress={openAdd}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.headerTitle}>Expenses</Text>
-        <Text style={styles.headerSubtitle}>Track shop spending</Text>
-
-        <View style={styles.monthRow}>
-          <Pressable onPress={() => shiftMonth(-1)} hitSlop={8} style={styles.monthBtn}>
-            <Text style={styles.monthArrow}>‹</Text>
-          </Pressable>
-          <Text style={styles.monthLabel}>{monthLabel(month)}</Text>
-          <Pressable onPress={() => shiftMonth(1)} hitSlop={8} style={styles.monthBtn}>
-            <Text style={styles.monthArrow}>›</Text>
+          <Pressable style={exStyles.exAddBtn} onPress={openAdd}>
+            <Text style={exStyles.exAddBtnText}>{t('expenses.add')}</Text>
           </Pressable>
         </View>
+        <Text style={exStyles.exHeaderTitle}>{t('expenses.title')}</Text>
+        <Text style={exStyles.exHeaderSubtitle}>{t('expenses.subtitle')}</Text>
 
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Total this month</Text>
-          <Text style={styles.totalValue}>{formatRs(monthTotal)}</Text>
+        <View style={exStyles.exMonthRow}>
+          <Pressable onPress={() => shiftMonth(-1)} hitSlop={8} style={exStyles.exMonthBtn}>
+            <Text style={exStyles.exMonthArrow}>‹</Text>
+          </Pressable>
+          <Text style={exStyles.exMonthLabel}>{monthDisplay}</Text>
+          <Pressable onPress={() => shiftMonth(1)} hitSlop={8} style={exStyles.exMonthBtn}>
+            <Text style={exStyles.exMonthArrow}>›</Text>
+          </Pressable>
+        </View>
+
+        <View style={exStyles.exTotalCard}>
+          <Text style={exStyles.exTotalLabel}>{t('expenses.totalThisMonth')}</Text>
+          <Text style={exStyles.exTotalValue}>{formatRs(monthTotal)}</Text>
         </View>
       </View>
 
       <FlatList
-        style={styles.list}
+        style={exStyles.exList}
         data={expenses}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
-          styles.listContent,
-          expenses.length === 0 && styles.listContentEmpty,
+          exStyles.exListContent,
+          expenses.length === 0 && exStyles.exListContentEmpty,
           { paddingBottom: insets.bottom + 16 },
         ]}
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>No expenses yet</Text>
-            <Text style={styles.empty}>
-              No expenses for {monthLabel(month).toLowerCase()}. Tap + Add to record one.
+          <View style={exStyles.exEmptyBox}>
+            <Text style={exStyles.exEmptyTitle}>{t('expenses.emptyTitle')}</Text>
+            <Text style={exStyles.exEmpty}>
+              {t('expenses.emptyBody', { month: monthDisplay.toLowerCase() })}
             </Text>
           </View>
         }
         renderItem={({ item }) => (
           <Pressable
-            style={styles.row}
+            style={exStyles.exRow}
             onPress={() => openEdit(item)}
             onLongPress={() => handleDelete(item)}
           >
             <View
               style={[
-                styles.rowIcon,
+                exStyles.exRowIcon,
                 { backgroundColor: `${CATEGORY_COLORS[item.category] || '#64748B'}18` },
               ]}
             >
@@ -326,21 +334,21 @@ export default function ExpensesScreen() {
                 />
               </Svg>
             </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowName} numberOfLines={1}>
+            <View style={exStyles.exRowBody}>
+              <Text style={exStyles.exRowName} numberOfLines={1}>
                 {item.title}
               </Text>
-              <Text style={styles.rowMeta} numberOfLines={1}>
-                {item.category}
+              <Text style={exStyles.exRowMeta} numberOfLines={1}>
+                {t(`expenses.categories.${item.category}`)}
                 {item.expenseDate ? ` · ${formatDate(item.expenseDate)}` : ''}
               </Text>
               {item.note ? (
-                <Text style={styles.rowNote} numberOfLines={2}>
+                <Text style={exStyles.exRowNote} numberOfLines={2}>
                   {item.note}
                 </Text>
               ) : null}
             </View>
-            <Text style={styles.rowAmount}>{formatRs(item.amount)}</Text>
+            <Text style={exStyles.exRowAmount}>{formatRs(item.amount)}</Text>
           </Pressable>
         )}
       />
@@ -348,80 +356,86 @@ export default function ExpensesScreen() {
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalBackdrop}
+          style={exStyles.exModalBackdrop}
         >
-          <Pressable style={styles.modalDismiss} onPress={() => setModalOpen(false)} />
+          <Pressable style={exStyles.exModalDismiss} onPress={() => setModalOpen(false)} />
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.modalScroll, { paddingBottom: insets.bottom + 16 }]}
+            contentContainerStyle={[exStyles.exModalScroll, { paddingBottom: insets.bottom + 16 }]}
           >
-            <View style={styles.modalCard}>
-              <View style={styles.modalHandle} />
-              <Text style={styles.modalTitle}>{editing ? 'Edit expense' : 'Add expense'}</Text>
+            <View style={exStyles.exModalCard}>
+              <View style={exStyles.exModalHandle} />
+              <Text style={exStyles.exModalTitle}>
+                {editing ? t('expenses.editExpense') : t('expenses.addExpense')}
+              </Text>
               {formError ? <ErrorText message={formError} /> : null}
 
-              <Text style={styles.fieldLabel}>Title *</Text>
+              <Text style={exStyles.exFieldLabel}>{t('expenses.titleLabel')}</Text>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
-                placeholder="e.g. Shop rent"
+                placeholder={t('expenses.titlePlaceholder')}
                 placeholderTextColor={colors.textMuted}
-                style={styles.fieldInput}
+                style={exStyles.exFieldInput}
                 autoFocus
               />
 
-              <Text style={styles.fieldLabel}>Amount (Rs) *</Text>
+              <Text style={exStyles.exFieldLabel}>{t('expenses.amountRs')}</Text>
               <TextInput
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0"
                 keyboardType="numeric"
                 placeholderTextColor={colors.textMuted}
-                style={styles.fieldInput}
+                style={exStyles.exFieldInput}
               />
 
-              <Text style={styles.fieldLabel}>Category</Text>
-              <View style={styles.categoryGrid}>
+              <Text style={exStyles.exFieldLabel}>{t('expenses.category')}</Text>
+              <View style={exStyles.exCategoryGrid}>
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <Pressable
                     key={cat}
-                    style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
+                    style={[exStyles.exCategoryChip, category === cat && exStyles.exCategoryChipActive]}
                     onPress={() => setCategory(cat)}
                   >
                     <Text
                       style={[
-                        styles.categoryChipText,
-                        category === cat && styles.categoryChipTextActive,
+                        exStyles.exCategoryChipText,
+                        category === cat && exStyles.exCategoryChipTextActive,
                       ]}
                     >
-                      {cat}
+                      {t(`expenses.categories.${cat}`)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Date</Text>
+              <Text style={exStyles.exFieldLabel}>{t('expenses.date')}</Text>
               <TextInput
                 value={expenseDate}
                 onChangeText={setExpenseDate}
-                placeholder="YYYY-MM-DD"
+                placeholder={t('expenses.datePlaceholder')}
                 placeholderTextColor={colors.textMuted}
-                style={styles.fieldInput}
+                style={exStyles.exFieldInput}
               />
 
-              <Text style={styles.fieldLabel}>Note (optional)</Text>
+              <Text style={exStyles.exFieldLabel}>{t('expenses.noteOptional')}</Text>
               <TextInput
                 value={note}
                 onChangeText={setNote}
-                placeholder="Additional details"
+                placeholder={t('expenses.notePlaceholder')}
                 placeholderTextColor={colors.textMuted}
-                style={[styles.fieldInput, styles.noteInput]}
+                style={[exStyles.exFieldInput, exStyles.exNoteInput]}
                 multiline
               />
 
-              <View style={styles.modalActions}>
-                <Button title="Cancel" variant="outline" onPress={() => setModalOpen(false)} />
-                <Button title={editing ? 'Save' : 'Add expense'} onPress={handleSave} loading={saving} />
+              <View style={exStyles.exModalActions}>
+                <Button title={t('common.cancel')} variant="outline" onPress={() => setModalOpen(false)} />
+                <Button
+                  title={editing ? t('common.save') : t('expenses.addExpense')}
+                  onPress={handleSave}
+                  loading={saving}
+                />
               </View>
             </View>
           </ScrollView>
@@ -431,34 +445,34 @@ export default function ExpensesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F4F5F7' },
-  header: {
+const exStyles = StyleSheet.create({
+  exScreen: { flex: 1, backgroundColor: '#F4F5F7' },
+  exHeader: {
     backgroundColor: colors.primaryDark,
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  back: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600' },
-  addBtn: {
+  exHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  exBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  exAddBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: t.body },
-  headerTitle: { color: '#FFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: t.body, marginTop: 4 },
-  monthRow: {
+  exAddBtnText: { color: '#FFF', fontWeight: '700', fontSize: ty.body },
+  exHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
+  exHeaderSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.body, marginTop: 4 },
+  exMonthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     marginTop: 14,
   },
-  monthBtn: {
+  exMonthBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -466,23 +480,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthArrow: { color: '#FFF', fontSize: 22, fontWeight: '400', lineHeight: 24 },
-  monthLabel: { color: '#FFF', fontSize: t.bodyLg, fontWeight: '700', minWidth: 140, textAlign: 'center' },
-  totalCard: {
+  exMonthArrow: { color: '#FFF', fontSize: 22, fontWeight: '400', lineHeight: 24 },
+  exMonthLabel: { color: '#FFF', fontSize: ty.bodyLg, fontWeight: '700', minWidth: 140, textAlign: 'center' },
+  exTotalCard: {
     marginTop: 12,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
     padding: 14,
     alignItems: 'center',
   },
-  totalLabel: { color: 'rgba(255,255,255,0.85)', fontSize: t.caption },
-  totalValue: { color: '#FFF', fontSize: t.xxl, fontWeight: '800', marginTop: 4 },
-  list: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingTop: 4 },
-  listContentEmpty: { flexGrow: 1 },
-  listHeader: { paddingBottom: 8 },
-  filterRow: { paddingVertical: 12, gap: 8, paddingRight: 16 },
-  filterChip: {
+  exTotalLabel: { color: 'rgba(255,255,255,0.85)', fontSize: ty.caption },
+  exTotalValue: { color: '#FFF', fontSize: ty.xxl, fontWeight: '800', marginTop: 4 },
+  exList: { flex: 1 },
+  exListContent: { paddingHorizontal: 16, paddingTop: 4 },
+  exListContentEmpty: { flexGrow: 1 },
+  exListHeader: { paddingBottom: 8 },
+  exFilterRow: { paddingVertical: 12, gap: 8, paddingRight: 16 },
+  exFilterChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -490,11 +504,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  filterChipActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
-  filterText: { fontSize: t.caption, fontWeight: '600', color: colors.textMuted },
-  filterTextActive: { color: '#FFF' },
-  breakdownRow: { gap: 8, paddingBottom: 8, paddingRight: 16 },
-  breakdownPill: {
+  exFilterChipActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+  exFilterText: { fontSize: ty.caption, fontWeight: '600', color: colors.textMuted },
+  exFilterTextActive: { color: '#FFF' },
+  exBreakdownRow: { gap: 8, paddingBottom: 8, paddingRight: 16 },
+  exBreakdownPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -505,11 +519,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  breakdownCat: { fontSize: t.sm, color: colors.textMuted, fontWeight: '600' },
-  breakdownAmt: { fontSize: t.sm, color: colors.text, fontWeight: '700' },
-  error: { color: colors.danger, marginBottom: 8, fontSize: t.body },
-  row: {
+  exBreakdownDot: { width: 8, height: 8, borderRadius: 4 },
+  exBreakdownCat: { fontSize: ty.sm, color: colors.textMuted, fontWeight: '600' },
+  exBreakdownAmt: { fontSize: ty.sm, color: colors.text, fontWeight: '700' },
+  exError: { color: colors.danger, marginBottom: 8, fontSize: ty.body },
+  exRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
@@ -520,38 +534,38 @@ const styles = StyleSheet.create({
     borderColor: '#ECEEF2',
     gap: 12,
   },
-  rowIcon: {
+  exRowIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowName: { fontSize: t.md, fontWeight: '700', color: colors.text },
-  rowMeta: { fontSize: t.caption, color: colors.textMuted, marginTop: 4 },
-  rowNote: { fontSize: t.sm, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
-  rowAmount: {
-    fontSize: t.bodyLg,
+  exRowBody: { flex: 1, minWidth: 0 },
+  exRowName: { fontSize: ty.md, fontWeight: '700', color: colors.text },
+  exRowMeta: { fontSize: ty.caption, color: colors.textMuted, marginTop: 4 },
+  exRowNote: { fontSize: ty.sm, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
+  exRowAmount: {
+    fontSize: ty.bodyLg,
     fontWeight: '800',
     color: '#2563EB',
     marginLeft: 8,
     flexShrink: 0,
   },
-  emptyBox: { alignItems: 'center', paddingTop: 32, paddingHorizontal: 24 },
-  emptyTitle: { fontSize: t.md, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  empty: { textAlign: 'center', color: colors.textMuted, lineHeight: 20, fontSize: t.body },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalDismiss: { flex: 1 },
-  modalScroll: { flexGrow: 0 },
-  modalCard: {
+  exEmptyBox: { alignItems: 'center', paddingTop: 32, paddingHorizontal: 24 },
+  exEmptyTitle: { fontSize: ty.md, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  exEmpty: { textAlign: 'center', color: colors.textMuted, lineHeight: 20, fontSize: ty.body },
+  exModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  exModalDismiss: { flex: 1 },
+  exModalScroll: { flexGrow: 0 },
+  exModalCard: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingTop: 12,
   },
-  modalHandle: {
+  exModalHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
@@ -559,21 +573,21 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 14,
   },
-  modalTitle: { fontSize: t.lg, fontWeight: '800', color: colors.text, marginBottom: 12 },
-  fieldLabel: { fontSize: t.body, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 8 },
-  fieldInput: {
+  exModalTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  exFieldLabel: { fontSize: ty.body, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 8 },
+  exFieldInput: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: t.md,
+    fontSize: ty.md,
     color: colors.text,
   },
-  noteInput: { minHeight: 72, textAlignVertical: 'top' },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  categoryChip: {
+  exNoteInput: { minHeight: 72, textAlignVertical: 'top' },
+  exCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  exCategoryChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -581,8 +595,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  categoryChipActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
-  categoryChipText: { fontSize: t.caption, fontWeight: '600', color: colors.textMuted },
-  categoryChipTextActive: { color: '#FFF' },
-  modalActions: { gap: 8, marginTop: 16 },
+  exCategoryChipActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+  exCategoryChipText: { fontSize: ty.caption, fontWeight: '600', color: colors.textMuted },
+  exCategoryChipTextActive: { color: '#FFF' },
+  exModalActions: { gap: 8, marginTop: 16 },
 });

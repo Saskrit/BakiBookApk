@@ -28,6 +28,7 @@ interface AuthContextValue {
   }) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  applyUser: (user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -107,9 +108,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveAuth((await getStoredAuth())?.token || '', me.user);
   }, []);
 
+  const applyUser = useCallback(async (next: User) => {
+    setUser(next);
+    const token = (await getStoredAuth())?.token || '';
+    if (token) await saveAuth(token, next);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, login, register, googleSignIn, logout, refreshUser }),
-    [user, loading, login, register, googleSignIn, logout, refreshUser]
+    () => ({ user, loading, login, register, googleSignIn, logout, refreshUser, applyUser }),
+    [user, loading, login, register, googleSignIn, logout, refreshUser, applyUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

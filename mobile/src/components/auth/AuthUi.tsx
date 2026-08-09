@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
 
 export const LOGO = require('../../../assets/android-icon-foreground.png');
@@ -116,32 +117,35 @@ function FooterFeature({ icon, label }: { icon: ReactNode; label: string }) {
 }
 
 export function AuthHeader() {
+  const { t } = useTranslation();
   return (
     <View style={authStyles.header}>
-      <Image source={LOGO} style={authStyles.logo} resizeMode="contain" accessibilityLabel="BakiBook logo" />
+      <Image source={LOGO} style={authStyles.logo} resizeMode="contain" accessibilityLabel={t('splash.logoA11y')} />
       <Text style={authStyles.brandName}>BakiBook</Text>
-      <Text style={authStyles.tagline}>Manage Credit. Build Trust. Grow Together.</Text>
+      <Text style={authStyles.tagline}>{t('auth.tagline')}</Text>
     </View>
   );
 }
 
 export function AuthFooter() {
+  const { t } = useTranslation();
   return (
     <View style={authStyles.footer}>
-      <FooterFeature icon={<ShieldIcon />} label="Secure & Safe" />
+      <FooterFeature icon={<ShieldIcon />} label={t('auth.secureSafe')} />
       <View style={authStyles.footerDivider} />
-      <FooterFeature icon={<CloudIcon />} label="Daily Backups" />
+      <FooterFeature icon={<CloudIcon />} label={t('auth.dailyBackups')} />
       <View style={authStyles.footerDivider} />
-      <FooterFeature icon={<HeadsetIcon />} label="24/7 Support" />
+      <FooterFeature icon={<HeadsetIcon />} label={t('auth.support247')} />
     </View>
   );
 }
 
 export function OrDivider() {
+  const { t } = useTranslation();
   return (
     <View style={authStyles.orDivider}>
       <View style={authStyles.orLine} />
-      <Text style={authStyles.orText}>or</Text>
+      <Text style={authStyles.orText}>{t('auth.or')}</Text>
       <View style={authStyles.orLine} />
     </View>
   );

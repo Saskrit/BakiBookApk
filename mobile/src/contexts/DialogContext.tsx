@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AppDialog from '../components/AppDialog';
+import i18n from '../i18n';
 
 export type DialogButtonStyle = 'default' | 'cancel' | 'destructive';
 
@@ -24,7 +25,7 @@ const DialogContext = createContext<DialogContextValue | null>(null);
 let externalShowDialog: ((options: DialogOptions) => void) | null = null;
 
 export function appAlert(title: string, message?: string, buttons?: DialogButton[]) {
-  const resolvedButtons = buttons?.length ? buttons : [{ text: 'OK' }];
+  const resolvedButtons = buttons?.length ? buttons : [{ text: i18n.t('common.ok') }];
   if (externalShowDialog) {
     externalShowDialog({ title, message, buttons: resolvedButtons });
     return;

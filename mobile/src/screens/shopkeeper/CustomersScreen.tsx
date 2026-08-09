@@ -12,6 +12,7 @@ import {
 import { CompositeNavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { appAlert } from '../../contexts/DialogContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -19,7 +20,7 @@ import { fetchCustomers, deleteCustomer } from '../../api/customers';
 import { fetchDashboardStats } from '../../api/shop';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as t } from '../../theme/typography';
+import { typography as ty } from '../../theme/typography';
 import {
   avatarColor,
   formatLastTransaction,
@@ -41,11 +42,11 @@ type CustomersNav = CompositeNavigationProp<
 type TabKey = 'all' | 'outstanding' | 'clear';
 type SortKey = 'name' | 'outstanding-desc' | 'outstanding-asc' | 'recent';
 
-const SORT_LABELS: Record<SortKey, string> = {
-  name: 'Name (A–Z)',
-  'outstanding-desc': 'Outstanding (High–Low)',
-  'outstanding-asc': 'Outstanding (Low–High)',
-  recent: 'Recent Activity',
+const SORT_KEYS: Record<SortKey, string> = {
+  name: 'customers.sortName',
+  'outstanding-desc': 'customers.sortOutstandingDesc',
+  'outstanding-asc': 'customers.sortOutstandingAsc',
+  recent: 'customers.sortRecent',
 };
 
 function StatCard({
@@ -66,11 +67,11 @@ function StatCard({
   iconBg: string;
 }) {
   return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIconWrap, { backgroundColor: iconBg }]}>{icon}</View>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
-      <Text style={[styles.statFooter, footerColor ? { color: footerColor } : null]}>{footer}</Text>
+    <View style={cuStyles.cuStatCard}>
+      <View style={[cuStyles.cuStatIconWrap, { backgroundColor: iconBg }]}>{icon}</View>
+      <Text style={cuStyles.cuStatLabel}>{label}</Text>
+      <Text style={[cuStyles.cuStatValue, { color: valueColor }]}>{value}</Text>
+      <Text style={[cuStyles.cuStatFooter, footerColor ? { color: footerColor } : null]}>{footer}</Text>
     </View>
   );
 }
@@ -84,6 +85,7 @@ function CustomerRow({
   onPress: () => void;
   onLongPress?: () => void;
 }) {
+  const { t } = useTranslation();
   const badge = getTransactionBadge(
     customer.balance,
     customer.lastCreditDate,
@@ -91,46 +93,47 @@ function CustomerRow({
   );
 
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} style={styles.customerRow}>
-      <View style={[styles.avatar, { backgroundColor: `${avatarColor(customer.name)}22` }]}>
-        <Text style={[styles.avatarText, { color: avatarColor(customer.name) }]}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} style={cuStyles.cuCustomerRow}>
+      <View style={[cuStyles.cuAvatar, { backgroundColor: `${avatarColor(customer.name)}22` }]}>
+        <Text style={[cuStyles.cuAvatarText, { color: avatarColor(customer.name) }]}>
           {getInitials(customer.name)}
         </Text>
       </View>
 
-      <View style={styles.customerMain}>
-        <Text style={styles.customerName}>{customer.name}</Text>
-        <Text style={styles.customerPhone}>{customer.phone || 'No phone'}</Text>
-        <Text style={styles.lastTxLabel}>Last Transaction</Text>
-        <Text style={styles.lastTxTime}>
+      <View style={cuStyles.cuCustomerMain}>
+        <Text style={cuStyles.cuCustomerName}>{customer.name}</Text>
+        <Text style={cuStyles.cuCustomerPhone}>{customer.phone || t('customers.noPhone')}</Text>
+        <Text style={cuStyles.cuLastTxLabel}>{t('customers.lastTransaction')}</Text>
+        <Text style={cuStyles.cuLastTxTime}>
           {formatLastTransaction(customer.lastCreditDate, customer.lastPaymentDate)}
         </Text>
-        <View style={[styles.badge, badge.tone === 'paid' ? styles.badgePaid : styles.badgeCredit]}>
+        <View style={[cuStyles.cuBadge, badge.tone === 'paid' ? cuStyles.cuBadgePaid : cuStyles.cuBadgeCredit]}>
           <Text
-            style={[styles.badgeText, badge.tone === 'paid' ? styles.badgeTextPaid : styles.badgeTextCredit]}
+            style={[cuStyles.cuBadgeText, badge.tone === 'paid' ? cuStyles.cuBadgeTextPaid : cuStyles.cuBadgeTextCredit]}
           >
             {badge.label}
           </Text>
         </View>
       </View>
 
-      <View style={styles.customerDue}>
-        <Text style={styles.dueLabel}>Outstanding</Text>
+      <View style={cuStyles.cuCustomerDue}>
+        <Text style={cuStyles.cuDueLabel}>{t('customers.outstanding')}</Text>
         <Text
           style={[
-            styles.dueValue,
-            customer.balance > 0 ? styles.dueValueRed : styles.dueValueGreen,
+            cuStyles.cuDueValue,
+            customer.balance > 0 ? cuStyles.cuDueValueRed : cuStyles.cuDueValueGreen,
           ]}
         >
           {formatRs(customer.balance)}
         </Text>
-        <Text style={styles.chevron}>›</Text>
+        <Text style={cuStyles.cuChevron}>›</Text>
       </View>
     </Pressable>
   );
 }
 
 export default function CustomersScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<CustomersNav>();
   const insets = useSafeAreaInsets();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -172,7 +175,7 @@ export default function CustomersScreen() {
       setLoading(true);
       setError('');
       load()
-        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load customers'))
+        .catch((err) => setError(err instanceof Error ? err.message : t('customers.loadFailed')))
         .finally(() => setLoading(false));
     }, [load])
   );
@@ -182,7 +185,7 @@ export default function CustomersScreen() {
     try {
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load customers');
+      setError(err instanceof Error ? err.message : t('customers.loadFailed'));
     } finally {
       setRefreshing(false);
     }
@@ -234,12 +237,12 @@ export default function CustomersScreen() {
   }, [customers, tab, sort, overdueOnly]);
 
   const openSort = () => {
-    appAlert('Sort By', undefined, [
-      ...(Object.keys(SORT_LABELS) as SortKey[]).map((key) => ({
-        text: SORT_LABELS[key],
+    appAlert(t('customers.sortBy'), undefined, [
+      ...(Object.keys(SORT_KEYS) as SortKey[]).map((key) => ({
+        text: t(SORT_KEYS[key]),
         onPress: () => setSort(key),
       })),
-      { text: 'Cancel', style: 'cancel' as const },
+      { text: t('common.cancel'), style: 'cancel' as const },
     ]);
   };
 
@@ -248,31 +251,31 @@ export default function CustomersScreen() {
   };
 
   const openCustomerActions = (customer: Customer) => {
-    appAlert(customer.name, 'Choose an action', [
-      { text: 'View profile', onPress: () => openCustomer(customer) },
-      { text: 'Edit', onPress: () => navigation.navigate('EditCustomer', { customerId: customer.id }) },
+    appAlert(customer.name, t('customers.chooseAction'), [
+      { text: t('customers.viewProfile'), onPress: () => openCustomer(customer) },
+      { text: t('common.edit'), onPress: () => navigation.navigate('EditCustomer', { customerId: customer.id }) },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
-          appAlert('Delete customer', `Remove ${customer.name}?`, [
-            { text: 'Cancel', style: 'cancel' },
+          appAlert(t('customers.deleteTitle'), t('customers.deleteConfirm', { name: customer.name }), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-              text: 'Delete',
+              text: t('common.delete'),
               style: 'destructive',
               onPress: async () => {
                 try {
                   await deleteCustomer(customer.id);
                   await load();
                 } catch (err) {
-                  appAlert('Error', err instanceof Error ? err.message : 'Failed to delete');
+                  appAlert(t('common.error'), err instanceof Error ? err.message : t('common.failedToDelete'));
                 }
               },
             },
           ]);
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -280,25 +283,25 @@ export default function CustomersScreen() {
 
   const listHeader = (
     <View>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerTop}>
-          <Pressable style={styles.headerIconBtn} onPress={() => navigation.navigate('Settings')}>
+      <View style={[cuStyles.cuHeader, { paddingTop: insets.top + 12 }]}>
+        <View style={cuStyles.cuHeaderTop}>
+          <Pressable style={cuStyles.cuHeaderIconBtn} onPress={() => navigation.navigate('Settings')}>
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
               <Path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
             </Svg>
           </Pressable>
-          <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle}>Customers</Text>
-            <Text style={styles.headerSubtitle}>Manage all your customers</Text>
+          <View style={cuStyles.cuHeaderTitles}>
+            <Text style={cuStyles.cuHeaderTitle}>{t('customers.title')}</Text>
+            <Text style={cuStyles.cuHeaderSubtitle}>{t('customers.subtitle')}</Text>
           </View>
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerIconBtn} onPress={openSort}>
+          <View style={cuStyles.cuHeaderActions}>
+            <Pressable style={cuStyles.cuHeaderIconBtn} onPress={openSort}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                 <Path d="M4 6 H20 M7 12 H17 M10 18 H14" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
               </Svg>
             </Pressable>
             <Pressable
-              style={styles.headerIconBtn}
+              style={cuStyles.cuHeaderIconBtn}
               onPress={() => navigation.navigate('AddCustomer')}
             >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -310,15 +313,15 @@ export default function CustomersScreen() {
         </View>
       </View>
 
-      <View style={styles.body}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      <View style={cuStyles.cuBody}>
+        {error ? <Text style={cuStyles.cuError}>{error}</Text> : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cuStyles.cuStatsScroll}>
           <StatCard
-            label="Total Customers"
+            label={t('customers.totalCustomers')}
             value={String(stats.total)}
             valueColor={colors.primary}
-            footer="Active customer list"
+            footer={t('customers.activeList')}
             footerColor={colors.primary}
             iconBg="#DCFCE7"
             icon={
@@ -329,10 +332,10 @@ export default function CustomersScreen() {
             }
           />
           <StatCard
-            label="Total Outstanding"
+            label={t('customers.totalOutstanding')}
             value={formatRs(stats.totalOutstanding)}
             valueColor="#EA580C"
-            footer="View all outstanding"
+            footer={t('customers.viewAllOutstandingLink')}
             footerColor="#EA580C"
             iconBg="#FFEDD5"
             icon={
@@ -342,10 +345,10 @@ export default function CustomersScreen() {
             }
           />
           <StatCard
-            label="Total Paid (This Month)"
+            label={t('customers.totalPaidMonth')}
             value={formatRs(monthCollection)}
             valueColor={colors.primary}
-            footer={`${Math.abs(collectionTrend)}% vs last week`}
+            footer={t('dashboard.vsLastWeek', { percent: Math.abs(collectionTrend) })}
             footerColor={colors.primary}
             iconBg="#DBEAFE"
             icon={
@@ -355,10 +358,10 @@ export default function CustomersScreen() {
             }
           />
           <StatCard
-            label="Total Credit"
+            label={t('customers.totalCredit')}
             value={formatRs(monthCredit)}
             valueColor="#7C3AED"
-            footer="This month"
+            footer={t('customers.thisMonth')}
             footerColor="#7C3AED"
             iconBg="#EDE9FE"
             icon={
@@ -369,8 +372,8 @@ export default function CustomersScreen() {
           />
         </ScrollView>
 
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
+        <View style={cuStyles.cuSearchRow}>
+          <View style={cuStyles.cuSearchBox}>
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
               <Circle cx={11} cy={11} r={7} stroke={colors.textMuted} strokeWidth={2} />
               <Path d="M20 20 L16.5 16.5" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
@@ -378,26 +381,26 @@ export default function CustomersScreen() {
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Search customers by name or mobile number..."
+              placeholder={t('customers.searchPlaceholder')}
               placeholderTextColor={colors.textMuted}
-              style={styles.searchInput}
+              style={cuStyles.cuSearchInput}
             />
           </View>
-          <Pressable style={styles.sortBtn} onPress={openSort}>
+          <Pressable style={cuStyles.cuSortBtn} onPress={openSort}>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path d="M7 4 V20 M7 4 L4 7 M7 4 L10 7 M17 20 V4 M17 20 L14 17 M17 20 L20 17" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
             </Svg>
-            <Text style={styles.sortBtnText}>Sort By</Text>
-            <Text style={styles.sortChevron}>▾</Text>
+            <Text style={cuStyles.cuSortBtnText}>{t('customers.sortBy')}</Text>
+            <Text style={cuStyles.cuSortChevron}>▾</Text>
           </Pressable>
         </View>
 
-        <View style={styles.tabs}>
+        <View style={cuStyles.cuTabs}>
           {(
             [
-              ['all', `All Customers (${stats.total})`],
-              ['outstanding', `Outstanding (${stats.outstandingCount})`],
-              ['clear', `No Outstanding (${stats.clearCount})`],
+              ['all', t('customers.tabAll', { count: stats.total })],
+              ['outstanding', t('customers.tabOutstanding', { count: stats.outstandingCount })],
+              ['clear', t('customers.tabClear', { count: stats.clearCount })],
             ] as const
           ).map(([key, label]) => (
             <Pressable
@@ -406,10 +409,10 @@ export default function CustomersScreen() {
                 setTab(key);
                 setOverdueOnly(false);
               }}
-              style={styles.tabBtn}
+              style={cuStyles.cuTabBtn}
             >
-              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
-              {tab === key ? <View style={styles.tabIndicator} /> : null}
+              <Text style={[cuStyles.cuTabText, tab === key && cuStyles.cuTabTextActive]}>{label}</Text>
+              {tab === key ? <View style={cuStyles.cuTabIndicator} /> : null}
             </Pressable>
           ))}
         </View>
@@ -418,57 +421,57 @@ export default function CustomersScreen() {
   );
 
   const listFooter = (
-    <View style={styles.footerCards}>
+    <View style={cuStyles.cuFooterCards}>
       <Pressable
-        style={[styles.footerCard, styles.footerCardGreen]}
+        style={[cuStyles.cuFooterCard, cuStyles.cuFooterCardGreen]}
         onPress={() => {
           navigation.navigate('FilteredCustomers', {
             mode: 'collect',
-            title: 'Need to collect',
-            subtitle: 'Customers with outstanding balance',
+            title: t('customers.needToCollect'),
+            subtitle: t('customers.needToCollectSub'),
           });
         }}
       >
-        <View style={styles.footerCardIconGreen}>
+        <View style={cuStyles.cuFooterCardIconGreen}>
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
             <Circle cx={12} cy={12} r={8} stroke={colors.primary} strokeWidth={2} />
           </Svg>
         </View>
-        <View style={styles.footerCardBody}>
-          <Text style={styles.footerCardTitleGreen}>Need to collect</Text>
-          <Text style={styles.footerCardValue}>{formatRs(stats.needToCollect)}</Text>
-          <Text style={styles.footerCardMeta}>From {stats.outstandingCount} customers</Text>
+        <View style={cuStyles.cuFooterCardBody}>
+          <Text style={cuStyles.cuFooterCardTitleGreen}>{t('customers.needToCollect')}</Text>
+          <Text style={cuStyles.cuFooterCardValue}>{formatRs(stats.needToCollect)}</Text>
+          <Text style={cuStyles.cuFooterCardMeta}>{t('customers.fromCustomers', { count: stats.outstandingCount })}</Text>
         </View>
-        <Text style={styles.footerChevron}>›</Text>
+        <Text style={cuStyles.cuFooterChevron}>›</Text>
       </Pressable>
 
       <Pressable
-        style={[styles.footerCard, styles.footerCardOrange]}
+        style={[cuStyles.cuFooterCard, cuStyles.cuFooterCardOrange]}
         onPress={() => {
           navigation.navigate('FilteredCustomers', {
             mode: 'overdue',
-            title: 'Overdue',
-            subtitle: 'Customers overdue 30+ days',
+            title: t('customers.overdue'),
+            subtitle: t('customers.overdueSub'),
           });
         }}
       >
-        <View style={styles.footerCardIconOrange}>
+        <View style={cuStyles.cuFooterCardIconOrange}>
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
             <Rect x={4} y={5} width={16} height={15} rx={2} stroke="#EA580C" strokeWidth={2} />
           </Svg>
         </View>
-        <View style={styles.footerCardBody}>
-          <Text style={styles.footerCardTitleOrange}>Overdue</Text>
-          <Text style={styles.footerCardValue}>{formatRs(stats.overdueAmount)}</Text>
-          <Text style={styles.footerCardMeta}>From {stats.overdueCount} customers</Text>
+        <View style={cuStyles.cuFooterCardBody}>
+          <Text style={cuStyles.cuFooterCardTitleOrange}>{t('customers.overdue')}</Text>
+          <Text style={cuStyles.cuFooterCardValue}>{formatRs(stats.overdueAmount)}</Text>
+          <Text style={cuStyles.cuFooterCardMeta}>{t('customers.fromCustomers', { count: stats.overdueCount })}</Text>
         </View>
-        <Text style={styles.footerChevron}>›</Text>
+        <Text style={cuStyles.cuFooterChevron}>›</Text>
       </Pressable>
     </View>
   );
 
   return (
-    <View style={styles.screen}>
+    <View style={cuStyles.cuScreen}>
       <FlatList
         data={filteredCustomers}
         keyExtractor={(item) => item.id}
@@ -482,8 +485,8 @@ export default function CustomersScreen() {
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {overdueOnly ? 'No overdue customers found.' : 'No customers found.'}
+          <Text style={cuStyles.cuEmpty}>
+            {overdueOnly ? t('customers.noOverdue') : t('customers.noCustomers')}
           </Text>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -494,28 +497,28 @@ export default function CustomersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: {
+const cuStyles = StyleSheet.create({
+  cuScreen: { flex: 1, backgroundColor: '#F3F4F6' },
+  cuHeader: {
     backgroundColor: colors.primaryDark,
     paddingHorizontal: 16,
     paddingBottom: 18,
   },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  headerTitles: { flex: 1 },
-  headerTitle: { color: '#FFFFFF', fontSize: t.h1, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: t.bodyLg, marginTop: 4 },
-  headerActions: { flexDirection: 'row', gap: 2 },
-  headerIconBtn: {
+  cuHeaderTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  cuHeaderTitles: { flex: 1 },
+  cuHeaderTitle: { color: '#FFFFFF', fontSize: ty.h1, fontWeight: '800' },
+  cuHeaderSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.bodyLg, marginTop: 4 },
+  cuHeaderActions: { flexDirection: 'row', gap: 2 },
+  cuHeaderIconBtn: {
     width: 36,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  body: { paddingHorizontal: 16, paddingTop: 16 },
-  error: { color: colors.danger, marginBottom: 10, fontSize: t.bodyLg },
-  statsScroll: { gap: 12, paddingBottom: 16, paddingRight: 8 },
-  statCard: {
+  cuBody: { paddingHorizontal: 16, paddingTop: 16 },
+  cuError: { color: colors.danger, marginBottom: 10, fontSize: ty.bodyLg },
+  cuStatsScroll: { gap: 12, paddingBottom: 16, paddingRight: 8 },
+  cuStatCard: {
     width: 168,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -526,7 +529,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  statIconWrap: {
+  cuStatIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
@@ -534,11 +537,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  statLabel: { fontSize: t.sm, color: colors.textMuted, marginBottom: 4, fontWeight: '500' },
-  statValue: { fontSize: t.xl, fontWeight: '800', marginBottom: 6 },
-  statFooter: { fontSize: t.xs, fontWeight: '600', color: colors.textMuted },
-  searchRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  searchBox: {
+  cuStatLabel: { fontSize: ty.sm, color: colors.textMuted, marginBottom: 4, fontWeight: '500' },
+  cuStatValue: { fontSize: ty.xl, fontWeight: '800', marginBottom: 6 },
+  cuStatFooter: { fontSize: ty.xs, fontWeight: '600', color: colors.textMuted },
+  cuSearchRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  cuSearchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -550,8 +553,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  searchInput: { flex: 1, fontSize: t.bodyLg, color: colors.text, padding: 0 },
-  sortBtn: {
+  cuSearchInput: { flex: 1, fontSize: ty.bodyLg, color: colors.text, padding: 0 },
+  cuSortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -562,18 +565,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
-  sortBtnText: { fontSize: t.body, fontWeight: '600', color: colors.text },
-  sortChevron: { fontSize: t.sm, color: colors.textMuted },
-  tabs: {
+  cuSortBtnText: { fontSize: ty.body, fontWeight: '600', color: colors.text },
+  cuSortChevron: { fontSize: ty.sm, color: colors.textMuted },
+  cuTabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     marginBottom: 8,
   },
-  tabBtn: { flex: 1, alignItems: 'center', paddingBottom: 10 },
-  tabText: { fontSize: t.sm, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
-  tabTextActive: { color: colors.primary },
-  tabIndicator: {
+  cuTabBtn: { flex: 1, alignItems: 'center', paddingBottom: 10 },
+  cuTabText: { fontSize: ty.sm, fontWeight: '600', color: colors.textMuted, textAlign: 'center' },
+  cuTabTextActive: { color: colors.primary },
+  cuTabIndicator: {
     position: 'absolute',
     bottom: 0,
     left: '10%',
@@ -582,7 +585,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.primary,
   },
-  customerRow: {
+  cuCustomerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
@@ -593,7 +596,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  avatar: {
+  cuAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -601,42 +604,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  avatarText: { fontWeight: '800', fontSize: t.md },
-  customerMain: { flex: 1, paddingRight: 8 },
-  customerName: { fontSize: t.md, fontWeight: '700', color: colors.text },
-  customerPhone: { fontSize: t.body, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
-  lastTxLabel: { fontSize: t.sm, color: colors.textMuted },
-  lastTxTime: { fontSize: t.caption, color: colors.text, fontWeight: '500', marginTop: 2 },
-  badge: {
+  cuAvatarText: { fontWeight: '800', fontSize: ty.md },
+  cuCustomerMain: { flex: 1, paddingRight: 8 },
+  cuCustomerName: { fontSize: ty.md, fontWeight: '700', color: colors.text },
+  cuCustomerPhone: { fontSize: ty.body, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
+  cuLastTxLabel: { fontSize: ty.sm, color: colors.textMuted },
+  cuLastTxTime: { fontSize: ty.caption, color: colors.text, fontWeight: '500', marginTop: 2 },
+  cuBadge: {
     alignSelf: 'flex-start',
     marginTop: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  badgePaid: { backgroundColor: '#DCFCE7' },
-  badgeCredit: { backgroundColor: '#DBEAFE' },
-  badgeText: { fontSize: t.sm, fontWeight: '700' },
-  badgeTextPaid: { color: colors.primary },
-  badgeTextCredit: { color: '#2563EB' },
-  customerDue: { alignItems: 'flex-end', minWidth: 88 },
-  dueLabel: { fontSize: t.sm, color: colors.textMuted },
-  dueValue: { fontSize: t.bodyLg, fontWeight: '800', marginTop: 4 },
-  dueValueRed: { color: colors.danger },
-  dueValueGreen: { color: colors.primary },
-  chevron: { color: colors.textMuted, fontSize: t.xl, marginTop: 8 },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: 32, marginHorizontal: 16 },
-  footerCards: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 10 },
-  footerCard: {
+  cuBadgePaid: { backgroundColor: '#DCFCE7' },
+  cuBadgeCredit: { backgroundColor: '#DBEAFE' },
+  cuBadgeText: { fontSize: ty.sm, fontWeight: '700' },
+  cuBadgeTextPaid: { color: colors.primary },
+  cuBadgeTextCredit: { color: '#2563EB' },
+  cuCustomerDue: { alignItems: 'flex-end', minWidth: 88 },
+  cuDueLabel: { fontSize: ty.sm, color: colors.textMuted },
+  cuDueValue: { fontSize: ty.bodyLg, fontWeight: '800', marginTop: 4 },
+  cuDueValueRed: { color: colors.danger },
+  cuDueValueGreen: { color: colors.primary },
+  cuChevron: { color: colors.textMuted, fontSize: ty.xl, marginTop: 8 },
+  cuEmpty: { textAlign: 'center', color: colors.textMuted, marginTop: 32, marginHorizontal: 16 },
+  cuFooterCards: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 10 },
+  cuFooterCard: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
     padding: 14,
     gap: 12,
   },
-  footerCardGreen: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#BBF7D0' },
-  footerCardOrange: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  footerCardIconGreen: {
+  cuFooterCardGreen: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#BBF7D0' },
+  cuFooterCardOrange: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
+  cuFooterCardIconGreen: {
     width: 40,
     height: 40,
     borderRadius: 10,
@@ -644,7 +647,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerCardIconOrange: {
+  cuFooterCardIconOrange: {
     width: 40,
     height: 40,
     borderRadius: 10,
@@ -652,10 +655,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerCardBody: { flex: 1 },
-  footerCardTitleGreen: { fontSize: t.bodyLg, fontWeight: '700', color: colors.primary },
-  footerCardTitleOrange: { fontSize: t.bodyLg, fontWeight: '700', color: '#EA580C' },
-  footerCardValue: { fontSize: t.lg, fontWeight: '800', color: colors.text, marginTop: 2 },
-  footerCardMeta: { fontSize: t.caption, color: colors.textMuted, marginTop: 2 },
-  footerChevron: { fontSize: t.xxl, color: colors.textMuted },
+  cuFooterCardBody: { flex: 1 },
+  cuFooterCardTitleGreen: { fontSize: ty.bodyLg, fontWeight: '700', color: colors.primary },
+  cuFooterCardTitleOrange: { fontSize: ty.bodyLg, fontWeight: '700', color: '#EA580C' },
+  cuFooterCardValue: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginTop: 2 },
+  cuFooterCardMeta: { fontSize: ty.caption, color: colors.textMuted, marginTop: 2 },
+  cuFooterChevron: { fontSize: ty.xxl, color: colors.textMuted },
 });

@@ -23,15 +23,17 @@ import shopRoutes from './routes/shopRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import portalRoutes from './routes/portalRoutes.js';
 import linkRoutes from './routes/linkRoutes.js';
+import qrRoutes from './routes/qrRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import sharedRoutes from './routes/sharedRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import paymentSubmissionRoutes from './routes/paymentSubmissionRoutes.js';
 import paymentVisibilityRoutes from './routes/paymentVisibilityRoutes.js';
 import { seedLegalDocuments } from './utils/seedLegal.js';
-import { seedDemoData } from './utils/seedData.js';
 import { verifyEmailConnection } from './config/email.js';
 import { isCloudinaryConfigured, verifyCloudinaryConnection } from './config/cloudinary.js';
+import { maintenanceGuard } from './middleware/maintenanceMiddleware.js';
+import SystemSetting from './models/SystemSetting.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,9 +54,8 @@ connectDB().then(async () => {
   seedLegalDocuments().catch((err) => {
     console.warn('Legal document seed failed:', err.message);
   });
-  seedDemoData().catch((err) => {
-    console.warn('Demo data seed failed:', err.message);
-  });
+  // Demo data is not seeded on startup. Run manually when needed:
+  //   node utils/seedData.js
 });
 
 if (isCloudinaryConfigured()) {
@@ -69,6 +70,7 @@ verifyEmailConnection().catch((err) => {
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(maintenanceGuard);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/upload', uploadRoutes);
@@ -86,11 +88,18 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/links', linkRoutes);
+app.use('/api/qr', qrRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/shared', sharedRoutes);
 
-app.get('/', (_req, res) => {
-  res.send(`
+const clientBuild = path.join(__dirname, '../client/dist');
+const serveWebApp =
+  process.env.NODE_ENV === 'production' &&
+  fs.existsSync(path.join(clientBuild, 'index.html'));
+
+if (!serveWebApp) {
+  app.get('/', (_req, res) => {
+    res.send(`
     <!DOCTYPE html>
     <html lang="en">
       <head>
@@ -141,7 +150,8 @@ app.get('/', (_req, res) => {
       </body>
     </html>
   `);
-});
+  });
+}
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -149,6 +159,21 @@ app.get('/api/health', (_req, res) => {
     message: 'BakiBook API is running',
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get('/api/maintenance-status', async (_req, res) => {
+  try {
+    const settings = await SystemSetting.getGlobal();
+    res.json({
+      success: true,
+      maintenanceMode: Boolean(settings.maintenanceMode),
+      message:
+        settings.maintenanceMessage ||
+        'BakiBook is temporarily unavailable. Please check back soon.',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 app.get('/api/stats', async (_req, res) => {
@@ -185,16 +210,14 @@ app.get('/api/stats', async (_req, res) => {
   }
 });
 
-if (process.env.NODE_ENV === 'production') {
-  const clientBuild = path.join(__dirname, '../client/dist');
-  if (fs.existsSync(path.join(clientBuild, 'index.html'))) {
-    app.use(express.static(clientBuild));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(clientBuild, 'index.html'));
-    });
-  } else {
-    console.warn('client/dist not found — API-only mode (fine for mobile backend)');
-  }
+if (serveWebApp) {
+  app.use(express.static(clientBuild));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientBuild, 'index.html'));
+  });
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('client/dist not found — API-only mode (fine for mobile backend)');
 }
 
 const server = http.createServer(app);

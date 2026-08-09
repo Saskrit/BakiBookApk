@@ -74,6 +74,17 @@ export const updateProfile = (payload: Record<string, unknown>) =>
     body: JSON.stringify(payload),
   });
 
+export const updateTutorialProgress = (payload: {
+  stepId?: string;
+  completed?: boolean;
+  completedStepIds?: string[];
+  reset?: boolean;
+}) =>
+  request<{ success: boolean; message: string; user: User }>('/auth/tutorial', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+
 export const changePassword = (payload: { currentPassword: string; newPassword: string }) =>
   request<{ success: boolean; message: string }>('/auth/change-password', {
     method: 'POST',
@@ -84,6 +95,26 @@ export const resendVerificationEmail = () =>
   request<{ success: boolean; message: string }>('/auth/resend-verification', {
     method: 'POST',
   });
+
+export const requestEmailChange = (newEmail: string, password: string) =>
+  request<{
+    success: boolean;
+    message: string;
+    pendingEmail: string;
+    expiresInSeconds: number;
+  }>('/auth/change-email/request', {
+    method: 'POST',
+    body: JSON.stringify({ newEmail, password }),
+  });
+
+export const confirmEmailChange = (code: string) =>
+  request<{ success: boolean; message: string; user: User }>(
+    '/auth/change-email/confirm',
+    {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }
+  );
 
 export const forgotPassword = (email: string) =>
   request<{ success: boolean; message: string }>('/auth/forgot-password', {

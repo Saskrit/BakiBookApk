@@ -12,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginBackground from '../../components/auth/LoginBackground';
@@ -48,6 +49,7 @@ function BackIcon() {
 export default function RegisterScreen({ navigation }: Props) {
   const { register, googleSignIn } = useAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [role, setRole] = useState<'shopkeeper' | 'customer'>('shopkeeper');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,15 +63,15 @@ export default function RegisterScreen({ navigation }: Props) {
     const trimmedEmail = email.trim();
 
     if (!trimmedName) {
-      setError('Please enter your full name');
+      setError(t('auth.enterFullName'));
       return;
     }
     if (!trimmedEmail) {
-      setError('Please enter your email address');
+      setError(t('auth.enterEmail'));
       return;
     }
     if (!password) {
-      setError('Please enter a password');
+      setError(t('auth.enterPasswordCreate'));
       return;
     }
 
@@ -84,7 +86,7 @@ export default function RegisterScreen({ navigation }: Props) {
       });
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : t('auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +99,7 @@ export default function RegisterScreen({ navigation }: Props) {
       const user = await googleSignIn({ credential, mode: 'register', role });
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-up failed');
+      setError(err instanceof Error ? err.message : t('auth.googleSignUpFailed'));
     } finally {
       setLoading(false);
     }
@@ -123,7 +125,7 @@ export default function RegisterScreen({ navigation }: Props) {
           <Pressable
             onPress={() => navigation.goBack()}
             style={authStyles.backBtn}
-            accessibilityLabel="Go back to login"
+            accessibilityLabel={t('auth.goBackToLogin')}
           >
             <BackIcon />
           </Pressable>
@@ -131,15 +133,13 @@ export default function RegisterScreen({ navigation }: Props) {
           <AuthHeader />
 
           <View style={authStyles.card}>
-            <Text style={authStyles.cardTitle}>Create Account!</Text>
-            <Text style={authStyles.cardSubtitle}>Register to start managing your credit</Text>
-            <Text style={styles.roleHint}>
-              One email can only be used for one account type — shopkeeper or customer, not both.
-            </Text>
+            <Text style={authStyles.cardTitle}>{t('auth.registerTitle')}</Text>
+            <Text style={authStyles.cardSubtitle}>{t('auth.registerSubtitleCredit')}</Text>
+            <Text style={styles.roleHint}>{t('auth.roleOneEmailHint')}</Text>
 
             {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
-            <Text style={authStyles.label}>I am a</Text>
+            <Text style={authStyles.label}>{t('auth.chooseRole')}</Text>
             <View style={styles.roleRow}>
               {(['shopkeeper', 'customer'] as const).map((r) => (
                 <Pressable
@@ -148,19 +148,19 @@ export default function RegisterScreen({ navigation }: Props) {
                   style={[styles.roleBtn, role === r && styles.roleBtnActive]}
                 >
                   <Text style={[styles.roleText, role === r && styles.roleTextActive]}>
-                    {r === 'shopkeeper' ? 'Shopkeeper' : 'Customer'}
+                    {t(`auth.${r}`)}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={authStyles.label}>Full Name</Text>
+            <Text style={authStyles.label}>{t('auth.fullName')}</Text>
             <View style={authStyles.inputRow}>
               <UserIcon />
               <TextInput
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="Enter your full name"
+                placeholder={t('auth.placeholderFullName')}
                 placeholderTextColor={colors.textMuted}
                 style={authStyles.input}
                 autoCapitalize="words"
@@ -169,13 +169,13 @@ export default function RegisterScreen({ navigation }: Props) {
               />
             </View>
 
-            <Text style={authStyles.label}>Email Address</Text>
+            <Text style={authStyles.label}>{t('auth.emailAddress')}</Text>
             <View style={authStyles.inputRow}>
               <EmailIcon />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter your email address"
+                placeholder={t('auth.placeholderEmail')}
                 placeholderTextColor={colors.textMuted}
                 style={authStyles.input}
                 autoCapitalize="none"
@@ -186,13 +186,13 @@ export default function RegisterScreen({ navigation }: Props) {
               />
             </View>
 
-            <Text style={authStyles.label}>Password</Text>
+            <Text style={authStyles.label}>{t('auth.password')}</Text>
             <View style={authStyles.inputRow}>
               <LockIcon />
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Create a password"
+                placeholder={t('auth.placeholderCreatePassword')}
                 placeholderTextColor={colors.textMuted}
                 style={authStyles.input}
                 secureTextEntry={!showPassword}
@@ -202,7 +202,7 @@ export default function RegisterScreen({ navigation }: Props) {
               <Pressable
                 onPress={() => setShowPassword((v) => !v)}
                 hitSlop={8}
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 <EyeIcon visible={showPassword} />
               </Pressable>
@@ -221,7 +221,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={authStyles.primaryBtnText}>Register</Text>
+                  <Text style={authStyles.primaryBtnText}>{t('auth.register')}</Text>
                   <Text style={authStyles.primaryBtnArrow}>→</Text>
                 </>
               )}
@@ -236,9 +236,9 @@ export default function RegisterScreen({ navigation }: Props) {
             />
 
             <View style={authStyles.altRow}>
-              <Text style={authStyles.altText}>Already have an account? </Text>
+              <Text style={authStyles.altText}>{t('auth.hasAccount')} </Text>
               <Pressable onPress={() => navigation.goBack()}>
-                <Text style={authStyles.altLink}>Login Now</Text>
+                <Text style={authStyles.altLink}>{t('auth.loginNow')}</Text>
               </Pressable>
             </View>
           </View>

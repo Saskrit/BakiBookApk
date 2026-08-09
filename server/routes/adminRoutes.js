@@ -8,6 +8,8 @@ import {
   getAdminAnalytics,
   verifyShop,
   rejectShop,
+  getMaintenanceSettings,
+  updateMaintenanceSettings,
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -20,5 +22,7 @@ router.patch('/shops/:id/verify', verifyShop);
 router.patch('/shops/:id/reject', rejectShop);
 router.get('/users', getAdminUsers);
 router.get('/analytics', getAdminAnalytics);
+router.get('/maintenance', getMaintenanceSettings);
+router.patch('/maintenance', updateMaintenanceSettings);
 
 export default router;

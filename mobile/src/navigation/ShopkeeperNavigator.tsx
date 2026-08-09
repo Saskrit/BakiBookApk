@@ -2,10 +2,11 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarButtonProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import DashboardScreen from '../screens/shopkeeper/DashboardScreen';
 import CustomersScreen from '../screens/shopkeeper/CustomersScreen';
-import QRScannerScreen from '../screens/shopkeeper/QRScannerScreen';
+import QRScannerScreen from '../screens/shared/QRScannerScreen';
 import ReportsScreen from '../screens/shopkeeper/ReportsScreen';
 import SettingsScreen from '../screens/shopkeeper/SettingsScreen';
 import { colors } from '../theme/colors';
@@ -66,6 +67,7 @@ function AddTabButton({ onPress }: BottomTabBarButtonProps) {
 
 export default function ShopkeeperNavigator() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <Tab.Navigator
@@ -91,12 +93,12 @@ export default function ShopkeeperNavigator() {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ headerShown: false, tabBarLabel: 'Home' }}
+        options={{ headerShown: false, tabBarLabel: t('nav.home') }}
       />
       <Tab.Screen
         name="Customers"
         component={CustomersScreen}
-        options={{ headerShown: false, title: 'Customers' }}
+        options={{ headerShown: false, title: t('nav.customers'), tabBarLabel: t('nav.customers') }}
       />
       <Tab.Screen
         name="Scan"
@@ -108,20 +110,20 @@ export default function ShopkeeperNavigator() {
           },
         })}
         options={{
-          title: 'Add Credit',
-          tabBarLabel: 'Add',
+          title: t('nav.addCredit'),
+          tabBarLabel: t('nav.add'),
           tabBarButton: (props) => <AddTabButton {...props} />,
         }}
       />
       <Tab.Screen
         name="Reports"
         component={ReportsScreen}
-        options={{ headerShown: false, title: 'Reports' }}
+        options={{ headerShown: false, title: t('nav.reports'), tabBarLabel: t('nav.reports') }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ headerShown: false, tabBarLabel: 'More' }}
+        options={{ headerShown: false, tabBarLabel: t('nav.more') }}
       />
     </Tab.Navigator>
   );

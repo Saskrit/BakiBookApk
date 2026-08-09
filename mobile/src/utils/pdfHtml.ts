@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { appAlert } from '../contexts/DialogContext';
+import i18n from '../i18n';
 import { formatRs } from './format';
 
 export function escapeHtml(text: unknown) {
@@ -11,9 +12,13 @@ export function escapeHtml(text: unknown) {
     .replace(/"/g, '&quot;');
 }
 
+function localeTag() {
+  return i18n.language === 'ne' ? 'ne-NP' : 'en-NP';
+}
+
 export function formatReportDate(iso?: string) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-NP', {
+  return new Date(iso).toLocaleDateString(localeTag(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -31,7 +36,7 @@ export function buildTableHtml<T extends Record<string, unknown>>(
   columns: Column<T>[]
 ) {
   if (!rows?.length) {
-    return '<p class="empty">No records.</p>';
+    return `<p class="empty">${escapeHtml(i18n.t('pdf.noRecords'))}</p>`;
   }
 
   const head = columns.map((col) => `<th>${escapeHtml(col.label)}</th>`).join('');
@@ -68,12 +73,13 @@ export const PDF_STYLES = `
   .footer { margin-top: 20px; font-size: 10px; color: #777; }
 `;
 
-export async function shareHtmlAsPdf(html: string, dialogTitle = 'Export PDF') {
+export async function shareHtmlAsPdf(html: string, dialogTitle?: string) {
+  const title = dialogTitle ?? i18n.t('pdf.exportTitle');
   const file = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, { dialogTitle, mimeType: 'application/pdf' });
+    await Sharing.shareAsync(file.uri, { dialogTitle: title, mimeType: 'application/pdf' });
   } else {
-    appAlert('PDF saved', file.uri);
+    appAlert(i18n.t('pdf.saved'), file.uri);
   }
 }
 
