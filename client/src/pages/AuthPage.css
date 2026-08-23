@@ -259,6 +259,33 @@
   cursor: not-allowed;
 }
 
+.auth-page__code-row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.auth-page__code-box {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--color-dark);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.auth-page__code-box:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(192, 133, 82, 0.18);
+}
+
 a.auth-page__submit {
   text-decoration: none;
 }

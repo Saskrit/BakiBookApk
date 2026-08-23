@@ -172,6 +172,18 @@ function Register() {
         password: form.password,
       });
 
+      if (data.requiresVerification || !data.token || !data.user) {
+        navigate('/register/verify', {
+          replace: true,
+          state: {
+            email: data.email || form.email.trim().toLowerCase(),
+            role: data.role || role,
+            message: data.message,
+          },
+        });
+        return;
+      }
+
       saveAuth(data.token, data.user, data.pendingLinkCount);
       navigate(getPostAuthPath(data.user, data.pendingLinkCount), { replace: true });
     } catch (err) {

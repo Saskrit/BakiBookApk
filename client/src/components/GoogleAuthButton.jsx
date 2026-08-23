@@ -4,18 +4,23 @@ import './GoogleAuthButton.css';
 
 function GoogleAuthButton({ onSuccess, onError, disabled, text = 'continue_with' }) {
   const containerRef = useRef(null);
-  const [width, setWidth] = useState(320);
+  const [width, setWidth] = useState(null);
+  const measuredOnce = useRef(false);
 
   useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setWidth(containerRef.current.offsetWidth);
-      }
+    const node = containerRef.current;
+    if (!node || measuredOnce.current) return undefined;
+
+    const measure = () => {
+      const next = Math.round(node.offsetWidth);
+      if (!next) return;
+      measuredOnce.current = true;
+      setWidth(next);
     };
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    // Defer one frame so layout is settled; avoid resize-driven re-inits.
+    const raf = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
@@ -23,16 +28,20 @@ function GoogleAuthButton({ onSuccess, onError, disabled, text = 'continue_with'
       ref={containerRef}
       className={`google-auth-btn ${disabled ? 'google-auth-btn--disabled' : ''}`}
     >
-      <GoogleLogin
-        onSuccess={onSuccess}
-        onError={onError}
-        text={text}
-        shape="rectangular"
-        theme="outline"
-        size="large"
-        width={width}
-        useOneTap={false}
-      />
+      {width ? (
+        <GoogleLogin
+          onSuccess={onSuccess}
+          onError={onError}
+          text={text}
+          shape="rectangular"
+          theme="outline"
+          size="large"
+          width={String(width)}
+          useOneTap={false}
+        />
+      ) : (
+        <div className="google-auth-btn__placeholder" aria-hidden="true" />
+      )}
     </div>
   );
 }

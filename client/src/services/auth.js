@@ -7,6 +7,9 @@ const TOKEN_KEY = 'bakibook_token';
 export const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const saveAuth = (token, user, pendingLinkCount, options = {}) => {
+  if (!token || !user || typeof user !== 'object') {
+    throw new Error('Cannot save auth without a valid token and user');
+  }
   const sessionExpiresAt =
     options.sessionExpiresAt ?? Date.now() + SESSION_DURATION_MS;
   localStorage.setItem(TOKEN_KEY, token);
@@ -24,7 +27,10 @@ export const getAuth = () => {
   const token = localStorage.getItem(TOKEN_KEY);
   const userJson = localStorage.getItem(AUTH_KEY);
 
-  if (!token || !userJson) return null;
+  if (!token || !userJson || token === 'undefined' || token === 'null') {
+    if (token || userJson) clearAuth();
+    return null;
+  }
 
   try {
     const user = JSON.parse(userJson);
@@ -35,8 +41,14 @@ export const getAuth = () => {
       clearAuth();
       return null;
     }
+    // Broken sessions (e.g. register saved without token/user) cause redirect loops.
+    if (!user?.id || !user?.role) {
+      clearAuth();
+      return null;
+    }
     return { token, user };
   } catch {
+    clearAuth();
     return null;
   }
 };
@@ -48,6 +60,18 @@ export const clearAuth = () => {
 
 export const register = (payload) =>
   request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const verifyRegistration = (payload) =>
+  request('/auth/register/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const resendRegistrationCode = (payload) =>
+  request('/auth/register/resend-code', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -80,6 +104,7 @@ export const isShopPendingVerification = (user) =>
   user?.role === 'shopkeeper' && user?.shopVerificationStatus === 'pending';
 
 export function getPostAuthPath(user, pendingLinkCount) {
+  if (!user?.role && !user?.isAdmin) return '/login';
   if (user?.isAdmin) return '/admin';
   if (user?.role === 'shopkeeper') return '/dashboard';
   if (user?.role === 'customer') {
@@ -87,7 +112,7 @@ export function getPostAuthPath(user, pendingLinkCount) {
     if (count > 0) return '/portal/link-shops';
     return '/portal';
   }
-  return '/dashboard';
+  return '/login';
 }
 
 export function getRoleHomePath(user, pendingLinkCount) {

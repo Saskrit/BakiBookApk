@@ -3,6 +3,7 @@ import LandingPage from '../pages/LandingPage';
 import Login from '../pages/Login';
 import AdminLogin from '../pages/AdminLogin';
 import Register from '../pages/Register';
+import RegisterVerify from '../pages/RegisterVerify';
 import Dashboard from '../pages/Dashboard';
 import AuthRedirect from '../pages/AuthRedirect';
 import VerifyEmail from '../pages/VerifyEmail';
@@ -97,6 +98,7 @@ function AppRoutes() {
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/admin/login" element={<GuestRoute><AdminLogin /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+      <Route path="/register/verify" element={<GuestRoute><RegisterVerify /></GuestRoute>} />
       <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/verify-email" element={<ProtectedRoute><VerifyEmailPending /></ProtectedRoute>} />

@@ -6,7 +6,7 @@ function Dashboard() {
   const auth = getAuth();
   const user = auth?.user;
 
-  if (!auth) {
+  if (!auth || !user) {
     return <Navigate to="/login" replace />;
   }
 
