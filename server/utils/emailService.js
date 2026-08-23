@@ -1,4 +1,4 @@
-import getTransporter from '../config/email.js';
+import getTransporter, { resetTransporter, SMTP_TIMEOUT_MS } from '../config/email.js';
 
 const fromAddress = () =>
   process.env.EMAIL_FROM || `BakiBook <${process.env.EMAIL_USER}>`;
@@ -31,6 +31,30 @@ const baseTemplate = (title, content) => `
 </html>
 `;
 
+async function sendMail(options) {
+  const timeoutMs = SMTP_TIMEOUT_MS + 2000;
+  try {
+    await Promise.race([
+      getTransporter().sendMail(options),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Email send timed out')), timeoutMs);
+      }),
+    ]);
+  } catch (error) {
+    resetTransporter();
+    throw error;
+  }
+}
+
+/** Queue email without blocking the HTTP response (signup/login must stay fast). */
+export const queueEmail = (task, label = 'email') => {
+  Promise.resolve()
+    .then(() => task())
+    .catch((error) => {
+      console.error(`Background ${label} failed:`, error.message || error);
+    });
+};
+
 export const sendWelcomeEmail = async ({ fullName, email, role }) => {
   const roleLabel = role === 'shopkeeper' ? 'Shopkeeper' : 'Customer';
 
@@ -40,7 +64,7 @@ export const sendWelcomeEmail = async ({ fullName, email, role }) => {
      <p>You can now manage credit, track payments, and build trust with every transaction.</p>`
   );
 
-  await getTransporter().sendMail({
+  await sendMail({
     from: fromAddress(),
     to: email,
     subject: 'Welcome to BakiBook!',
@@ -67,7 +91,7 @@ export const sendVerificationEmail = async ({ fullName, email }, rawTokenOrCode)
 
   const html = baseTemplate('Verify Your Email', content);
 
-  await getTransporter().sendMail({
+  await sendMail({
     from: fromAddress(),
     to: email,
     subject: isCode ? 'Your BakiBook verification code' : 'Verify your BakiBook email',
@@ -84,7 +108,7 @@ export const sendEmailChangeCode = async ({ fullName }, email, code) => {
      <p style="font-size:13px;color:#666;">This code expires in 10 minutes. If you did not request this change, you can ignore this email and your current email will remain unchanged.</p>`
   );
 
-  await getTransporter().sendMail({
+  await sendMail({
     from: fromAddress(),
     to: email,
     subject: 'Confirm your new BakiBook email',
@@ -104,7 +128,7 @@ export const sendPasswordResetEmail = async ({ fullName, email }, rawToken) => {
      <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 1 hour.</p>`
   );
 
-  await getTransporter().sendMail({
+  await sendMail({
     from: fromAddress(),
     to: email,
     subject: 'Reset your BakiBook password',

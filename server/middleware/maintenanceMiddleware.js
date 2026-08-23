@@ -13,6 +13,7 @@ const ALLOWED_PREFIXES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/auth/verify-email',
+  '/api/auth/resend-verification-link',
   '/api/admin',
   '/api/legal',
 ];

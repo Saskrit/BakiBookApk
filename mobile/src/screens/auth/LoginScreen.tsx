@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,7 +30,7 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors, spacing, textStyles } from '../../theme';
+import { colors, layout, spacing, textStyles } from '../../theme';
 import { warmAuthServices } from '../../utils/warmApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -138,14 +139,19 @@ export default function LoginScreen({ navigation }: Props) {
         style={authStyles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View
-          style={[
-            authStyles.content,
+        <ScrollView
+          style={authStyles.flex}
+          contentContainerStyle={[
+            styles.scrollContent,
             {
+              paddingHorizontal: Math.max(layout.screenPaddingXWide, 20),
               paddingTop: insets.top + spacing.xl,
               paddingBottom: insets.bottom + spacing.md,
             },
           ]}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
         >
           <AuthHeader compact />
 
@@ -251,7 +257,7 @@ export default function LoginScreen({ navigation }: Props) {
               </Pressable>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -262,6 +268,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.md,
     zIndex: 2,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   forgotButton: {
     alignSelf: 'flex-end',

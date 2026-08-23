@@ -4,6 +4,8 @@ import { notifyMaintenanceMode } from '../contexts/MaintenanceContext';
 import i18n from '../i18n';
 
 const TOKEN_KEY = 'bakibook_token';
+/** Auth/register must not spin forever when Render or SMTP is slow. */
+const REQUEST_TIMEOUT_MS = 25000;
 
 let authToken: string | null = null;
 
@@ -65,14 +67,23 @@ export async function request<T = unknown>(
     headers.Authorization = `Bearer ${authToken}`;
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new ApiError(i18n.t('errors.timeout'));
+    }
     throw new ApiError(i18n.t('errors.network'));
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const data = await response.json().catch(() => ({}));

@@ -1351,6 +1351,7 @@
   },
   "errors": {
     "network": "Cannot reach the server. Check your internet connection and API URL.",
+    "timeout": "The server took too long to respond. Please try again.",
     "generic": "Something went wrong",
     "notConfigured": "API URL is not configured. Set EXPO_PUBLIC_API_URL in mobile/.env or eas.json.",
     "featureUnavailable": "This feature is not available on the server yet. Please update the backend."

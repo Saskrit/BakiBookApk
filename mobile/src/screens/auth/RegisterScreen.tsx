@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -198,14 +199,19 @@ export default function RegisterScreen({ navigation }: Props) {
         style={authStyles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View
-          style={[
-            authStyles.content,
+        <ScrollView
+          style={authStyles.flex}
+          contentContainerStyle={[
+            styles.scrollContent,
             {
+              paddingHorizontal: Math.max(layout.screenPaddingXWide, 20),
               paddingTop: insets.top + layout.touchTarget + spacing.md,
               paddingBottom: insets.bottom + spacing.md,
             },
           ]}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
         >
           {step === 'role' ? (
             <View style={styles.panel}>
@@ -334,7 +340,7 @@ export default function RegisterScreen({ navigation }: Props) {
               </View>
             </View>
           )}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -349,6 +355,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   panel: {
     width: '100%',

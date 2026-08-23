@@ -5,6 +5,7 @@ import Customer from '../models/Customer.js';
 import generateToken from '../utils/generateToken.js';
 import { createEmailToken, hashToken } from '../utils/emailToken.js';
 import {
+  queueEmail,
   sendWelcomeEmail,
   sendVerificationEmail,
   sendEmailChangeCode,
@@ -196,29 +197,23 @@ export const registerUser = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    let emailSent = true;
-    try {
-      await sendVerificationEmail(
-        { fullName: fullName.trim(), email: normalizedEmail },
-        code
-      );
-    } catch (emailError) {
-      emailSent = false;
-      console.error(
-        `Failed to send registration code to ${normalizedEmail}:`,
-        emailError.message
-      );
-    }
+    // Never block signup on SMTP — Gmail from Render can hang for 30s+.
+    // Pending signup is already saved; user can Resend on the verify screen.
+    queueEmail(
+      () =>
+        sendVerificationEmail(
+          { fullName: fullName.trim(), email: normalizedEmail },
+          code
+        ),
+      `register-code:${normalizedEmail}`
+    );
 
-    // Always continue to code verification — pending signup is saved even if SMTP fails.
-    // User can tap Resend on the verify screen.
     return res.status(200).json({
       success: true,
       requiresVerification: true,
-      emailSent,
-      message: emailSent
-        ? 'We sent a verification code to your email. Enter it to finish creating your account.'
-        : 'Your signup is saved, but the email could not be sent. Tap Resend code on the next screen.',
+      emailSent: true,
+      message:
+        'We sent a verification code to your email. Enter it to finish creating your account.',
       email: normalizedEmail,
       role,
     });
@@ -366,7 +361,14 @@ export const resendRegistrationCode = async (req, res) => {
     pending.attempts = 0;
     await pending.save();
 
-    await sendVerificationEmail({ fullName: pending.fullName, email: normalizedEmail }, code);
+    queueEmail(
+      () =>
+        sendVerificationEmail(
+          { fullName: pending.fullName, email: normalizedEmail },
+          code
+        ),
+      `resend-register-code:${normalizedEmail}`
+    );
 
     return res.json({
       success: true,
@@ -450,15 +452,16 @@ export const loginUser = async (req, res) => {
       matchedUsers[0];
 
     if (user.authProvider !== 'google' && !user.isEmailVerified) {
-      // Legacy accounts (created before code-based signup): send a one-time verify link.
+      // Legacy accounts (created before code-based signup): queue a one-time verify link.
+      // Do not await SMTP — that made login hang for 30s+ when Gmail stalled.
       // New signups never create a User until the register code is verified.
-      let linkSent = false;
+      let linkSent = true;
       try {
         await issueLegacyVerificationLink(user);
-        linkSent = true;
       } catch (emailError) {
+        linkSent = false;
         console.error(
-          `Failed to send legacy verification link to ${user.email}:`,
+          `Failed to prepare legacy verification link for ${user.email}:`,
           emailError.message
         );
       }
@@ -531,15 +534,19 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-/** Issue a one-time email verification link for existing (legacy) unverified users. */
+/** Save a one-time verify link token and queue the email (non-blocking). */
 async function issueLegacyVerificationLink(user) {
   const rawVerificationToken = createEmailToken();
   user.emailVerificationToken = hashToken(rawVerificationToken);
   user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
   await user.save();
-  await sendVerificationEmail(
-    { fullName: user.fullName, email: user.email },
-    rawVerificationToken
+  queueEmail(
+    () =>
+      sendVerificationEmail(
+        { fullName: user.fullName, email: user.email },
+        rawVerificationToken
+      ),
+    `verification-link:${user.email}`
   );
   return rawVerificationToken;
 }
@@ -656,7 +663,10 @@ export const forgotPassword = async (req, res) => {
       user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
       await user.save();
 
-      await sendPasswordResetEmail(user, rawResetToken);
+      queueEmail(
+        () => sendPasswordResetEmail(user, rawResetToken),
+        `password-reset:${user.email}`
+      );
     }
 
     return res.json({
