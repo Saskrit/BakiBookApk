@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -13,11 +13,9 @@ import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../contexts/AuthContext';
-import { appAlert } from '../../contexts/DialogContext';
+import AuthLanguageToggle from '../../components/AuthLanguageToggle';
 import LoginBackground from '../../components/auth/LoginBackground';
 import {
-  AuthFooter,
   AuthHeader,
   EmailIcon,
   EyeIcon,
@@ -26,24 +24,71 @@ import {
   authStyles,
 } from '../../components/auth/AuthUi';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
-import { colors } from '../../theme/colors';
+import { resendVerificationLink } from '../../api/auth';
+import { ApiError } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
+import { appAlert } from '../../contexts/DialogContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { colors, spacing, textStyles } from '../../theme';
+import { warmAuthServices } from '../../utils/warmApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const { login, googleSignIn } = useAuth();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState(__DEV__ ? 'shopkeeper@bakibook.demo' : '');
   const [password, setPassword] = useState(__DEV__ ? 'Demo@123' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendingLink, setResendingLink] = useState(false);
+  const [showResendLink, setShowResendLink] = useState(false);
+
+  useEffect(() => {
+    warmAuthServices();
+  }, []);
+
+  const handleLegacyVerification = (err: unknown) => {
+    if (!(err instanceof ApiError) || !err.data?.requiresVerification) return false;
+    const method = err.data.verificationMethod;
+    if (method && method !== 'link') return false;
+
+    setShowResendLink(true);
+    const linkSent = Boolean(err.data.linkSent);
+    appAlert(
+      t('auth.legacyVerifyTitle'),
+      linkSent ? t('auth.legacyVerifyLinkSent') : t('auth.legacyVerifyLinkFailed')
+    );
+    setError(err.message);
+    return true;
+  };
+
+  const handleResendVerificationLink = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      setError(t('auth.enterEmailAndPassword'));
+      return;
+    }
+    setResendingLink(true);
+    setError('');
+    try {
+      const data = await resendVerificationLink({
+        email: normalizedEmail,
+        password,
+      });
+      appAlert(t('auth.legacyVerifyTitle'), data.message || t('auth.legacyVerifyLinkSent'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('auth.resendLinkFailed'));
+    } finally {
+      setResendingLink(false);
+    }
+  };
 
   const handleLogin = async () => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
       setError(t('auth.enterEmail'));
       return;
     }
@@ -51,20 +96,20 @@ export default function LoginScreen({ navigation }: Props) {
       setError(t('auth.enterPassword'));
       return;
     }
+
     setError('');
+    setShowResendLink(false);
     setLoading(true);
     try {
-      const user = await login(trimmedEmail, password);
+      const user = await login(normalizedEmail, password);
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.loginFailed'));
+      if (!handleLegacyVerification(err)) {
+        setError(err instanceof Error ? err.message : t('auth.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleForgotPassword = () => {
-    appAlert(t('auth.forgotPassword'), t('auth.forgotPasswordBody'));
   };
 
   const handleGoogleCredential = async (credential: string) => {
@@ -85,24 +130,28 @@ export default function LoginScreen({ navigation }: Props) {
       <StatusBar style="dark" />
       <LoginBackground />
 
+      <View style={[styles.languageToggle, { top: insets.top + spacing.xs }]}>
+        <AuthLanguageToggle />
+      </View>
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={authStyles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={[
-            authStyles.scroll,
-            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
+        <View
+          style={[
+            authStyles.content,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.md,
+            },
           ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
-          <AuthHeader />
+          <AuthHeader compact />
 
           <View style={authStyles.card}>
             <Text style={authStyles.cardTitle}>{t('auth.loginTitle')}</Text>
             <Text style={authStyles.cardSubtitle}>{t('auth.loginSubtitle')}</Text>
-
             {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
             <Text style={authStyles.label}>{t('auth.email')}</Text>
@@ -119,6 +168,7 @@ export default function LoginScreen({ navigation }: Props) {
                 keyboardType="email-address"
                 textContentType="emailAddress"
                 autoComplete="email"
+                returnKeyType="next"
               />
             </View>
 
@@ -134,18 +184,26 @@ export default function LoginScreen({ navigation }: Props) {
                 secureTextEntry={!showPassword}
                 textContentType="password"
                 autoComplete="password"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <Pressable
-                onPress={() => setShowPassword((v) => !v)}
-                hitSlop={8}
+                onPress={() => setShowPassword((current) => !current)}
+                hitSlop={spacing.sm}
+                accessibilityRole="button"
                 accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 <EyeIcon visible={showPassword} />
               </Pressable>
             </View>
 
-            <Pressable onPress={handleForgotPassword} style={styles.forgotWrap}>
-              <Text style={styles.forgotLink}>{t('auth.forgotPassword')}</Text>
+            <Pressable
+              onPress={() =>
+                appAlert(t('auth.forgotPassword'), t('auth.forgotPasswordBody'))
+              }
+              style={styles.forgotButton}
+            >
+              <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
             </Pressable>
 
             <Pressable
@@ -158,7 +216,7 @@ export default function LoginScreen({ navigation }: Props) {
               ]}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.surface} />
               ) : (
                 <>
                   <Text style={authStyles.primaryBtnText}>{t('auth.signIn')}</Text>
@@ -167,12 +225,23 @@ export default function LoginScreen({ navigation }: Props) {
               )}
             </Pressable>
 
-            <OrDivider />
+            {showResendLink ? (
+              <Pressable
+                onPress={handleResendVerificationLink}
+                disabled={resendingLink || loading}
+                style={styles.resendLinkBtn}
+              >
+                <Text style={styles.resendLinkText}>
+                  {resendingLink ? t('auth.resendingLink') : t('auth.resendVerificationLink')}
+                </Text>
+              </Pressable>
+            ) : null}
 
+            <OrDivider />
             <GoogleSignInButton
-              disabled={loading}
               onCredential={handleGoogleCredential}
               onError={setError}
+              disabled={loading}
             />
 
             <View style={authStyles.altRow}>
@@ -182,23 +251,33 @@ export default function LoginScreen({ navigation }: Props) {
               </Pressable>
             </View>
           </View>
-
-          <AuthFooter />
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-const styles = {
-  forgotWrap: {
-    alignSelf: 'flex-end' as const,
-    marginBottom: 20,
-    marginTop: -4,
+const styles = StyleSheet.create({
+  languageToggle: {
+    position: 'absolute',
+    right: spacing.md,
+    zIndex: 2,
   },
-  forgotLink: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '600' as const,
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginTop: -spacing.xxs,
+    marginBottom: spacing.sm,
   },
-};
+  forgotText: {
+    ...textStyles.link,
+  },
+  resendLinkBtn: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  resendLinkText: {
+    ...textStyles.link,
+    fontWeight: '700',
+  },
+});

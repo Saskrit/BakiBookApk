@@ -24,7 +24,10 @@ import TutorialIllustration, {
   chapterAccent,
 } from '../../features/tutorial/TutorialIllustration';
 import { colors } from '../../theme/colors';
-import { typography as typo } from '../../theme/typography';
+import { typography as typo, typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TutorialChapter'>;
@@ -336,15 +339,17 @@ const tcStyles = StyleSheet.create({
   },
   tcPillText: { fontSize: 12, fontWeight: '800', color: colors.textMuted },
   tcStepTitle: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: typo.h1,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
     color: colors.text,
-    letterSpacing: -0.4,
   },
   tcStepBody: {
     marginTop: 8,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: typo.bodyLg,
+    lineHeight: typeScale.body.lineHeight,
+    fontFamily: typeScale.body.fontFamily,
     color: colors.textMuted,
   },
   tcDots: {
@@ -375,8 +380,8 @@ const tcStyles = StyleSheet.create({
   tcBtnDisabled: { opacity: 0.35 },
   tcGhostBtnText: { fontWeight: '700', color: colors.textMuted, fontSize: 15 },
   tcPrimaryBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   tcPrimaryBtnText: { color: '#FFF', fontWeight: '800', fontSize: 16 },

@@ -21,6 +21,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Register: undefined;
+  VerifyEmail: { email: string; role: 'shopkeeper' | 'customer' };
   Shopkeeper: NavigatorScreenParams<ShopkeeperTabParamList> | undefined;
   Customer: NavigatorScreenParams<CustomerTabParamList> | undefined;
   AddCustomer: undefined;

@@ -19,6 +19,9 @@ import { fetchPortalShopDetail } from '../../api/portal';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs } from '../../utils/format';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -829,12 +832,12 @@ const sdStyles = StyleSheet.create({
     flexShrink: 0,
   },
   sdShareText: { color: '#EA580C', fontWeight: '800', fontSize: 12 },
-  sdContent: { paddingHorizontal: 16, paddingTop: 4, gap: 14 },
-  sdIdentityRow: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
+  sdContent: { paddingHorizontal: spacing.md, paddingTop: 4, gap: spacing.md },
+  sdIdentityRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
   sdShopIconWrap: {
     width: 72,
     height: 72,
-    borderRadius: 20,
+    borderRadius: radius.container,
     backgroundColor: '#FFEDD5',
     alignItems: 'center',
     justifyContent: 'center',
@@ -860,8 +863,8 @@ const sdStyles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 6,
@@ -872,8 +875,8 @@ const sdStyles = StyleSheet.create({
   sdMetricsRow: { flexDirection: 'column', gap: 8 },
   sdMetricCard: {
     width: '100%',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
   },
   sdMetricTop: {
     flexDirection: 'row',
@@ -913,8 +916,8 @@ const sdStyles = StyleSheet.create({
   sdLastPayAmountText: { fontSize: 12, fontWeight: '800', color: '#1D4ED8' },
   sdSectionCard: {
     backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: radius.container,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#EEF2F7',
   },
@@ -961,8 +964,8 @@ const sdStyles = StyleSheet.create({
     flexShrink: 0,
   },
   sdFilterChipText: { color: '#EA580C', fontWeight: '800', fontSize: 12 },
-  sdEmptyTimeline: { color: '#94A3B8', fontWeight: '600', paddingVertical: 12 },
-  sdTimelineRow: { flexDirection: 'row', gap: 12, marginBottom: 14, alignItems: 'stretch' },
+  sdEmptyTimeline: { color: '#94A3B8', fontWeight: '600', paddingVertical: spacing.sm },
+  sdTimelineRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'stretch' },
   sdTimelineRail: { width: 28, alignItems: 'center', flexShrink: 0 },
   sdTimelineDot: {
     width: 28,
@@ -1008,7 +1011,7 @@ const sdStyles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1019,8 +1022,8 @@ const sdStyles = StyleSheet.create({
   sdWidgetsRow: { flexDirection: 'column', gap: 10 },
   sdWidget: {
     width: '100%',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
   },
   sdWidgetHead: {
     flexDirection: 'row',
@@ -1059,7 +1062,7 @@ const sdStyles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 10,
     backgroundColor: '#F7F8FC',
     borderTopWidth: 1,
@@ -1073,8 +1076,8 @@ const sdStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: '#DBEAFE',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 8,
     minHeight: 48,
   },
@@ -1094,8 +1097,8 @@ const sdStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: '#FFEDD5',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 8,
     minHeight: 48,
   },

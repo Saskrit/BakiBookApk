@@ -17,13 +17,14 @@ export async function uploadImage(localUri: string, type: UploadType): Promise<s
   }
 
   const token = await AsyncStorage.getItem('bakibook_token');
-  const filename = localUri.split('/').pop() || `photo-${Date.now()}.jpg`;
+  const filename = `photo-${Date.now()}.jpg`;
   const mimeType = mimeFromUri(localUri);
+  const uri = localUri.startsWith('file://') ? localUri : `file://${localUri}`;
 
   const formData = new FormData();
   formData.append('image', {
-    uri: localUri,
-    name: filename.includes('.') ? filename : `${filename}.jpg`,
+    uri,
+    name: filename,
     type: mimeType,
   } as unknown as Blob);
 

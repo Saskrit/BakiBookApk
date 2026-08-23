@@ -23,6 +23,10 @@ import { fetchPortalDashboard, fetchPortalLedger } from '../../api/portal';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatDate, formatRs } from '../../utils/format';
 import type { CustomerTabParamList } from '../../navigation/types';
 
@@ -536,7 +540,7 @@ export default function LedgerScreen() {
 
 const clStyles = StyleSheet.create({
   clScreen: { flex: 1, backgroundColor: '#F7F8FC' },
-  clHeaderWrap: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
+  clHeaderWrap: { paddingHorizontal: spacing.md, paddingTop: 6, paddingBottom: 4 },
   clShopFilterBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,7 +555,13 @@ const clStyles = StyleSheet.create({
   clShopFilterText: { flex: 1, fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
   clShopFilterClear: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
   clTopBar: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  clTitle: { fontSize: 26, fontWeight: '800', color: '#1E293B', letterSpacing: -0.3 },
+  clTitle: {
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
   clSubtitle: { marginTop: 3, fontSize: 12, color: '#64748B' },
   clFilterTopBtn: {
     flexDirection: 'row',
@@ -566,8 +576,8 @@ const clStyles = StyleSheet.create({
   },
   clFilterTopText: { color: '#F97316', fontWeight: '800', fontSize: 12 },
   clSummaryCard: {
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: radius.container,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
@@ -575,10 +585,11 @@ const clStyles = StyleSheet.create({
   clSummaryLabel: { fontSize: 12, fontWeight: '700', color: '#6B5344' },
   clSummaryAmount: {
     marginTop: 4,
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: typeScale.display.fontSize,
+    lineHeight: typeScale.display.lineHeight,
+    fontFamily: typeScale.display.fontFamily,
+    fontWeight: '700',
     color: '#EA580C',
-    letterSpacing: -0.4,
   },
   clSummaryMeta: { marginTop: 2, fontSize: 12, color: '#8A6F5C', fontWeight: '600' },
   clSummaryBtn: {
@@ -653,7 +664,7 @@ const clStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -667,7 +678,7 @@ const clStyles = StyleSheet.create({
   clTxIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -14,6 +14,9 @@ import { fetchCustomers } from '../../api/customers';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import {
   avatarColor,
   formatLastTransaction,
@@ -154,7 +157,7 @@ export default function FilteredCustomersScreen({ route, navigation }: Props) {
           </Text>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 16 }}
       />
     </View>
   );
@@ -164,8 +167,8 @@ const fcStyles = StyleSheet.create({
   fcScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   fcHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -184,7 +187,7 @@ const fcStyles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 14,
+    padding: spacing.md,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ECEEF2',
@@ -192,7 +195,7 @@ const fcStyles = StyleSheet.create({
   fcAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,

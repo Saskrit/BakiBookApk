@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import AppDialog from '../components/AppDialog';
 import i18n from '../i18n';
 
@@ -54,17 +55,19 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     setOptions(null);
   }, []);
 
-  const handlePress = useCallback(
-    async (button: DialogButton) => {
-      close();
-      try {
-        await button.onPress?.();
-      } catch (err) {
-        console.error('[Dialog] button handler failed:', err);
-      }
-    },
-    [close]
-  );
+  const handlePress = useCallback((button: DialogButton) => {
+    close();
+    const run = button.onPress;
+    if (!run) return;
+    // Wait for the modal to finish closing so Android can open the image picker / camera.
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        void Promise.resolve(run()).catch((err) => {
+          console.error('[Dialog] button handler failed:', err);
+        });
+      }, 350);
+    });
+  }, [close]);
 
   const value = useMemo(() => ({ showDialog }), [showDialog]);
 

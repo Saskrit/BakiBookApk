@@ -13,6 +13,9 @@ import { API_BASE_URL } from '../config/api';
 import { colors } from '../theme/colors';
 import { typography as ty } from '../theme/typography';
 
+import { spacing } from '../theme/spacing';
+import { radius } from '../theme/radius';
+
 type MaintenanceContextValue = {
   active: boolean;
   message: string;
@@ -131,9 +134,9 @@ const mtStyles = StyleSheet.create({
   },
   mtCard: {
     backgroundColor: '#FFF',
-    borderRadius: 18,
+    borderRadius: radius.container,
     padding: 22,
-    gap: 12,
+    gap: spacing.sm,
   },
   mtTitle: {
     fontSize: ty.h1,

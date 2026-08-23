@@ -1,5 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { layout } from '../theme/layout';
+import { radius } from '../theme/radius';
+import { spacing } from '../theme/spacing';
+import { typeScale } from '../theme/typography';
 import { formatRs, getInitials } from '../utils/format';
 import type { Customer } from '../types';
 
@@ -58,37 +62,39 @@ function ActionChip({
 const ccStyles = StyleSheet.create({
   ccCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
-  ccRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  ccRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   ccAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: layout.touchTarget,
+    height: layout.touchTarget,
+    borderRadius: layout.touchTarget / 2,
     backgroundColor: '#E8EFE0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
-  ccAvatarText: { color: colors.primaryDark, fontWeight: '700', fontSize: 16 },
+  ccAvatarText: { ...typeScale.body, color: colors.primaryDark, fontFamily: typeScale.cardTitle.fontFamily },
   ccInfo: { flex: 1 },
-  ccName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  ccDue: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  ccDueActive: { color: colors.danger, fontWeight: '600' },
-  ccActions: { flexDirection: 'row', gap: 8 },
+  ccName: { ...typeScale.body, fontFamily: typeScale.cardTitle.fontFamily, color: colors.text },
+  ccDue: { ...typeScale.bodySmall, color: colors.textMuted, marginTop: spacing.xxs / 2 },
+  ccDueActive: { color: colors.danger, fontFamily: typeScale.label.fontFamily },
+  ccActions: { flexDirection: 'row', gap: spacing.xs },
   ccChip: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    minHeight: layout.buttonHeight,
+    borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
   },
   ccChipPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ccChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  ccChipText: { ...typeScale.button, color: colors.text },
   ccChipTextPrimary: { color: '#fff' },
 });

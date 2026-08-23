@@ -8,7 +8,8 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react';
-import { login, googleAuth, saveAuth, getAuth, getPostAuthPath } from '../services/auth';
+import { login, googleAuth, saveAuth, getAuth, getPostAuthPath, resendVerificationLink } from '../services/auth';
+import { ApiError } from '../services/api';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 import AuthShell from '../components/AuthShell';
 import './AuthPage.css';
@@ -19,6 +20,8 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resendingLink, setResendingLink] = useState(false);
+  const [showResendLink, setShowResendLink] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ identifier: '', password: '' });
 
@@ -37,12 +40,32 @@ function Login() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     setError('');
+    setShowResendLink(false);
+  };
+
+  const handleResendLink = async () => {
+    const email = form.identifier.trim();
+    if (!email || !form.password) {
+      setError('Enter your email and password first.');
+      return;
+    }
+    setResendingLink(true);
+    setError('');
+    try {
+      const data = await resendVerificationLink(email, form.password);
+      setError(data.message || 'Verification link sent. Check your email, then sign in.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResendingLink(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setShowResendLink(false);
 
     try {
       const data = await login({
@@ -53,13 +76,17 @@ function Login() {
       saveAuth(data.token, data.user, data.pendingLinkCount);
       navigate(getPostAuthPath(data.user, data.pendingLinkCount), { replace: true });
     } catch (err) {
+      const payload = err instanceof ApiError ? err.data : null;
+      if (payload?.requiresVerification && (!payload.verificationMethod || payload.verificationMethod === 'link')) {
+        setShowResendLink(true);
+      }
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const isBusy = loading || googleLoading;
+  const isBusy = loading || googleLoading || resendingLink;
   const googleLoginLock = useRef(false);
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -164,6 +191,26 @@ function Login() {
               </>
             )}
           </button>
+
+          {showResendLink ? (
+            <button
+              type="button"
+              className="login-form__link"
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+              onClick={handleResendLink}
+              disabled={isBusy || resendingLink}
+            >
+              {resendingLink ? 'Sending verification link…' : 'Resend verification link'}
+            </button>
+          ) : null}
         </form>
 
         <div className="login-divider">

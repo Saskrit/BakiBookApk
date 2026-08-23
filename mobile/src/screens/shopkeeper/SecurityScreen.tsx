@@ -25,6 +25,9 @@ import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 function SecureField({
@@ -319,7 +322,7 @@ const secStyles = StyleSheet.create({
   secScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   secFlex: { flex: 1 },
   secHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
@@ -327,11 +330,11 @@ const secStyles = StyleSheet.create({
   secBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600', marginBottom: 6 },
   secHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
   secHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
-  secContent: { padding: 16, paddingTop: 14, gap: 12 },
+  secContent: { padding: spacing.md, paddingTop: spacing.md, gap: spacing.sm },
   secCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.card,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#ECEEF2',
     gap: 10,
@@ -356,11 +359,11 @@ const secStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
   },
   secSecureInput: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     fontSize: ty.md,
     color: colors.text,
   },
@@ -370,7 +373,7 @@ const secStyles = StyleSheet.create({
   secSuccess: { fontSize: ty.body, color: colors.primary, fontWeight: '600' },
   secActionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   secActionHalf: { flex: 1 },
-  secTipRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 4 },
+  secTipRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', marginBottom: 4 },
   secTipIcon: {
     width: 36,
     height: 36,

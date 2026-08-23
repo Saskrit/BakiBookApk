@@ -18,6 +18,9 @@ import { appAlert } from '../../contexts/DialogContext';
 import { Button, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { exportCustomerReportPdf } from '../../utils/customerReportPdf';
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
 import type { Customer } from '../../types';
@@ -277,10 +280,10 @@ const cprStyles = StyleSheet.create({
   cprScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   cprHero: {
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: radius.container,
+    borderBottomRightRadius: radius.container,
   },
   cprBack: {
     alignSelf: 'flex-start',
@@ -310,8 +313,8 @@ const cprStyles = StyleSheet.create({
     borderRadius: 999,
   },
   cprChipText: { color: '#FFF', fontSize: ty.caption, fontWeight: '600' },
-  cprBody: { padding: 16, marginTop: -8 },
-  cprStatsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  cprBody: { padding: spacing.md, marginTop: -8 },
+  cprStatsRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
   cprStatBox: {
     flex: 1,
     backgroundColor: '#FFF',
@@ -325,8 +328,8 @@ const cprStyles = StyleSheet.create({
   cprNotesCard: {
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
@@ -350,7 +353,7 @@ const cprStyles = StyleSheet.create({
   cprSectionSub: { fontSize: ty.caption, color: colors.textMuted, marginBottom: 10, marginTop: 2 },
   cprLedgerCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 4,
     borderWidth: 1,
     borderColor: '#ECEEF2',
@@ -365,7 +368,7 @@ const cprStyles = StyleSheet.create({
   cprLedgerDot: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

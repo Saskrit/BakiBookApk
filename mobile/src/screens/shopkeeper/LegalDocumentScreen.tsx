@@ -7,6 +7,8 @@ import { fetchLegalDocument, type LegalSection } from '../../api/legal';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as t } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+
 import { formatDate } from '../../utils/format';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -90,20 +92,20 @@ const ldStyles = StyleSheet.create({
   ldScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   ldHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   ldBack: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600', marginBottom: 6 },
   ldHeaderTitle: { color: '#FFF', fontSize: t.h2, fontWeight: '800' },
   ldUpdated: { color: 'rgba(255,255,255,0.85)', fontSize: t.caption, marginTop: 6 },
-  ldContent: { padding: 16 },
+  ldContent: { padding: spacing.md },
   ldError: { color: colors.danger, marginBottom: 12, fontSize: t.body },
   ldSection: {
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 16,
+    padding: spacing.md,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ECEEF2',

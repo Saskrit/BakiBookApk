@@ -1,29 +1,29 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 
+const PRODUCTION_API = 'https://bakibookapp.onrender.com/api';
 const fromExtra = Constants.expoConfig?.extra?.apiUrl as string | undefined;
 const fromEnv = process.env.EXPO_PUBLIC_API_URL;
 const debuggerHost = Constants.expoConfig?.hostUri?.split(':')[0];
 
+function isLoopbackApi(url: string): boolean {
+  return /10\.0\.2\.2|127\.0\.0\.1|localhost/i.test(url);
+}
+
 function resolveApiBaseUrl(): string {
-  // In development, prefer Metro/.env over values baked into the APK at build time.
-  // (Baked Railway URLs caused "Application not found" after the deploy went offline.)
+  const envUrl = fromEnv?.trim() || '';
+  const extraUrl = fromExtra?.trim() || '';
+
   if (__DEV__) {
-    if (fromEnv?.trim()) return fromEnv.trim();
-    if (fromExtra?.trim()) return fromExtra.trim();
-    if (debuggerHost) return `http://${debuggerHost}:5001/api`;
-    // Android emulator → host machine localhost
-    if (Platform.OS === 'android') return 'http://10.0.2.2:5001/api';
-    return 'http://localhost:5001/api';
+    // Physical phone cannot reach the emulator loopback address.
+    if (envUrl && !(Constants.isDevice && isLoopbackApi(envUrl))) return envUrl;
+    if (extraUrl && !(Constants.isDevice && isLoopbackApi(extraUrl))) return extraUrl;
+    if (debuggerHost && !Constants.isDevice) return `http://${debuggerHost}:5001/api`;
+    return PRODUCTION_API;
   }
 
-  if (fromExtra?.trim()) return fromExtra.trim();
-  if (fromEnv?.trim()) return fromEnv.trim();
-
-  console.warn(
-    'EXPO_PUBLIC_API_URL is not set. Set it in eas.json or: eas secret:create --name EXPO_PUBLIC_API_URL'
-  );
-  return '';
+  if (extraUrl && !isLoopbackApi(extraUrl)) return extraUrl;
+  if (envUrl && !isLoopbackApi(envUrl)) return envUrl;
+  return PRODUCTION_API;
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();

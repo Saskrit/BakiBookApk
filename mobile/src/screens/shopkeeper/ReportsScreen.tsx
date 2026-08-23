@@ -17,6 +17,9 @@ import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatReportDate } from '../../utils/pdfHtml';
 import { exportCompleteShopReportPdf } from '../../utils/shopReportPdf';
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
@@ -569,7 +572,7 @@ export default function ReportsScreen() {
 const rp2Styles = StyleSheet.create({
   rptScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   rptHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
@@ -602,7 +605,7 @@ const rp2Styles = StyleSheet.create({
   },
   rptDateRangeText: { color: 'rgba(255,255,255,0.9)', fontSize: ty.caption, fontWeight: '600' },
   rptScroll: { flex: 1 },
-  rptContent: { padding: 16, paddingTop: 14 },
+  rptContent: { padding: spacing.md, paddingTop: spacing.md },
   rptLoadingOverlay: { paddingVertical: 24 },
   rptSummaryGrid: {
     flexDirection: 'row',
@@ -628,11 +631,11 @@ const rp2Styles = StyleSheet.create({
   },
   rptSummaryStatLabel: { fontSize: ty.sm, color: colors.textMuted, fontWeight: '600' },
   rptSummaryStatValue: { fontSize: ty.bodyLg, fontWeight: '800', marginTop: 4 },
-  rptCountRow: { gap: 8, paddingBottom: 14 },
+  rptCountRow: { gap: 8, paddingBottom: spacing.md },
   rptCountChip: {
     backgroundColor: '#FFF',
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
@@ -643,7 +646,7 @@ const rp2Styles = StyleSheet.create({
   rptCountChipLabel: { fontSize: ty.sm, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
   rptSectionCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ECEEF2',
@@ -652,8 +655,8 @@ const rp2Styles = StyleSheet.create({
   rptSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   rptSectionHeaderPressed: { backgroundColor: '#FAFAFA' },
   rptSectionIcon: {
@@ -670,7 +673,7 @@ const rp2Styles = StyleSheet.create({
   rptSectionBody: {
     borderTopWidth: 1,
     borderTopColor: '#F0F1F3',
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     paddingBottom: 12,
     paddingTop: 4,
   },
@@ -714,7 +717,7 @@ const rp2Styles = StyleSheet.create({
     paddingVertical: 10,
   },
   rptEmptyHint: {
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   rptEmptyHintText: { fontSize: ty.body, color: colors.textMuted, textAlign: 'center' },
@@ -726,7 +729,7 @@ const rp2Styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },

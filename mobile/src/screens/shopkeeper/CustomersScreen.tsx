@@ -21,6 +21,9 @@ import { fetchDashboardStats } from '../../api/shop';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import {
   avatarColor,
   formatLastTransaction,
@@ -501,7 +504,7 @@ const cuStyles = StyleSheet.create({
   cuScreen: { flex: 1, backgroundColor: '#F3F4F6' },
   cuHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 18,
   },
   cuHeaderTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -515,14 +518,14 @@ const cuStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cuBody: { paddingHorizontal: 16, paddingTop: 16 },
+  cuBody: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   cuError: { color: colors.danger, marginBottom: 10, fontSize: ty.bodyLg },
-  cuStatsScroll: { gap: 12, paddingBottom: 16, paddingRight: 8 },
+  cuStatsScroll: { gap: spacing.sm, paddingBottom: spacing.md, paddingRight: 8 },
   cuStatCard: {
     width: 168,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -540,7 +543,7 @@ const cuStyles = StyleSheet.create({
   cuStatLabel: { fontSize: ty.sm, color: colors.textMuted, marginBottom: 4, fontWeight: '500' },
   cuStatValue: { fontSize: ty.xl, fontWeight: '800', marginBottom: 6 },
   cuStatFooter: { fontSize: ty.xs, fontWeight: '600', color: colors.textMuted },
-  cuSearchRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  cuSearchRow: { flexDirection: 'row', gap: 10, marginBottom: spacing.md },
   cuSearchBox: {
     flex: 1,
     flexDirection: 'row',
@@ -592,14 +595,14 @@ const cuStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 10,
     borderRadius: 14,
-    padding: 14,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   cuAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -629,13 +632,13 @@ const cuStyles = StyleSheet.create({
   cuDueValueGreen: { color: colors.primary },
   cuChevron: { color: colors.textMuted, fontSize: ty.xl, marginTop: 8 },
   cuEmpty: { textAlign: 'center', color: colors.textMuted, marginTop: 32, marginHorizontal: 16 },
-  cuFooterCards: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 10 },
+  cuFooterCards: { paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, gap: 10 },
   cuFooterCard: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
-    padding: 14,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   cuFooterCardGreen: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#BBF7D0' },
   cuFooterCardOrange: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },

@@ -18,7 +18,14 @@ const ALLOWED_PREFIXES = [
 ];
 
 const isAllowedDuringMaintenance = (path) => {
-  if (path === '/' || path === '/api/health' || path === '/api/stats' || path === '/api/maintenance-status') {
+  if (
+    path === '/' ||
+    path === '/api' ||
+    path === '/api/' ||
+    path === '/api/health' ||
+    path === '/api/stats' ||
+    path === '/api/maintenance-status'
+  ) {
     return true;
   }
   return ALLOWED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

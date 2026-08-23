@@ -15,6 +15,9 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 const SUPPORT_EMAIL = 'support@bakibook.com';
@@ -521,11 +524,11 @@ const hsStyles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   hsTicketsText: { color: colors.primary, fontWeight: '800', fontSize: 11 },
-  hsContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
+  hsContent: { paddingHorizontal: spacing.md, paddingTop: 8, gap: 10 },
   hsHeroCard: {
     backgroundColor: '#E8F0D8',
-    borderRadius: 20,
-    padding: 14,
+    borderRadius: radius.container,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -571,7 +574,7 @@ const hsStyles = StyleSheet.create({
   hsQuickCard: {
     width: 148,
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     borderWidth: 1,
     borderColor: '#E8EDE0',
@@ -588,7 +591,7 @@ const hsStyles = StyleSheet.create({
   hsQuickSub: { marginTop: 4, fontSize: 11, color: '#6B7280', lineHeight: 15, fontWeight: '600' },
   hsCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: '#E8EDE0',
     overflow: 'hidden',
@@ -596,16 +599,16 @@ const hsStyles = StyleSheet.create({
   hsTopicRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2EC',
   },
   hsTopicIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.container,
     backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
@@ -622,9 +625,9 @@ const hsStyles = StyleSheet.create({
   hsContactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2EC',
   },
@@ -648,8 +651,8 @@ const hsStyles = StyleSheet.create({
   hsResponseBanner: {
     marginTop: 4,
     backgroundColor: '#FEF9C3',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

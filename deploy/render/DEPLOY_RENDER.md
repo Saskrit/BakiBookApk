@@ -1,9 +1,9 @@
 # Deploy BakiBook (API + Web) to Render + rebuild Android APK
 
 This deploys **one Render web service** that serves:
-- API at `https://YOUR-APP.onrender.com/api/...`
-- Web app at `https://YOUR-APP.onrender.com`
-- Admin login at `https://YOUR-APP.onrender.com/admin/login`
+- API at `https://bakibookapp.onrender.com/api/...`
+- Web app at `https://bakibookapp.onrender.com`
+- Admin login at `https://bakibookapp.onrender.com/admin/login`
 
 Then you rebuild the Android APK to use that API URL.
 
@@ -66,7 +66,8 @@ In Render → your service → **Environment**:
 | `JWT_SECRET` | Long random string |
 | `SERVER_URL` | `https://YOUR-APP.onrender.com` (set after first deploy) |
 | `CLIENT_URL` | Same as `SERVER_URL` |
-| `GOOGLE_CLIENT_ID` | Your **Web** Google client ID (`1037426027040-p7qtb...`) |
+| `GOOGLE_CLIENT_ID` | Web client: `129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr...` |
+| `VITE_GOOGLE_CLIENT_ID` | Same Web client ID (needed so web Google login rebuilds) |
 | `CLOUDINARY_URL` | Your Cloudinary URL |
 | `EMAIL_USER` | Gmail address |
 | `EMAIL_APP_PASSWORD` | Gmail app password |
@@ -105,7 +106,7 @@ Also for a local release rebuild, temporarily set `mobile/.env`:
 
 ```env
 EXPO_PUBLIC_API_URL=https://YOUR-APP.onrender.com/api
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=1037426027040-p7qtbdec61bfshu6fgpsmjemskph1io.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com
 ```
 
 ### 5b — Rebuild APK
@@ -126,12 +127,22 @@ Install the new APK on your phone (old APK still points at Railway).
 
 ## Step 6 — Google Sign-In (after Render is live)
 
-No change needed if Web client ID is unchanged.
+See [mobile/GOOGLE_SIGNIN.md](../../mobile/GOOGLE_SIGNIN.md).
 
-Keep Android OAuth client in Google Cloud with:
+On Render set:
 
+```
+GOOGLE_CLIENT_ID=129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com
+```
+
+Android OAuth client (same project `bakibook-236a6`):
+
+- Client ID stays in Google Console only: `129286948746-su2032aap4d8ls0inok569aiv0t76dbp...`
 - Package: `com.bakibook.app`
-- SHA-1 of the APK signing key (debug APK: `5e8f16062ea3cd2c4a0d547876baa6f38cabf625`)
+- SHA-1: `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`
+
+Do **not** put the Android Client ID in the app.
 
 ---
 

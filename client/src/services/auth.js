@@ -2,33 +2,47 @@ import request from './api';
 import { fetchPendingLinks } from './links';
 
 const AUTH_KEY = 'bakibook_auth';
+const TOKEN_KEY = 'bakibook_token';
+/** Keep users signed in for 30 days (matches JWT expiry). */
+export const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
-export const saveAuth = (token, user, pendingLinkCount) => {
-  localStorage.setItem('bakibook_token', token);
+export const saveAuth = (token, user, pendingLinkCount, options = {}) => {
+  const sessionExpiresAt =
+    options.sessionExpiresAt ?? Date.now() + SESSION_DURATION_MS;
+  localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(
     AUTH_KEY,
     JSON.stringify({
       ...user,
       ...(pendingLinkCount != null ? { pendingLinkCount } : {}),
+      sessionExpiresAt,
     })
   );
 };
 
 export const getAuth = () => {
-  const token = localStorage.getItem('bakibook_token');
+  const token = localStorage.getItem(TOKEN_KEY);
   const userJson = localStorage.getItem(AUTH_KEY);
 
   if (!token || !userJson) return null;
 
   try {
-    return { token, user: JSON.parse(userJson) };
+    const user = JSON.parse(userJson);
+    if (
+      typeof user.sessionExpiresAt === 'number' &&
+      Date.now() > user.sessionExpiresAt
+    ) {
+      clearAuth();
+      return null;
+    }
+    return { token, user };
   } catch {
     return null;
   }
 };
 
 export const clearAuth = () => {
-  localStorage.removeItem('bakibook_token');
+  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(AUTH_KEY);
 };
 
@@ -119,6 +133,13 @@ export const verifyEmail = verifyEmailToken;
 
 export const resendVerification = () =>
   request('/auth/resend-verification', { method: 'POST' });
+
+/** Legacy unverified accounts (pre code-signup). Requires email + password. */
+export const resendVerificationLink = (email, password) =>
+  request('/auth/resend-verification-link', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
 
 export const forgotPassword = (email) =>
   request('/auth/forgot-password', {

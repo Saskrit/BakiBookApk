@@ -13,6 +13,8 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createProduct, fetchProducts } from '../api/products';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+
 import { formatRs } from '../utils/format';
 import type { ShopProduct } from '../types';
 
@@ -127,7 +129,9 @@ export default function ProductSearchInput({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder={t('products.enterProductName')}
+          placeholder={t('products.enterProductName', {
+            defaultValue: 'Enter product name',
+          })}
           placeholderTextColor={colors.textMuted}
           style={psiStyles.psiInput}
           autoCorrect={false}
@@ -135,12 +139,16 @@ export default function ProductSearchInput({
         <Pressable
           onPress={openSearch}
           style={psiStyles.psiSearchBtn}
-          accessibilityLabel={t('products.searchProducts')}
+          accessibilityLabel={t('products.searchProducts', { defaultValue: 'Search products' })}
         >
           <SearchIcon color="#FFFFFF" />
         </Pressable>
       </View>
-      <Text style={psiStyles.psiHint}>{t('products.productHint')}</Text>
+      <Text style={psiStyles.psiHint}>
+        {t('products.productHint', {
+          defaultValue: 'Type a name or tap search to pick from your catalog',
+        })}
+      </Text>
 
       <Modal
         visible={modalOpen}
@@ -229,7 +237,7 @@ export default function ProductSearchInput({
 }
 
 const psiStyles = StyleSheet.create({
-  psiWrap: { marginBottom: 14 },
+  psiWrap: { marginBottom: spacing.md },
   psiLabel: {
     fontSize: 13,
     fontWeight: '600',
@@ -247,8 +255,8 @@ const psiStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: 16,
     color: colors.text,
   },
@@ -341,8 +349,8 @@ const psiStyles = StyleSheet.create({
   },
   psiAddNewBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 12,
     marginTop: 4,
   },
@@ -360,7 +368,7 @@ const psiStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },

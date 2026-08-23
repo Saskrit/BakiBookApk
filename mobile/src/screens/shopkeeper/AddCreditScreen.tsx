@@ -21,7 +21,10 @@ import { createTransaction } from '../../api/transactions';
 import ProductSearchInput from '../../components/ProductSearchInput';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { typography as ty } from '../../theme/typography';
+import { typography as ty, typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
 import type { Customer, LineItem } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -647,8 +650,8 @@ const adStyles = StyleSheet.create({
   adScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   adFlex: { flex: 1 },
   adHeader: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
@@ -659,7 +662,7 @@ const adStyles = StyleSheet.create({
   adHeaderCustomer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.sm,
     marginTop: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 14,
@@ -683,11 +686,11 @@ const adStyles = StyleSheet.create({
     borderRadius: 8,
   },
   adHeaderBadgeText: { color: '#FFF', fontSize: ty.sm, fontWeight: '700' },
-  adContent: { padding: 16, paddingTop: 14 },
+  adContent: { padding: spacing.md, paddingTop: spacing.md },
   adCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.card,
+    padding: spacing.md,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#ECEEF2',
@@ -742,7 +745,7 @@ const adStyles = StyleSheet.create({
   adAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -794,8 +797,8 @@ const adStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: ty.md,
     color: colors.text,
   },
@@ -810,7 +813,7 @@ const adStyles = StyleSheet.create({
     alignSelf: 'center',
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.container,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -818,15 +821,15 @@ const adStyles = StyleSheet.create({
   },
   adPlusOnlyText: {
     color: '#FFF',
-    fontSize: 28,
+    fontSize: typeScale.h1.fontSize,
     fontWeight: '300',
-    lineHeight: 30,
+    lineHeight: typeScale.h1.lineHeight,
     marginTop: -2,
   },
   adAddLineBtn: {
     backgroundColor: colors.primaryDark,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: 8,
   },
@@ -841,7 +844,7 @@ const adStyles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: spacing.md,
     maxHeight: '85%',
   },
   adModalHeader: {
@@ -860,7 +863,7 @@ const adStyles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },

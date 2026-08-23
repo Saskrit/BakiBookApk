@@ -19,6 +19,9 @@ import NotificationBell from '../../components/NotificationBell';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { radius } from '../../theme/radius';
+import { spacing } from '../../theme/spacing';
+import { typeScale } from '../../theme/typography';
 import { formatDate, formatRs, getInitials } from '../../utils/format';
 import type { RootStackParamList, CustomerTabParamList } from '../../navigation/types';
 
@@ -493,7 +496,7 @@ function OverviewItem({
 const mdStyles = StyleSheet.create({
   mdScreen: { flex: 1, backgroundColor: '#F7F8FC' },
   mdHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -505,7 +508,7 @@ const mdStyles = StyleSheet.create({
   mdAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.container,
     backgroundColor: c.sand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -525,10 +528,10 @@ const mdStyles = StyleSheet.create({
     gap: 2,
   },
   mdScanLabel: { fontSize: 8, fontWeight: '700', color: c.textMuted },
-  mdBody: { paddingHorizontal: 16, paddingTop: 8 },
+  mdBody: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
   mdHeroCard: {
-    borderRadius: 22,
-    padding: 18,
+    borderRadius: radius.card,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
@@ -537,10 +540,11 @@ const mdStyles = StyleSheet.create({
   mdHeroLabel: { fontSize: 13, fontWeight: '700', color: '#5C4033' },
   mdHeroAmount: {
     marginTop: 4,
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: typeScale.display.fontSize,
+    lineHeight: typeScale.display.lineHeight,
+    fontFamily: typeScale.display.fontFamily,
+    fontWeight: '700',
     color: '#E86A2E',
-    letterSpacing: -0.5,
   },
   mdHeroMeta: { marginTop: 4, fontSize: 12, color: '#8A6F5C', fontWeight: '600' },
   mdHeroBtn: {
@@ -548,7 +552,7 @@ const mdStyles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#F97316',
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,8 +576,8 @@ const mdStyles = StyleSheet.create({
   mdQaCard: {
     flex: 1,
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 6,
     alignItems: 'center',
     shadowColor: '#0F172A',
@@ -614,7 +618,7 @@ const mdStyles = StyleSheet.create({
   mdViewAll: { color: '#F97316', fontWeight: '800', fontSize: 13 },
   mdOverviewCard: {
     backgroundColor: '#EAF4FF',
-    borderRadius: 18,
+    borderRadius: radius.container,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -647,14 +651,14 @@ const mdStyles = StyleSheet.create({
   mdEmptyCard: {
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 18,
+    padding: spacing.lg,
   },
   mdEmptyText: { color: c.textMuted, textAlign: 'center' },
   mdTxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     marginBottom: 8,
     gap: 10,
@@ -667,7 +671,7 @@ const mdStyles = StyleSheet.create({
   mdTxIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -686,7 +690,7 @@ const mdStyles = StyleSheet.create({
   mdDuesBanner: {
     marginTop: 14,
     backgroundColor: '#FFF7E8',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -695,7 +699,7 @@ const mdStyles = StyleSheet.create({
   mdDuesIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.container,
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',

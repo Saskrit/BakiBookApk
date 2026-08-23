@@ -6,6 +6,9 @@ import { createPayment } from '../../api/transactions';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText, Input, Screen, Subtitle, Title } from '../../components/ui';
 import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 const METHODS = [
@@ -78,11 +81,11 @@ export default function RecordPaymentScreen({ route, navigation }: Props) {
 
 const rpStyles = StyleSheet.create({
   rpLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8 },
-  rpMethodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  rpMethodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.md },
   rpMethodChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: radius.container,
     borderWidth: 1,
     borderColor: colors.border,
     color: colors.text,

@@ -97,7 +97,13 @@ Write-Host "ANDROID_HOME=$sdk"
 Write-Host "Working directory=$workRoot"
 
 $adb = Join-Path $sdk 'platform-tools\adb.exe'
-$devices = & $adb devices 2>&1 | Select-String '\tdevice$'
+# adb prints "daemon not running; starting now" on stderr — PowerShell treats that as a terminating error.
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& $adb start-server 2>$null | Out-Null
+$deviceLines = & $adb devices
+$ErrorActionPreference = $prevEap
+$devices = $deviceLines | Select-String '\tdevice$'
 
 if (-not $devices) {
   $emulator = Join-Path $sdk 'emulator\emulator.exe'

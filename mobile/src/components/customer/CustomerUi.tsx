@@ -8,7 +8,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { customerColors as c } from '../../theme/customerColors';
-import { typography as t } from '../../theme/typography';
+import { layout } from '../../theme/layout';
+import { radius } from '../../theme/radius';
+import { spacing } from '../../theme/spacing';
+import { typeScale } from '../../theme/typography';
 
 export function CustomerScreen({
   children,
@@ -111,29 +114,29 @@ const cuiStyles = StyleSheet.create({
   cuiScreen: { flex: 1, backgroundColor: c.cream },
   cuiCard: {
     backgroundColor: c.white,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: c.border,
   },
   cuiTitle: {
-    fontSize: t.xxl,
-    fontWeight: '800',
+    ...typeScale.h2,
     color: c.text,
-    letterSpacing: -0.3,
   },
   cuiSubtitle: {
-    fontSize: t.bodyLg,
+    ...typeScale.bodySmall,
     color: c.textMuted,
-    marginTop: 4,
-    marginBottom: 16,
+    marginTop: spacing.xxs,
+    marginBottom: spacing.md,
   },
   cuiBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: radius.button,
+    minHeight: layout.buttonHeight,
+    paddingHorizontal: layout.buttonPaddingX,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
   },
   cuiBtnPrimary: { backgroundColor: c.peach },
   cuiBtnSecondary: { backgroundColor: c.sand },
@@ -145,12 +148,12 @@ const cuiStyles = StyleSheet.create({
   cuiBtnDanger: { backgroundColor: c.danger },
   cuiBtnDisabled: { opacity: 0.55 },
   cuiBtnPressed: { opacity: 0.88 },
-  cuiBtnText: { color: c.white, fontWeight: '800', fontSize: t.bodyLg },
+  cuiBtnText: { ...typeScale.buttonLarge, color: c.white },
   cuiStatCard: {
     flex: 1,
     backgroundColor: c.white,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.sm,
     borderWidth: 1,
     borderColor: c.border,
   },
@@ -158,11 +161,10 @@ const cuiStyles = StyleSheet.create({
     backgroundColor: c.sky,
     borderColor: 'rgba(207,235,255,0.9)',
   },
-  cuiStatLabel: { fontSize: t.sm, color: c.textMuted, fontWeight: '600' },
+  cuiStatLabel: { ...typeScale.captionMedium, color: c.textMuted },
   cuiStatValue: {
-    marginTop: 6,
-    fontSize: t.xl,
-    fontWeight: '800',
+    marginTop: spacing.xs,
+    ...typeScale.h3,
     color: c.text,
   },
   cuiStatValueAccent: { color: c.peachDark },

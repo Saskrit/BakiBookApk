@@ -24,6 +24,8 @@ import {
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+
 import { formatRelativeTime, formatRs } from '../../utils/format';
 import type { ShopProduct } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -213,7 +215,7 @@ export default function ProductsScreen() {
         data={products}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 16 }}
         ListEmptyComponent={<Text style={prStyles.prEmpty}>{t('products.empty')}</Text>}
         renderItem={({ item }) => (
           <Pressable
@@ -287,8 +289,8 @@ const prStyles = StyleSheet.create({
   prScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   prHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -333,11 +335,11 @@ const prStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 14,
+    padding: spacing.md,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ECEEF2',
-    gap: 12,
+    gap: spacing.sm,
   },
   prRowIcon: {
     width: 44,
@@ -368,8 +370,8 @@ const prStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: ty.md,
     color: colors.text,
   },

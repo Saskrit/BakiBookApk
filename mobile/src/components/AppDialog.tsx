@@ -7,6 +7,9 @@ import {
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { radius } from '../theme/radius';
+
 import type { DialogButton } from '../contexts/DialogContext';
 
 type Props = {
@@ -171,16 +174,16 @@ const adlgStyles = StyleSheet.create({
     backgroundColor: 'rgba(45, 51, 25, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.lg,
   },
   adlgCard: {
     width: '100%',
     maxWidth: 340,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 18,
+    borderRadius: radius.container,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
     alignItems: 'center',
     shadowColor: '#2D3319',
     shadowOffset: { width: 0, height: 12 },
@@ -194,7 +197,7 @@ const adlgStyles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   adlgTitle: {
     fontSize: 18,
@@ -256,7 +259,7 @@ const adlgStyles = StyleSheet.create({
     marginTop: 4,
   },
   adlgStackBtn: {
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     backgroundColor: '#FAFAFA',
   },

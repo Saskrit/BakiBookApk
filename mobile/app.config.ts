@@ -26,13 +26,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/icon.png',
         monochromeImage: './assets/android-icon-monochrome.png',
       },
-      permissions: ['CAMERA'],
+      permissions: [
+        'CAMERA',
+        'READ_MEDIA_IMAGES',
+        'READ_MEDIA_VISUAL_USER_SELECTED',
+        'READ_EXTERNAL_STORAGE',
+      ],
       predictiveBackGestureEnabled: false,
     },
     web: {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      'expo-font',
       './plugins/withBakiBookAndroid.js',
       [
         'expo-camera',

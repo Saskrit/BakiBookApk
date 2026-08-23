@@ -7,7 +7,10 @@ const generateToken = (userId, role) => {
     throw new Error('JWT_SECRET is not configured');
   }
 
-  return jwt.sign({ id: userId, role }, secret, { expiresIn: '30d' });
+  // Keep users signed in for 30 days unless overridden by env.
+  const expiresIn = process.env.JWT_EXPIRES_IN || '30d';
+
+  return jwt.sign({ id: userId, role }, secret, { expiresIn });
 };
 
 export default generateToken;

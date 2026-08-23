@@ -17,6 +17,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { customerColors as cc } from '../../theme/customerColors';
 import { colors } from '../../theme/colors';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs } from '../../utils/format';
 import type { AppNotification } from '../../types/notification';
 import type { RootStackParamList } from '../../navigation/types';
@@ -557,14 +561,19 @@ export default function NotificationsScreen({ navigation }: Props) {
 const ntStyles = StyleSheet.create({
   ntScreen: { flex: 1 },
   ntCustomerHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 8,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EEF2F7',
   },
   ntCustomerHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  ntCustomerTitle: { fontSize: 28, fontWeight: '800' },
+  ntCustomerTitle: {
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
+  },
   ntCustomerSubtitle: { marginTop: 4, fontSize: 13, fontWeight: '600' },
   ntSettingsBtn: {
     width: 40,
@@ -575,7 +584,7 @@ const ntStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ntCatRow: { gap: 8, paddingVertical: 12 },
+  ntCatRow: { gap: 8, paddingVertical: spacing.sm },
   ntCatChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -591,10 +600,10 @@ const ntStyles = StyleSheet.create({
   ntMarkAllRow: { alignSelf: 'flex-end', marginBottom: 4 },
   ntMarkAllLink: { color: '#F97316', fontWeight: '800', fontSize: 12 },
   ntHeader: {
-    paddingHorizontal: 18,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: radius.container,
+    borderBottomRightRadius: radius.container,
   },
   ntHeaderRow: {
     flexDirection: 'row',
@@ -615,9 +624,15 @@ const ntStyles = StyleSheet.create({
   },
   ntLiveDot: { width: 8, height: 8, borderRadius: 4 },
   ntLiveText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  ntTitle: { color: '#FFF', fontSize: 28, fontWeight: '800' },
+  ntTitle: {
+    color: '#FFF',
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
+  },
   ntSubtitle: { color: 'rgba(255,255,255,0.9)', marginTop: 4, fontSize: 14 },
-  ntList: { padding: 16, gap: 10 },
+  ntList: { padding: spacing.md, gap: 10 },
   ntSectionHeader: {
     marginTop: 8,
     marginBottom: 4,
@@ -627,7 +642,7 @@ const ntStyles = StyleSheet.create({
   },
   ntEmptyCard: {
     marginTop: 24,
-    borderRadius: 18,
+    borderRadius: radius.container,
     borderWidth: 1,
     padding: 20,
   },
@@ -635,9 +650,9 @@ const ntStyles = StyleSheet.create({
   ntEmptyBody: { fontSize: 14, lineHeight: 20 },
   ntCard: {
     flexDirection: 'row',
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
-    padding: 14,
+    padding: spacing.md,
     marginBottom: 10,
     alignItems: 'center',
     gap: 10,
@@ -645,7 +660,7 @@ const ntStyles = StyleSheet.create({
   ntIconBubble: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -671,8 +686,8 @@ const ntStyles = StyleSheet.create({
   ntEnableCard: {
     marginTop: 8,
     backgroundColor: '#FEFCE8',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

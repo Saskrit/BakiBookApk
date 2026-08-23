@@ -37,8 +37,7 @@ export const sendWelcomeEmail = async ({ fullName, email, role }) => {
   const html = baseTemplate(
     `Welcome, ${fullName}!`,
     `<p>Your BakiBook account has been created as a <strong>${roleLabel}</strong>.</p>
-     <p>You can now manage credit, track payments, and build trust with every transaction.</p>
-     <p>Please verify your email address using the link we sent separately to activate your account fully.</p>`
+     <p>You can now manage credit, track payments, and build trust with every transaction.</p>`
   );
 
   await getTransporter().sendMail({
@@ -49,22 +48,29 @@ export const sendWelcomeEmail = async ({ fullName, email, role }) => {
   });
 };
 
-export const sendVerificationEmail = async ({ fullName, email }, rawToken) => {
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-  const verifyUrl = `${clientUrl}/verify-email/${rawToken}`;
+export const sendVerificationEmail = async ({ fullName, email }, rawTokenOrCode) => {
+  const isCode = /^\d{6}$/.test(String(rawTokenOrCode || ''));
 
-  const html = baseTemplate(
-    'Verify Your Email',
-    `<p>Hi ${fullName},</p>
-     <p>Click the button below to verify your email address for BakiBook:</p>
-     <a class="btn" href="${verifyUrl}">Verify Email</a>
-     <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 24 hours.<br/>If you did not create an account, you can ignore this email.</p>`
-  );
+  const content = isCode
+    ? `<p>Hi ${fullName},</p>
+       <p>Enter this verification code in BakiBook to finish creating your account:</p>
+       <div style="margin:24px 0;padding:16px;text-align:center;background:#FBF6F6;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#454040;">${rawTokenOrCode}</div>
+       <p style="font-size:13px;color:#666;">This code expires in 15 minutes.<br/>If you did not try to create an account, you can ignore this email.</p>`
+    : (() => {
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+        const verifyUrl = `${clientUrl}/verify-email/${rawTokenOrCode}`;
+        return `       <p>Hi ${fullName},</p>
+       <p>Click the button below to verify your existing BakiBook account email (one-time link):</p>
+       <a class="btn" href="${verifyUrl}">Verify Email</a>
+       <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 24 hours.<br/>New signups use a 6-digit code instead of this link.</p>`;
+      })();
+
+  const html = baseTemplate('Verify Your Email', content);
 
   await getTransporter().sendMail({
     from: fromAddress(),
     to: email,
-    subject: 'Verify your BakiBook email',
+    subject: isCode ? 'Your BakiBook verification code' : 'Verify your BakiBook email',
     html,
   });
 };

@@ -7,6 +7,23 @@ const TOKEN_KEY = 'bakibook_token';
 
 let authToken: string | null = null;
 
+export class ApiError extends Error {
+  status?: number;
+  code?: string;
+  data?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    options?: { status?: number; code?: string; data?: Record<string, unknown> }
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = options?.status;
+    this.code = options?.code;
+    this.data = options?.data;
+  }
+}
+
 export async function loadToken() {
   authToken = await AsyncStorage.getItem(TOKEN_KEY);
   return authToken;
@@ -32,7 +49,7 @@ export async function request<T = unknown>(
   options: RequestInit = {}
 ): Promise<T> {
   if (!API_BASE_URL) {
-    throw new Error(i18n.t('errors.notConfigured'));
+    throw new ApiError(i18n.t('errors.notConfigured'));
   }
 
   if (!authToken) {
@@ -55,7 +72,7 @@ export async function request<T = unknown>(
       headers,
     });
   } catch {
-    throw new Error(i18n.t('errors.network'));
+    throw new ApiError(i18n.t('errors.network'));
   }
 
   const data = await response.json().catch(() => ({}));
@@ -65,12 +82,24 @@ export async function request<T = unknown>(
     const code = (data as { code?: string }).code;
     if (response.status === 503 && code === 'MAINTENANCE') {
       notifyMaintenanceMode(message || i18n.t('maintenance.defaultMessage'));
-      throw new Error(message || i18n.t('maintenance.defaultMessage'));
+      throw new ApiError(message || i18n.t('maintenance.defaultMessage'), {
+        status: response.status,
+        code,
+        data: data as Record<string, unknown>,
+      });
     }
     if (response.status === 404) {
-      throw new Error(message || i18n.t('errors.featureUnavailable'));
+      throw new ApiError(message || i18n.t('errors.featureUnavailable'), {
+        status: response.status,
+        code,
+        data: data as Record<string, unknown>,
+      });
     }
-    throw new Error(message || i18n.t('errors.generic'));
+    throw new ApiError(message || i18n.t('errors.generic'), {
+      status: response.status,
+      code,
+      data: data as Record<string, unknown>,
+    });
   }
 
   return data as T;

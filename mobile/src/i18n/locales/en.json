@@ -137,7 +137,7 @@
     "placeholderEmail": "Enter your email address",
     "placeholderCreatePassword": "Create a password",
     "register": "Register",
-    "loginNow": "Login Now",
+    "loginNow": "Log in now",
     "googleSignUpFailed": "Google sign-up failed",
     "signingInWithGoogle": "Signing in with Google…",
     "tagline": "Manage Credit. Build Trust. Grow Together.",
@@ -153,7 +153,29 @@
     "googleNoToken": "Google sign-in did not return a token. Check your Google OAuth client setup.",
     "googleInProgress": "Google sign-in is already in progress",
     "googlePlayServicesUnavailable": "Google Play Services is not available on this device",
-    "googleTryAgain": "Google sign-in failed. Please try again."
+    "googleTryAgain": "Google sign-in failed. Please try again.",
+    "createAccount": "Create account",
+    "chooseRoleSubtitle": "Choose your role to get started",
+    "chooseRoleFirst": "Please choose your role first",
+    "shopkeeperRoleHint": "Run your shop, add customers, and manage credit",
+    "customerRoleHint": "Track your dues and send payment proofs",
+    "registerAsRole": "Registering as {{role}}",
+    "verifyEmailTitle": "Verify your email",
+    "verifyEmailSubtitle": "We sent a 6-digit code to {{email}}",
+    "enterVerificationCode": "Enter the 6-digit verification code",
+    "verifyAndContinue": "Verify and continue",
+    "resendCode": "Resend code",
+    "resendingCode": "Sending code…",
+    "codeResent": "A new code was sent",
+    "verifyFailed": "Verification failed",
+    "resendFailed": "Could not resend the code",
+    "legacyVerifyTitle": "Verify your email",
+    "legacyVerifyLinkSent": "We sent a one-time verification link to your email. Open the link, then sign in again. New signups use a code instead.",
+    "legacyVerifyLinkFailed": "We could not send the verification link. Tap Resend verification link below.",
+    "resendVerificationLink": "Resend verification link",
+    "resendingLink": "Sending link…",
+    "resendLinkFailed": "Could not resend the verification link",
+    "enterEmailAndPassword": "Enter your email and password first"
   },
   "splash": {
     "tagline": "Digital Credit Management Made Simple",
@@ -178,7 +200,24 @@
     "productName": "Product name *",
     "namePlaceholder": "e.g. Rice 1kg",
     "defaultPrice": "Default price (optional)",
-    "pricePlaceholder": "Leave blank if price varies"
+    "pricePlaceholder": "Leave blank if price varies",
+    "enterProductName": "Enter product name",
+    "productHint": "Type a name or tap search to pick from your catalog",
+    "addProductFailed": "Could not add product",
+    "searchProducts": "Search products",
+    "searchProductsTitle": "Search products",
+    "searchByProductName": "Search by product name",
+    "searching": "Searching…",
+    "noProductsFound": "No products found",
+    "noMatchFor": "No match for \"{{name}}\"",
+    "noSavedProducts": "No saved products yet",
+    "adding": "Adding…",
+    "addToCatalog": "Add \"{{name}}\" to catalog",
+    "useProductName": "Use \"{{name}}\"",
+    "usedTimes": "Used {{count}} times",
+    "enterProductname": "Enter product name",
+    "produceHint": "Type a name or tap search to pick from your catalog",
+    "producehint": "Type a name or tap search to pick from your catalog"
   },
   "upload": {
     "photoLibraryRequired": "Photo library access is required to choose an image",
@@ -484,7 +523,7 @@
     "myLedgerSubtitle": "All your transactions in one place",
     "currentOutstanding": "Current Outstanding",
     "viewSummary": "View Summary",
-    "tabAll": "All Transactions",
+    "tabAll": "All",
     "tabCredits": "Credits",
     "tabPayments": "Payments",
     "searchLedger": "Search transactions, shops...",
@@ -583,7 +622,6 @@
     "reportedOn": "Reported on {{date}}",
     "receiptNo": "Receipt: {{id}}",
     "txnId": "Txn ID: {{id}}",
-    "tabAll": "All",
     "allPayments": "All Payments",
     "paymentsCount_one": "{{count}} payment",
     "paymentsCount_other": "{{count}} payments",
@@ -1303,7 +1341,9 @@
     "shopDetails": "Shop details",
     "location": "Location",
     "owner": "Owner",
-    "editProfilePhotos": "Edit profile & photos"
+    "editProfilePhotos": "Edit profile & photos",
+    "tapToChangePhoto": "Tap a photo to change it",
+    "photoSaved": "Photo saved"
   },
   "legal": {
     "lastUpdated": "Last updated {{date}}",
@@ -1318,6 +1358,9 @@
   "emailBanner": {
     "title": "Verify your email",
     "body": "Please verify {{email}} to unlock all features.",
-    "resend": "Resend email"
+    "resend": "Resend verification link",
+    "refresh": "I've verified — refresh",
+    "linkSent": "We sent a verification link to {{email}}. Open it, then tap refresh.",
+    "resendFailed": "Could not send the verification email. Check your connection and try again."
   }
 }

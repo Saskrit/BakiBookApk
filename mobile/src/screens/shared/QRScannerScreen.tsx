@@ -28,6 +28,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as cc } from '../../theme/customerColors';
 import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type {
   CustomerTabParamList,
   RootStackParamList,
@@ -502,7 +505,7 @@ const qrStyles = StyleSheet.create({
   },
   qrTab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
@@ -516,7 +519,7 @@ const qrStyles = StyleSheet.create({
     alignSelf: 'center',
     width: 240,
     height: 240,
-    borderRadius: 24,
+    borderRadius: radius.container,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.85)',
   },
@@ -528,7 +531,7 @@ const qrStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 16,
+    padding: spacing.md,
   },
   qrInstruction: {
     fontSize: 15,
@@ -541,15 +544,15 @@ const qrStyles = StyleSheet.create({
   qrCenterCard: {
     margin: 24,
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  qrHelp: { marginBottom: 14, color: '#334155', textAlign: 'center', fontWeight: '600' },
+  qrHelp: { marginBottom: spacing.md, color: '#334155', textAlign: 'center', fontWeight: '600' },
   qrPrimaryBtn: {
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   qrPrimaryBtnText: { color: '#FFF', fontWeight: '800' },
@@ -572,7 +575,7 @@ const qrStyles = StyleSheet.create({
   qrQrCard: {
     marginTop: 20,
     backgroundColor: '#FFF',
-    borderRadius: 24,
+    borderRadius: radius.container,
     padding: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -605,8 +608,8 @@ const qrStyles = StyleSheet.create({
   },
   qrActionBtn: {
     flex: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   qrActionBtnText: { fontWeight: '800', fontSize: 14 },
@@ -618,7 +621,7 @@ const qrStyles = StyleSheet.create({
   },
   qrModalCard: {
     backgroundColor: '#FFF',
-    borderRadius: 20,
+    borderRadius: radius.container,
     padding: 20,
   },
   qrModalEyebrow: {
@@ -647,14 +650,14 @@ const qrStyles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   qrModalCancelText: { fontWeight: '800', color: '#64748B' },
   qrModalConfirm: {
     flex: 1,
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   qrModalConfirmText: { fontWeight: '800', color: '#FFF' },

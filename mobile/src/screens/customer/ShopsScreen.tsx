@@ -22,6 +22,10 @@ import { fetchPortalDashboard, fetchPendingLinks } from '../../api/portal';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs } from '../../utils/format';
 import type { CustomerTabParamList, RootStackParamList } from '../../navigation/types';
 
@@ -459,13 +463,19 @@ export default function ShopsScreen() {
 
 const shStyles = StyleSheet.create({
   shScreen: { flex: 1, backgroundColor: '#F7F8FC' },
-  shContent: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
+  shContent: { paddingHorizontal: spacing.md, paddingTop: 8, gap: spacing.sm },
   shHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
-  shTitle: { fontSize: 28, fontWeight: '800', color: '#1E293B', letterSpacing: -0.4 },
+  shTitle: {
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
   shSubtitle: { marginTop: 4, fontSize: 13, color: '#64748B', lineHeight: 18 },
   shAddBtn: {
     flexDirection: 'row',
@@ -481,10 +491,10 @@ const shStyles = StyleSheet.create({
   shAddBtnText: { color: '#F97316', fontWeight: '800', fontSize: 12 },
   shSummaryCard: {
     backgroundColor: '#EEF2F7',
-    borderRadius: 20,
-    padding: 14,
+    borderRadius: radius.container,
+    padding: spacing.md,
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.sm,
     marginBottom: 4,
   },
   shSummaryLeft: { flex: 1.2 },
@@ -500,10 +510,11 @@ const shStyles = StyleSheet.create({
   shSummaryLabel: { fontSize: 12, fontWeight: '700', color: '#64748B' },
   shSummaryAmount: {
     marginTop: 4,
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
     color: '#2563EB',
-    letterSpacing: -0.3,
   },
   shSummaryMeta: { marginTop: 2, fontSize: 12, color: '#94A3B8', fontWeight: '600' },
   shStatBox: {
@@ -561,19 +572,19 @@ const shStyles = StyleSheet.create({
     fontWeight: '700',
     color: '#F97316',
   },
-  shEmptyWrap: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  shEmptyWrap: { alignItems: 'center', paddingVertical: 40, gap: spacing.sm },
   shEmpty: { textAlign: 'center', color: '#64748B', lineHeight: 20 },
   shEmptyBtn: {
     borderRadius: 999,
     backgroundColor: '#F97316',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   shEmptyBtnText: { color: '#FFF', fontWeight: '800' },
   shShopCard: {
     backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: radius.container,
+    padding: spacing.md,
     shadowColor: '#0F172A',
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -619,7 +630,7 @@ const shStyles = StyleSheet.create({
   shTipBanner: {
     marginTop: 6,
     backgroundColor: '#EAF2FF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -628,7 +639,7 @@ const shStyles = StyleSheet.create({
   shTipIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.container,
     backgroundColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',

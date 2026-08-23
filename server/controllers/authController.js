@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
+import PendingRegistration from '../models/PendingRegistration.js';
 import Customer from '../models/Customer.js';
 import generateToken from '../utils/generateToken.js';
 import { createEmailToken, hashToken } from '../utils/emailToken.js';
@@ -153,7 +154,7 @@ const sendRegistrationEmails = async (user, rawVerificationToken) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const { role, fullName, email, profileImage, shopName, shopLocation, shopImage, password } = req.body;
+    const { role, fullName, email, password } = req.body;
 
     if (!role || !['shopkeeper', 'customer'].includes(role)) {
       return res.status(400).json({ success: false, message: 'Invalid role selected' });
@@ -178,64 +179,51 @@ export const registerUser = async (req, res) => {
       return res.status(emailCheck.status).json({ success: false, message: emailCheck.message });
     }
 
-    const rawVerificationToken = createEmailToken();
+    const code = String(crypto.randomInt(100000, 999999));
+    const passwordHash = await PendingRegistration.hashPassword(password);
 
-    const resolvedProfileImage = await resolveImageUrl(profileImage, 'profiles');
-    const resolvedShopImage =
-      role === 'shopkeeper' && shopImage
-        ? await resolveImageUrl(shopImage, 'shops')
-        : '';
+    await PendingRegistration.findOneAndUpdate(
+      { email: normalizedEmail, role },
+      {
+        role,
+        fullName: fullName.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        codeHash: hashToken(code),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        attempts: 0,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-    const shopComplete =
-      role === 'shopkeeper' &&
-      shopName?.trim() &&
-      shopLocation?.trim() &&
-      resolvedShopImage;
-
-    const user = await User.create({
-      role,
-      fullName: fullName.trim(),
-      profileImage: resolvedProfileImage,
-      email: normalizedEmail,
-      shopName: role === 'shopkeeper' ? (shopName?.trim() || '') : '',
-      shopLocation: role === 'shopkeeper' ? (shopLocation?.trim() || '') : '',
-      shopImage: resolvedShopImage,
-      shopVerificationStatus: shopComplete ? 'pending' : 'incomplete',
-      isShopVerified: false,
-      password,
-      emailVerificationToken: hashToken(rawVerificationToken),
-      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
-    });
-
-    // Do not block signup on SMTP — Gmail from Railway can take 30–120s.
-    sendRegistrationEmails(user, rawVerificationToken).catch((error) => {
-      console.error(`Failed to send registration email to ${user.email}:`, error.message);
-    });
-
-    let pendingLinkCount = 0;
-    if (role === 'customer') {
-      pendingLinkCount = await getCustomerPendingLinkCount(user);
-      notifyPendingInvitationsForUser(user).catch((error) => {
-        console.error(`Failed to notify pending invitations for ${user.email}:`, error.message);
-      });
-    } else if (shopComplete) {
-      notifyAdminsShopPending(user).catch((error) => {
-        console.error('Failed to notify admins about shop verification:', error.message);
-      });
+    let emailSent = true;
+    try {
+      await sendVerificationEmail(
+        { fullName: fullName.trim(), email: normalizedEmail },
+        code
+      );
+    } catch (emailError) {
+      emailSent = false;
+      console.error(
+        `Failed to send registration code to ${normalizedEmail}:`,
+        emailError.message
+      );
     }
 
-    const token = generateToken(user._id, user.role);
-
-    return res.status(201).json({
+    // Always continue to code verification — pending signup is saved even if SMTP fails.
+    // User can tap Resend on the verify screen.
+    return res.status(200).json({
       success: true,
-      message: 'Account created! Please check your email to verify your account.',
-      token,
-      user: formatUser(user),
-      pendingLinkCount,
+      requiresVerification: true,
+      emailSent,
+      message: emailSent
+        ? 'We sent a verification code to your email. Enter it to finish creating your account.'
+        : 'Your signup is saved, but the email could not be sent. Tap Resend code on the next screen.',
+      email: normalizedEmail,
+      role,
     });
   } catch (error) {
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern || {})[0];
       return res.status(409).json({
         success: false,
         message: 'Email address is already registered',
@@ -245,6 +233,151 @@ export const registerUser = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || 'Registration failed',
+    });
+  }
+};
+
+export const verifyRegistration = async (req, res) => {
+  try {
+    const { email, role, code } = req.body;
+    const normalizedEmail = email?.trim()?.toLowerCase();
+    const trimmedCode = String(code || '').trim();
+
+    if (!role || !['shopkeeper', 'customer'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role selected' });
+    }
+    if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
+    }
+    if (!/^\d{6}$/.test(trimmedCode)) {
+      return res.status(400).json({ success: false, message: 'Enter the 6-digit verification code' });
+    }
+
+    const pending = await PendingRegistration.findOne({ email: normalizedEmail, role }).select(
+      '+passwordHash +codeHash'
+    );
+
+    if (!pending || pending.expiresAt.getTime() < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code expired. Please register again.',
+      });
+    }
+
+    if (pending.attempts >= 8) {
+      await PendingRegistration.deleteOne({ _id: pending._id });
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect attempts. Please register again.',
+      });
+    }
+
+    if (pending.codeHash !== hashToken(trimmedCode)) {
+      pending.attempts += 1;
+      await pending.save();
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+    }
+
+    const emailCheck = await assertEmailAvailableForRole(normalizedEmail, role);
+    if (!emailCheck.ok) {
+      await PendingRegistration.deleteOne({ _id: pending._id });
+      return res.status(emailCheck.status).json({ success: false, message: emailCheck.message });
+    }
+
+    const user = await User.create({
+      role,
+      fullName: pending.fullName,
+      email: normalizedEmail,
+      password: crypto.randomBytes(16).toString('hex'),
+      authProvider: 'local',
+      isEmailVerified: true,
+      shopVerificationStatus: 'incomplete',
+      isShopVerified: false,
+    });
+
+    await User.collection.updateOne(
+      { _id: user._id },
+      { $set: { password: pending.passwordHash } }
+    );
+
+    await PendingRegistration.deleteOne({ _id: pending._id });
+
+    sendWelcomeEmail(user).catch((error) => {
+      console.error(`Failed to send welcome email to ${user.email}:`, error.message);
+    });
+
+    let pendingLinkCount = 0;
+    if (role === 'customer') {
+      pendingLinkCount = await getCustomerPendingLinkCount(user);
+      notifyPendingInvitationsForUser(user).catch((error) => {
+        console.error(`Failed to notify pending invitations for ${user.email}:`, error.message);
+      });
+    }
+
+    const token = generateToken(user._id, user.role);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Email verified. Your account is ready.',
+      token,
+      user: formatUser(user),
+      pendingLinkCount,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email address is already registered',
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Verification failed',
+    });
+  }
+};
+
+export const resendRegistrationCode = async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    const normalizedEmail = email?.trim()?.toLowerCase();
+
+    if (!role || !['shopkeeper', 'customer'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role selected' });
+    }
+    if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
+    }
+
+    const pending = await PendingRegistration.findOne({ email: normalizedEmail, role }).select(
+      '+passwordHash +codeHash'
+    );
+
+    if (!pending) {
+      return res.status(404).json({
+        success: false,
+        message: 'No pending registration found. Please sign up again.',
+      });
+    }
+
+    const code = String(crypto.randomInt(100000, 999999));
+    pending.codeHash = hashToken(code);
+    pending.expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    pending.attempts = 0;
+    await pending.save();
+
+    await sendVerificationEmail({ fullName: pending.fullName, email: normalizedEmail }, code);
+
+    return res.json({
+      success: true,
+      message: 'A new verification code was sent to your email.',
+      email: normalizedEmail,
+      role,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to resend verification code',
     });
   }
 };
@@ -316,6 +449,33 @@ export const loginUser = async (req, res) => {
       matchedUsers.find((candidate) => candidate.role === 'shopkeeper') ||
       matchedUsers[0];
 
+    if (user.authProvider !== 'google' && !user.isEmailVerified) {
+      // Legacy accounts (created before code-based signup): send a one-time verify link.
+      // New signups never create a User until the register code is verified.
+      let linkSent = false;
+      try {
+        await issueLegacyVerificationLink(user);
+        linkSent = true;
+      } catch (emailError) {
+        console.error(
+          `Failed to send legacy verification link to ${user.email}:`,
+          emailError.message
+        );
+      }
+
+      return res.status(403).json({
+        success: false,
+        requiresVerification: true,
+        verificationMethod: 'link',
+        linkSent,
+        email: user.email,
+        role: user.role,
+        message: linkSent
+          ? 'Your account still needs email verification. We sent a one-time verification link to your email. Open it, then sign in again.'
+          : 'Your account still needs email verification. We could not send the link just now — tap Resend verification link and try again.',
+      });
+    }
+
     if (user.role === 'customer') {
       notifyPendingInvitationsForUser(user).catch((error) => {
         console.error(`Failed to notify pending invitations for ${user.email}:`, error.message);
@@ -371,6 +531,23 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
+/** Issue a one-time email verification link for existing (legacy) unverified users. */
+async function issueLegacyVerificationLink(user) {
+  const rawVerificationToken = createEmailToken();
+  user.emailVerificationToken = hashToken(rawVerificationToken);
+  user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  await user.save();
+  await sendVerificationEmail(
+    { fullName: user.fullName, email: user.email },
+    rawVerificationToken
+  );
+  return rawVerificationToken;
+}
+
+/**
+ * Authenticated resend — link for legacy unverified accounts only.
+ * New signups use /register/resend-code (6-digit codes) instead.
+ */
 export const resendVerificationEmail = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
@@ -385,21 +562,74 @@ export const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email is already verified' });
     }
 
-    const rawVerificationToken = createEmailToken();
-    user.emailVerificationToken = hashToken(rawVerificationToken);
-    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
-    await user.save();
-
-    await sendVerificationEmail(user, rawVerificationToken);
+    await issueLegacyVerificationLink(user);
 
     return res.json({
       success: true,
-      message: 'Verification email sent! Please check your inbox.',
+      verificationMethod: 'link',
+      message: 'Verification link sent! Please check your inbox.',
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to resend verification email',
+    });
+  }
+};
+
+/**
+ * Public resend for legacy unverified users who cannot sign in yet.
+ * Requires email + password so only the account owner can request the link.
+ * New registrations should use /register/resend-code (codes), not this endpoint.
+ */
+export const resendVerificationLink = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const normalizedEmail = email?.trim()?.toLowerCase();
+
+    if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      '+password +emailVerificationToken +emailVerificationExpires'
+    );
+
+    // Same generic response when missing / wrong password to avoid account enumeration.
+    const deny = () =>
+      res.status(400).json({
+        success: false,
+        message: 'If this account needs verification, check your email or confirm your password and try again.',
+      });
+
+    if (!user || user.authProvider === 'google' || !user.password) {
+      return deny();
+    }
+    if (!(await user.matchPassword(password))) {
+      return deny();
+    }
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: 'This email is already verified. You can sign in.',
+      });
+    }
+
+    await issueLegacyVerificationLink(user);
+
+    return res.json({
+      success: true,
+      verificationMethod: 'link',
+      email: user.email,
+      message: 'We sent a one-time verification link to your email. Open it, then sign in.',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send verification link',
     });
   }
 };

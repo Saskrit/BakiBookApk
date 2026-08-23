@@ -15,7 +15,10 @@ import {
 } from '../../features/tutorial/catalog';
 import { chapterAccent } from '../../features/tutorial/TutorialIllustration';
 import { colors } from '../../theme/colors';
-import { typography as typo } from '../../theme/typography';
+import { typography as typo, typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Tutorial'>;
@@ -174,9 +177,9 @@ const tuStyles = StyleSheet.create({
   tuSkipAll: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
   tuTitle: {
     color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontSize: typo.h1,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
   },
   tuSubtitle: {
     color: colors.textMuted,
@@ -188,10 +191,10 @@ const tuStyles = StyleSheet.create({
   tuProgressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
     backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 14,
+    borderRadius: radius.container,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
@@ -214,7 +217,7 @@ const tuStyles = StyleSheet.create({
   },
   tuBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 999 },
   tuProgressMeta: { color: colors.textMuted, marginTop: 6, fontSize: typo.caption },
-  tuContent: { padding: 16, gap: 12 },
+  tuContent: { padding: spacing.md, gap: spacing.sm },
   tuSectionLabel: {
     fontSize: 12,
     fontWeight: '800',
@@ -227,16 +230,16 @@ const tuStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 20,
+    borderRadius: radius.container,
     padding: 12,
     borderWidth: 1,
     borderColor: '#ECEEF2',
-    gap: 12,
+    gap: spacing.sm,
   },
   tuMiniArt: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: radius.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -256,7 +259,7 @@ const tuStyles = StyleSheet.create({
   tuResetBtn: {
     marginTop: 8,
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
   },
   tuResetText: { color: colors.danger, fontWeight: '700' },
 });

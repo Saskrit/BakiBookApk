@@ -25,6 +25,9 @@ import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 export default function PersonalInfoScreen() {
@@ -366,7 +369,7 @@ const piStyles = StyleSheet.create({
   piScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   piFlex: { flex: 1 },
   piHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
@@ -383,11 +386,11 @@ const piStyles = StyleSheet.create({
     fontSize: ty.body,
     marginTop: 4,
   },
-  piContent: { padding: 16, paddingTop: 14, gap: 12 },
+  piContent: { padding: spacing.md, paddingTop: spacing.md, gap: spacing.sm },
   piCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.card,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#ECEEF2',
     gap: 10,
@@ -410,8 +413,8 @@ const piStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: ty.md,
     color: colors.text,
   },
@@ -421,8 +424,8 @@ const piStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   piReadonlyValue: {
     marginTop: 2,
@@ -457,9 +460,9 @@ const piStyles = StyleSheet.create({
   },
   piModalCard: {
     backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 18,
-    gap: 12,
+    borderRadius: radius.container,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   piModalTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text },
   piModalActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },

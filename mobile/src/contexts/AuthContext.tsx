@@ -6,10 +6,16 @@ import {
   googleAuth as apiGoogleAuth,
   login as apiLogin,
   register as apiRegister,
+  resendRegistrationCode as apiResendRegistrationCode,
   saveAuth,
+  verifyRegistration as apiVerifyRegistration,
 } from '../api/auth';
-import { loadToken } from '../api/client';
+import { ApiError, loadToken } from '../api/client';
 import type { User } from '../types';
+
+function isUnauthorized(err: unknown) {
+  return err instanceof ApiError && err.status === 401;
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -20,7 +26,16 @@ interface AuthContextValue {
     fullName: string;
     email: string;
     password: string;
+  }) => Promise<{ requiresVerification: true; email: string; role: 'shopkeeper' | 'customer' } | User>;
+  verifyRegistration: (payload: {
+    email: string;
+    role: 'shopkeeper' | 'customer';
+    code: string;
   }) => Promise<User>;
+  resendRegistrationCode: (payload: {
+    email: string;
+    role: 'shopkeeper' | 'customer';
+  }) => Promise<void>;
   googleSignIn: (payload: {
     credential: string;
     mode: 'login' | 'register';
@@ -42,12 +57,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await loadToken();
         const stored = await getStoredAuth();
-        if (stored) {
-          setUser(stored.user);
-          try {
-            const me = await fetchMe();
-            setUser(me.user);
-          } catch {
+        if (!stored) return;
+
+        // Restore session immediately so the user stays signed in for 30 days.
+        setUser(stored.user);
+        try {
+          const me = await fetchMe();
+          setUser(me.user);
+          await saveAuth(stored.token, me.user, undefined, {
+            sessionExpiresAt: stored.sessionExpiresAt,
+          });
+        } catch (err) {
+          // Only force logout when the token is invalid/expired — not on network blips.
+          if (isUnauthorized(err)) {
             await clearAuth();
             setUser(null);
           }
@@ -74,10 +96,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: string;
     }) => {
       const data = await apiRegister(payload);
+      if (data.requiresVerification || !data.token || !data.user) {
+        return {
+          requiresVerification: true as const,
+          email: data.email || payload.email.trim().toLowerCase(),
+          role: (data.role as 'shopkeeper' | 'customer') || payload.role,
+        };
+      }
       const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
       await saveAuth(data.token, nextUser, data.pendingLinkCount);
       setUser(nextUser);
       return nextUser;
+    },
+    []
+  );
+
+  const verifyRegistration = useCallback(
+    async (payload: {
+      email: string;
+      role: 'shopkeeper' | 'customer';
+      code: string;
+    }) => {
+      const data = await apiVerifyRegistration(payload);
+      const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
+      await saveAuth(data.token, nextUser, data.pendingLinkCount);
+      setUser(nextUser);
+      return nextUser;
+    },
+    []
+  );
+
+  const resendRegistrationCode = useCallback(
+    async (payload: { email: string; role: 'shopkeeper' | 'customer' }) => {
+      await apiResendRegistrationCode(payload);
     },
     []
   );
@@ -103,20 +154,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
+    const stored = await getStoredAuth();
     const me = await fetchMe();
     setUser(me.user);
-    await saveAuth((await getStoredAuth())?.token || '', me.user);
+    if (stored?.token) {
+      await saveAuth(stored.token, me.user, undefined, {
+        sessionExpiresAt: stored.sessionExpiresAt,
+      });
+    }
   }, []);
 
   const applyUser = useCallback(async (next: User) => {
     setUser(next);
-    const token = (await getStoredAuth())?.token || '';
-    if (token) await saveAuth(token, next);
+    const stored = await getStoredAuth();
+    if (stored?.token) {
+      await saveAuth(stored.token, next, undefined, {
+        sessionExpiresAt: stored.sessionExpiresAt,
+      });
+    }
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, googleSignIn, logout, refreshUser, applyUser }),
-    [user, loading, login, register, googleSignIn, logout, refreshUser, applyUser]
+    () => ({
+      user,
+      loading,
+      login,
+      register,
+      verifyRegistration,
+      resendRegistrationCode,
+      googleSignIn,
+      logout,
+      refreshUser,
+      applyUser,
+    }),
+    [
+      user,
+      loading,
+      login,
+      register,
+      verifyRegistration,
+      resendRegistrationCode,
+      googleSignIn,
+      logout,
+      refreshUser,
+      applyUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

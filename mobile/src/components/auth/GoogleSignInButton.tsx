@@ -8,6 +8,9 @@ import {
   isGoogleSignInAvailable,
 } from '../../utils/googleSignIn';
 import { colors } from '../../theme/colors';
+import { layout } from '../../theme/layout';
+
+import { spacing } from '../../theme/spacing';
 
 type Props = {
   disabled?: boolean;
@@ -77,14 +80,14 @@ const gsStyles = StyleSheet.create({
   },
   gsBtn: {
     width: '100%',
-    height: 48,
+    height: layout.buttonHeight,
   },
   gsLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
   },
   gsLoadingText: {
     fontSize: 14,

@@ -137,8 +137,8 @@
     "placeholderEmail": "आफ्नो इमेल ठेगाना लेख्नुहोस्",
     "placeholderCreatePassword": "पासवर्ड बनाउनुहोस्",
     "register": "दर्ता गर्नुहोस्",
-    "loginNow": "अहिले लगइन",
-    "googleSignUpFailed": "Google साइन-अप असफल",
+    "loginNow": "अहिले लगइन गर्नुहोस्",
+    "googleSignUpFailed": "Google साइन अप असफल भयो",
     "signingInWithGoogle": "Google बाट साइन इन हुँदै…",
     "tagline": "उधारो व्यवस्थापन गर्नुहोस्। विश्वास बनाउनुहोस्। सँगै बढ्नुहोस्।",
     "secureSafe": "सुरक्षित र सुरक्षित",
@@ -153,7 +153,29 @@
     "googleNoToken": "Google साइन-इनले टोकन फर्काएन। Google OAuth client सेटअप जाँच्नुहोस्।",
     "googleInProgress": "Google साइन-इन पहिले नै चलिरहेको छ",
     "googlePlayServicesUnavailable": "यो उपकरणमा Google Play Services उपलब्ध छैन",
-    "googleTryAgain": "Google साइन-इन असफल। कृपया फेरि प्रयास गर्नुहोस्।"
+    "googleTryAgain": "Google साइन-इन असफल। कृपया फेरि प्रयास गर्नुहोस्।",
+    "createAccount": "खाता बनाउनुहोस्",
+    "chooseRoleSubtitle": "सुरु गर्न आफ्नो भूमिका छान्नुहोस्",
+    "chooseRoleFirst": "पहिले आफ्नो भूमिका छान्नुहोस्",
+    "shopkeeperRoleHint": "पसल चलाउनुहोस्, ग्राहक थप्नुहोस्, र उधारो व्यवस्थापन गर्नुहोस्",
+    "customerRoleHint": "आफ्नो उधारो हेर्नुहोस् र भुक्तानी पठाउनुहोस्",
+    "registerAsRole": "{{role}} को रूपमा दर्ता",
+    "verifyEmailTitle": "इमेल प्रमाणित गर्नुहोस्",
+    "verifyEmailSubtitle": "हामीले {{email}} मा ६ अंकको कोड पठाएका छौं",
+    "enterVerificationCode": "६ अंकको प्रमाणीकरण कोड लेख्नुहोस्",
+    "verifyAndContinue": "प्रमाणित गरी अगाडि बढ्नुहोस्",
+    "resendCode": "कोड फेरि पठाउनुहोस्",
+    "resendingCode": "कोड पठाइँदै…",
+    "codeResent": "नयाँ कोड पठाइयो",
+    "verifyFailed": "प्रमाणीकरण असफल भयो",
+    "resendFailed": "कोड फेरि पठाउन सकिएन",
+    "legacyVerifyTitle": "इमेल प्रमाणित गर्नुहोस्",
+    "legacyVerifyLinkSent": "हामीले तपाईंको इमेलमा एकपटकको प्रमाणीकरण लिङ्क पठाएका छौं। लिङ्क खोल्नुहोस्, त्यसपछि फेरि साइन इन गर्नुहोस्। नयाँ दर्तामा कोड प्रयोग हुन्छ।",
+    "legacyVerifyLinkFailed": "प्रमाणीकरण लिङ्क पठाउन सकिएन। तलबाट फेरि पठाउनुहोस्।",
+    "resendVerificationLink": "प्रमाणीकरण लिङ्क फेरि पठाउनुहोस्",
+    "resendingLink": "लिङ्क पठाइँदै…",
+    "resendLinkFailed": "प्रमाणीकरण लिङ्क फेरि पठाउन सकिएन",
+    "enterEmailAndPassword": "पहिले इमेल र पासवर्ड लेख्नुहोस्"
   },
   "splash": {
     "tagline": "डिजिटल उधारो व्यवस्थापन सरल बनाइयो",
@@ -178,7 +200,24 @@
     "productName": "सामानको नाम *",
     "namePlaceholder": "जस्तै: चामल १ केजी",
     "defaultPrice": "पूर्वनिर्धारित मूल्य (वैकल्पिक)",
-    "pricePlaceholder": "मूल्य फरक भए खाली राख्नुहोस्"
+    "pricePlaceholder": "मूल्य फरक भए खाली राख्नुहोस्",
+    "enterProductName": "सामानको नाम लेख्नुहोस्",
+    "productHint": "नाम टाइप गर्नुहोस् वा क्याटलगबाट खोज्न सर्च थिच्नुहोस्",
+    "addProductFailed": "सामान थप्न सकिएन",
+    "searchProducts": "सामान खोज्नुहोस्",
+    "searchProductsTitle": "सामान खोज्नुहोस्",
+    "searchByProductName": "सामानको नामले खोज्नुहोस्",
+    "searching": "खोजिँदै…",
+    "noProductsFound": "सामान भेटिएन",
+    "noMatchFor": "\"{{name}}\" सँग मिल्ने सामान छैन",
+    "noSavedProducts": "अहिलेसम्म सेभ गरिएको सामान छैन",
+    "adding": "थपिँदै…",
+    "addToCatalog": "\"{{name}}\" क्याटलगमा थप्नुहोस्",
+    "useProductName": "\"{{name}}\" प्रयोग गर्नुहोस्",
+    "usedTimes": "{{count}} पटक प्रयोग",
+    "enterProductname": "सामानको नाम लेख्नुहोस्",
+    "produceHint": "नाम टाइप गर्नुहोस् वा क्याटलगबाट खोज्न सर्च थिच्नुहोस्",
+    "producehint": "नाम टाइप गर्नुहोस् वा क्याटलगबाट खोज्न सर्च थिच्नुहोस्"
   },
   "upload": {
     "photoLibraryRequired": "फोटो छान्न फोटो लाइब्रेरी पहुँच चाहिन्छ",
@@ -484,7 +523,7 @@
     "myLedgerSubtitle": "तपाईंका सबै लेनदेन एकै ठाउँमा",
     "currentOutstanding": "हालको बाँकी",
     "viewSummary": "सारांश हेर्नुहोस्",
-    "tabAll": "सबै लेनदेन",
+    "tabAll": "सबै",
     "tabCredits": "उधारो",
     "tabPayments": "भुक्तानी",
     "searchLedger": "लेनदेन, पसल खोज्नुहोस्...",
@@ -582,7 +621,6 @@
     "tabReported": "रिपोर्ट गरियो",
     "reportedOn": "{{date}} मा रिपोर्ट गरियो",
     "receiptNo": "रसिद: {{id}}",
-    "tabAll": "सबै",
     "allPayments": "सबै भुक्तानी",
     "paymentsCount_one": "{{count}} भुक्तानी",
     "paymentsCount_other": "{{count}} भुक्तानी",
@@ -1303,7 +1341,9 @@
     "shopDetails": "पसल विवरण",
     "location": "स्थान",
     "owner": "मालिक",
-    "editProfilePhotos": "प्रोफाइल र फोटो सम्पादन"
+    "editProfilePhotos": "प्रोफाइल र फोटो सम्पादन",
+    "tapToChangePhoto": "फोटो परिवर्तन गर्न ट्याप गर्नुहोस्",
+    "photoSaved": "फोटो सेभ भयो"
   },
   "legal": {
     "lastUpdated": "अन्तिम अपडेट {{date}}",
@@ -1318,6 +1358,9 @@
   "emailBanner": {
     "title": "आफ्नो इमेल प्रमाणित गर्नुहोस्",
     "body": "सबै सुविधा खोल्न {{email}} प्रमाणित गर्नुहोस्।",
-    "resend": "इमेल फेरि पठाउनुहोस्"
+    "resend": "प्रमाणीकरण लिङ्क फेरि पठाउनुहोस्",
+    "refresh": "मैले प्रमाणित गरेँ — रिफ्रेस",
+    "linkSent": "हामीले {{email}} मा प्रमाणीकरण लिङ्क पठाएका छौं। खोल्नुहोस्, त्यसपछि रिफ्रेस थिच्नुहोस्।",
+    "resendFailed": "प्रमाणीकरण इमेल पठाउन सकिएन। जडान जाँच गरी फेरि प्रयास गर्नुहोस्।"
   }
 }

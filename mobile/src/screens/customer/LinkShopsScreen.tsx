@@ -13,6 +13,10 @@ import {
   CustomerLoading,
 } from '../../components/customer/CustomerUi';
 import { customerColors as c } from '../../theme/customerColors';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LinkShops'>;
@@ -91,15 +95,21 @@ export default function LinkShopsScreen({ navigation }: Props) {
 const lsStyles = StyleSheet.create({
   lsScreen: { flex: 1, backgroundColor: c.cream },
   lsHeader: {
-    paddingHorizontal: 18,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 18,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: radius.container,
+    borderBottomRightRadius: radius.container,
   },
   lsBack: { color: c.text, fontSize: 16, fontWeight: '600', marginBottom: 10 },
-  lsTitle: { fontSize: 28, fontWeight: '800', color: c.text },
+  lsTitle: {
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
+    color: c.text,
+  },
   lsSubtitle: { marginTop: 4, color: c.textMuted },
-  lsContent: { padding: 16 },
+  lsContent: { padding: spacing.md },
   lsEmpty: { textAlign: 'center', color: c.textMuted, marginTop: 40 },
   lsShop: { fontSize: 17, fontWeight: '800', color: c.text },
   lsMeta: { color: c.textMuted, marginVertical: 8 },

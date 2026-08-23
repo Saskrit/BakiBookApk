@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -11,15 +12,19 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { updateProfile } from '../../api/auth';
+import { uploadImage, type UploadType } from '../../api/upload';
 import ProfileImagePicker from '../../components/ProfileImagePicker';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
+import { radius } from '../../theme/radius';
+import { spacing } from '../../theme/spacing';
 import { typography as ty } from '../../theme/typography';
 import { getInitials } from '../../utils/format';
+import { promptImageSource } from '../../utils/pickImage';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShopProfile'>;
@@ -34,7 +39,7 @@ function statusLabel(status: string | undefined, verified: boolean | undefined, 
 export default function ShopProfileScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, applyUser } = useAuth();
   const [editing, setEditing] = useState(!user?.shopName?.trim());
   const [shopName, setShopName] = useState(user?.shopName || '');
   const [shopLocation, setShopLocation] = useState(user?.shopLocation || '');
@@ -42,6 +47,7 @@ export default function ShopProfileScreen({ navigation }: Props) {
   const [profileImage, setProfileImage] = useState(user?.profileImage || '');
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [loading, setLoading] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState<'profile' | 'shop' | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -64,6 +70,42 @@ export default function ShopProfileScreen({ navigation }: Props) {
     setFullName(user?.fullName || '');
     setError('');
     setMessage('');
+  };
+
+  const persistPhoto = async (type: UploadType, url: string) => {
+    if (type === 'profile') setProfileImage(url);
+    else setShopImage(url);
+
+    setError('');
+    try {
+      const data = await updateProfile(type === 'profile' ? { profileImage: url } : { shopImage: url });
+      if (data.user) await applyUser(data.user);
+      else await refreshUser();
+      setMessage(t('shopProfile.photoSaved'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('shopProfile.saveFailed'));
+    }
+  };
+
+  const pickHeroPhoto = (type: 'profile' | 'shop') => {
+    if (uploadingHero) return;
+    promptImageSource({
+      title: type === 'shop' ? t('shopProfile.shopPhoto') : t('shopProfile.yourPhoto'),
+      aspect: type === 'shop' ? [4, 3] : [1, 1],
+      onError: setError,
+      onPicked: async (uri) => {
+        setUploadingHero(type);
+        setError('');
+        try {
+          const url = await uploadImage(uri, type);
+          await persistPhoto(type, url);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : t('upload.uploadFailed'));
+        } finally {
+          setUploadingHero(null);
+        }
+      },
+    });
   };
 
   const handleSave = async () => {
@@ -116,7 +158,12 @@ export default function ShopProfileScreen({ navigation }: Props) {
           </Pressable>
 
           <View style={spfStyles.spfHeroImages}>
-            <View style={spfStyles.spfShopImageWrap}>
+            <Pressable
+              onPress={() => pickHeroPhoto('shop')}
+              style={spfStyles.spfShopImageWrap}
+              accessibilityLabel={t('shopProfile.shopPhoto')}
+              disabled={!!uploadingHero}
+            >
               {displayShopImage ? (
                 <Image source={{ uri: displayShopImage }} style={spfStyles.spfShopHeroImage} />
               ) : (
@@ -126,8 +173,14 @@ export default function ShopProfileScreen({ navigation }: Props) {
                   </Text>
                 </View>
               )}
-            </View>
-            <View style={spfStyles.spfProfileImageWrap}>
+              <HeroCameraBadge loading={uploadingHero === 'shop'} />
+            </Pressable>
+            <Pressable
+              onPress={() => pickHeroPhoto('profile')}
+              style={spfStyles.spfProfileImageWrap}
+              accessibilityLabel={t('shopProfile.yourPhoto')}
+              disabled={!!uploadingHero}
+            >
               {displayProfileImage ? (
                 <Image source={{ uri: displayProfileImage }} style={spfStyles.spfProfileHeroImage} />
               ) : (
@@ -137,8 +190,10 @@ export default function ShopProfileScreen({ navigation }: Props) {
                   </Text>
                 </View>
               )}
-            </View>
+              <HeroCameraBadge loading={uploadingHero === 'profile'} />
+            </Pressable>
           </View>
+          <Text style={spfStyles.spfTapHint}>{t('shopProfile.tapToChangePhoto')}</Text>
 
           <Text style={spfStyles.spfHeroTitle}>{hasShop ? user?.shopName : t('shopProfile.registerShop')}</Text>
           {user?.shopLocation ? (
@@ -174,7 +229,10 @@ export default function ShopProfileScreen({ navigation }: Props) {
                 <ProfileImagePicker
                   label={t('shopProfile.yourPhoto')}
                   value={profileImage}
-                  onChange={setProfileImage}
+                  onChange={(url) => {
+                    setProfileImage(url);
+                    if (url) void persistPhoto('profile', url);
+                  }}
                   onError={setError}
                   uploadType="profile"
                   fallbackName={fullName}
@@ -184,7 +242,10 @@ export default function ShopProfileScreen({ navigation }: Props) {
                 <ProfileImagePicker
                   label={t('shopProfile.shopPhoto')}
                   value={shopImage}
-                  onChange={setShopImage}
+                  onChange={(url) => {
+                    setShopImage(url);
+                    if (url) void persistPhoto('shop', url);
+                  }}
                   onError={setError}
                   uploadType="shop"
                   fallbackName={shopName}
@@ -231,6 +292,21 @@ export default function ShopProfileScreen({ navigation }: Props) {
           )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function HeroCameraBadge({ loading }: { loading: boolean }) {
+  return (
+    <View style={spfStyles.spfCameraBadge}>
+      {loading ? (
+        <ActivityIndicator size="small" color="#FFF" />
+      ) : (
+        <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
+          <Path d="M4 8 H8 L10 5 H14 L16 8 H20 V19 H4 Z" stroke="#FFF" strokeWidth={2} />
+          <Circle cx={12} cy={13} r={3.5} stroke="#FFF" strokeWidth={2} />
+        </Svg>
+      )}
     </View>
   );
 }
@@ -282,11 +358,11 @@ const spfStyles = StyleSheet.create({
   spfScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   spfScroll: { flex: 1 },
   spfHero: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: radius.container,
+    borderBottomRightRadius: radius.container,
   },
   spfBackBtn: { alignSelf: 'flex-start', marginBottom: 8 },
   spfBackBtnText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
@@ -294,21 +370,22 @@ const spfStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 14,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   spfShopImageWrap: {
+    position: 'relative',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  spfShopHeroImage: { width: 88, height: 88, borderRadius: 18, borderWidth: 3, borderColor: '#FFFFFF' },
+  spfShopHeroImage: { width: 64, height: 64, borderRadius: radius.card, borderWidth: 2, borderColor: '#FFFFFF' },
   spfShopHeroPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 18,
+    width: 64,
+    height: 64,
+    borderRadius: radius.card,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 3,
     borderColor: '#FFFFFF',
@@ -316,7 +393,7 @@ const spfStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   spfShopHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.xxl },
-  spfProfileImageWrap: { marginBottom: -8 },
+  spfProfileImageWrap: { marginBottom: -8, position: 'relative' },
   spfProfileHeroImage: {
     width: 56,
     height: 56,
@@ -350,34 +427,54 @@ const spfStyles = StyleSheet.create({
   },
   spfHeroLocation: { fontSize: ty.body, color: 'rgba(255,255,255,0.9)' },
   spfHeroOwner: { fontSize: ty.bodyLg, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
+  spfTapHint: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: ty.caption,
+    textAlign: 'center',
+    marginTop: -6,
+    marginBottom: 8,
+  },
+  spfCameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primaryDark,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   spfStatusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,
   },
   spfStatusBadgeText: { fontSize: ty.caption, fontWeight: '700' },
-  spfBody: { padding: 16, marginTop: -8 },
+  spfBody: { padding: spacing.md, marginTop: -8 },
   spfCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
   spfCardTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  spfCardSub: { fontSize: ty.body, color: colors.textMuted, marginBottom: 16 },
+  spfCardSub: { fontSize: ty.body, color: colors.textMuted, marginBottom: spacing.md },
   spfPickerRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 8,
-    gap: 12,
+    gap: spacing.sm,
   },
   spfInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   spfInfoRowBorder: {
     borderBottomWidth: 1,

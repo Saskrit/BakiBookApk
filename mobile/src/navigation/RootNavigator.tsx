@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SplashScreen from '../screens/auth/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import ShopkeeperNavigator from './ShopkeeperNavigator';
 import CustomerNavigator from './CustomerNavigator';
 import AddCustomerScreen from '../screens/shopkeeper/AddCustomerScreen';
@@ -56,6 +57,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: false }} />
         <Stack.Screen
           name="Shopkeeper"
           component={ShopkeeperNavigator}

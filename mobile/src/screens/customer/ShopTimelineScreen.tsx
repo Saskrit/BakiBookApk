@@ -16,6 +16,9 @@ import { fetchPortalShopDetail } from '../../api/portal';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs } from '../../utils/format';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -259,7 +262,7 @@ const stStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   stIconBtn: {
@@ -286,22 +289,22 @@ const stStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 10,
     backgroundColor: c.white,
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: c.border,
-    padding: 14,
+    padding: spacing.md,
   },
   stDueLabel: { fontSize: 12, color: c.textMuted, fontWeight: '700' },
   stDueValue: { marginTop: 4, fontSize: 22, fontWeight: '800', color: '#EA580C' },
   stDueMeta: { marginTop: 4, fontSize: 12, color: c.textMuted },
-  stList: { paddingHorizontal: 16, gap: 0 },
+  stList: { paddingHorizontal: spacing.md, gap: 0 },
   stEmpty: {
     textAlign: 'center',
     color: c.textMuted,
     marginTop: 40,
     fontSize: 13,
   },
-  stRow: { flexDirection: 'row', gap: 12, minHeight: 88 },
+  stRow: { flexDirection: 'row', gap: spacing.sm, minHeight: 88 },
   stRail: { width: 28, alignItems: 'center' },
   stDot: {
     width: 28,

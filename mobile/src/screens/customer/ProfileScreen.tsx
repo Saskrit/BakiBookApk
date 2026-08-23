@@ -23,16 +23,20 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchPortalDashboard } from '../../api/portal';
 import { updateProfile } from '../../api/auth';
 import { uploadImage } from '../../api/upload';
+import { promptImageSource } from '../../utils/pickImage';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs, getInitials } from '../../utils/format';
 import { exportCustomerStatement } from '../../utils/customerStatement';
 import type { CustomerTabParamList, RootStackParamList } from '../../navigation/types';
-import * as ImagePicker from 'expo-image-picker';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<CustomerTabParamList, 'Profile'>,
@@ -101,60 +105,11 @@ export default function ProfileScreen() {
 
   const changeProfilePhoto = () => {
     if (uploadingPhoto) return;
-    appAlert(t('customer.profileTitle'), t('upload.choosePhotoSource'), [
-      {
-        text: t('upload.photoLibrary'),
-        onPress: async () => {
-          try {
-            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!permission.granted) {
-              appAlert(t('common.error'), t('upload.photoLibraryRequired'));
-              return;
-            }
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ['images'],
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.85,
-            });
-            if (!result.canceled && result.assets[0]?.uri) {
-              await uploadPickedPhoto(result.assets[0].uri);
-            }
-          } catch (err) {
-            appAlert(
-              t('common.error'),
-              err instanceof Error ? err.message : t('upload.pickFailed')
-            );
-          }
-        },
-      },
-      {
-        text: t('upload.camera'),
-        onPress: async () => {
-          try {
-            const permission = await ImagePicker.requestCameraPermissionsAsync();
-            if (!permission.granted) {
-              appAlert(t('common.error'), t('upload.cameraRequired'));
-              return;
-            }
-            const result = await ImagePicker.launchCameraAsync({
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.85,
-            });
-            if (!result.canceled && result.assets[0]?.uri) {
-              await uploadPickedPhoto(result.assets[0].uri);
-            }
-          } catch (err) {
-            appAlert(
-              t('common.error'),
-              err instanceof Error ? err.message : t('upload.cameraFailed')
-            );
-          }
-        },
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    promptImageSource({
+      title: t('customer.profileTitle'),
+      aspect: [1, 1],
+      onPicked: uploadPickedPhoto,
+    });
   };
 
   const downloadStatement = async () => {
@@ -562,13 +517,13 @@ const cpStyles = StyleSheet.create({
     backgroundColor: c.cream,
   },
   cpScroll: {
-    paddingHorizontal: 16,
-    gap: 14,
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
   },
   cpTopBar: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: spacing.sm,
     paddingTop: 8,
   },
   cpTopBarText: {
@@ -576,10 +531,11 @@ const cpStyles = StyleSheet.create({
     minWidth: 0,
   },
   cpTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: typeScale.h1.fontSize,
+    lineHeight: typeScale.h1.lineHeight,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
     color: c.text,
-    letterSpacing: -0.5,
   },
   cpSubtitle: {
     marginTop: 4,
@@ -599,8 +555,8 @@ const cpStyles = StyleSheet.create({
   },
 
   cpHero: {
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: radius.container,
+    padding: spacing.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(232, 154, 106, 0.35)',
@@ -619,9 +575,9 @@ const cpStyles = StyleSheet.create({
     gap: 10,
   },
   cpAvatarRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: 'rgba(255,255,255,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -629,26 +585,27 @@ const cpStyles = StyleSheet.create({
     borderColor: '#FFF',
   },
   cpAvatarPress: {
-    width: 88,
-    height: 88,
+    width: 64,
+    height: 64,
   },
   cpAvatarImg: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#FFF',
   },
   cpAvatarFallback: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cpAvatarText: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: typeScale.h1.fontSize,
+    fontFamily: typeScale.h1.fontFamily,
+    fontWeight: '700',
     color: c.peachDark,
   },
   cpCameraBadge: {
@@ -715,7 +672,7 @@ const cpStyles = StyleSheet.create({
     gap: 8,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 999,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: 'rgba(232, 154, 106, 0.45)',
@@ -734,8 +691,8 @@ const cpStyles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     backgroundColor: c.white,
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: c.border,
@@ -761,7 +718,7 @@ const cpStyles = StyleSheet.create({
   },
   cpMenuCard: {
     backgroundColor: c.white,
-    borderRadius: 18,
+    borderRadius: radius.container,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: c.border,
@@ -769,9 +726,9 @@ const cpStyles = StyleSheet.create({
   cpSettingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 190, 145, 0.28)',
   },
@@ -809,7 +766,7 @@ const cpStyles = StyleSheet.create({
   },
   cpLangCard: {
     backgroundColor: c.white,
-    borderRadius: 18,
+    borderRadius: radius.container,
     padding: 12,
     borderWidth: 1,
     borderColor: c.border,
@@ -821,8 +778,8 @@ const cpStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#FFF5F5',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(196, 92, 92, 0.25)',
   },

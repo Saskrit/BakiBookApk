@@ -1,4 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { spacing } from '../theme/spacing';
+
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { AppLanguage } from '../types';
@@ -53,7 +55,7 @@ const lwStyles = StyleSheet.create({
     flex: 1,
     borderWidth: 1.5,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   lwOptionText: { fontSize: 15, fontWeight: '700' },

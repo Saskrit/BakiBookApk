@@ -9,7 +9,11 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors } from '../theme/colors';
-import { typography as t } from '../theme/typography';
+import { layout } from '../theme/layout';
+import { radius } from '../theme/radius';
+import { spacing } from '../theme/spacing';
+import { textStyles } from '../theme/textStyles';
+import { typeScale } from '../theme/typography';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[uiStyles.uiScreen, style]}>{children}</View>;
@@ -46,12 +50,14 @@ export function Button({
   variant = 'primary',
   loading,
   disabled,
+  large,
 }: {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   loading?: boolean;
   disabled?: boolean;
+  large?: boolean;
 }) {
   const variantStyle =
     variant === 'secondary'
@@ -68,6 +74,7 @@ export function Button({
       disabled={disabled || loading}
       style={({ pressed }) => [
         uiStyles.uiBtn,
+        large && uiStyles.uiBtnLarge,
         variantStyle,
         (disabled || loading) && uiStyles.uiBtnDisabled,
         pressed && uiStyles.uiBtnPressed,
@@ -79,6 +86,7 @@ export function Button({
         <Text
           style={[
             uiStyles.uiBtnText,
+            large && uiStyles.uiBtnTextLarge,
             variant === 'outline' && { color: colors.primary },
           ]}
         >
@@ -122,50 +130,52 @@ const uiStyles = StyleSheet.create({
   uiScreen: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    paddingHorizontal: layout.screenPaddingX,
+    paddingTop: layout.screenPaddingTop,
+    paddingBottom: layout.screenPaddingBottom,
   },
   uiCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   uiTitle: {
-    fontSize: t.h1,
-    fontWeight: '700',
-    color: colors.primaryDark,
-    marginBottom: 4,
+    ...textStyles.h2,
+    marginBottom: spacing.xxs,
   },
   uiSubtitle: {
-    fontSize: t.bodyLg,
+    ...textStyles.bodySmall,
     color: colors.textMuted,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  uiInputWrap: { marginBottom: 14 },
+  uiInputWrap: { marginBottom: spacing.sm },
   uiLabel: {
-    fontSize: t.body,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
+    ...textStyles.label,
+    marginBottom: spacing.xs,
   },
   uiInput: {
+    ...textStyles.input,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: t.md,
-    color: colors.text,
+    borderRadius: radius.input,
+    paddingHorizontal: layout.inputPaddingX,
+    minHeight: layout.inputHeight,
+    paddingVertical: spacing.sm,
   },
   uiBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: radius.button,
+    minHeight: layout.buttonHeight,
+    paddingHorizontal: layout.buttonPaddingX,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: spacing.xs,
+  },
+  uiBtnLarge: {
+    minHeight: layout.buttonHeightProminent,
   },
   uiBtnPrimary: { backgroundColor: colors.primary },
   uiBtnSecondary: { backgroundColor: colors.primaryDark },
@@ -177,14 +187,15 @@ const uiStyles = StyleSheet.create({
   uiBtnDanger: { backgroundColor: colors.danger },
   uiBtnDisabled: { opacity: 0.6 },
   uiBtnPressed: { opacity: 0.85 },
-  uiBtnText: { color: '#fff', fontSize: t.md, fontWeight: '600' },
+  uiBtnText: textStyles.button,
+  uiBtnTextLarge: textStyles.buttonLarge,
   uiCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  uiError: { color: colors.danger, marginBottom: 12, fontSize: t.bodyLg },
+  uiError: textStyles.error,
   uiStatCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: radius.card,
+    padding: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -193,14 +204,12 @@ const uiStyles = StyleSheet.create({
     borderColor: colors.primary,
   },
   uiStatLabel: {
-    fontSize: t.caption,
+    ...typeScale.captionMedium,
     color: colors.textMuted,
-    marginBottom: 6,
-    fontWeight: '500',
+    marginBottom: spacing.xs,
   },
   uiStatValue: {
-    fontSize: t.xl,
-    fontWeight: '700',
+    ...typeScale.h3,
     color: colors.text,
   },
   uiStatValueAccent: { color: '#fff' },

@@ -27,6 +27,9 @@ import {
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatDate, formatRs } from '../../utils/format';
 import { EXPENSE_CATEGORIES, type ShopExpense } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
@@ -449,8 +452,8 @@ const exStyles = StyleSheet.create({
   exScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   exHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -469,13 +472,13 @@ const exStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: spacing.sm,
     marginTop: 14,
   },
   exMonthBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.container,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,20 +489,20 @@ const exStyles = StyleSheet.create({
     marginTop: 12,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
-    padding: 14,
+    padding: spacing.md,
     alignItems: 'center',
   },
   exTotalLabel: { color: 'rgba(255,255,255,0.85)', fontSize: ty.caption },
   exTotalValue: { color: '#FFF', fontSize: ty.xxl, fontWeight: '800', marginTop: 4 },
   exList: { flex: 1 },
-  exListContent: { paddingHorizontal: 16, paddingTop: 4 },
+  exListContent: { paddingHorizontal: spacing.md, paddingTop: 4 },
   exListContentEmpty: { flexGrow: 1 },
   exListHeader: { paddingBottom: 8 },
-  exFilterRow: { paddingVertical: 12, gap: 8, paddingRight: 16 },
+  exFilterRow: { paddingVertical: spacing.sm, gap: 8, paddingRight: 16 },
   exFilterChip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: radius.container,
     backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: colors.border,
@@ -528,11 +531,11 @@ const exStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 14,
+    padding: spacing.md,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ECEEF2',
-    gap: 12,
+    gap: spacing.sm,
   },
   exRowIcon: {
     width: 44,
@@ -571,7 +574,7 @@ const exStyles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#E5E7EB',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   exModalTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 12 },
   exFieldLabel: { fontSize: ty.body, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 8 },
@@ -580,8 +583,8 @@ const exStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: ty.md,
     color: colors.text,
   },

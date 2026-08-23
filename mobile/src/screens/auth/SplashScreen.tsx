@@ -14,6 +14,10 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import SplashBackground from '../../components/splash/SplashBackground';
 import { colors } from '../../theme/colors';
+import { s } from '../../theme/scale';
+import { typeScale } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
@@ -126,14 +130,16 @@ const spStyles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   spLogo: {
-    width: 108,
-    height: 108,
-    marginBottom: 16,
+    width: s(72),
+    height: s(72),
+    marginBottom: 12,
   },
   spBrandName: {
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontSize: typeScale.display.fontSize,
+    lineHeight: typeScale.display.lineHeight,
+    fontFamily: typeScale.display.fontFamily,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   spBrandBaki: {
     color: colors.text,
@@ -163,10 +169,10 @@ const spStyles = StyleSheet.create({
     marginHorizontal: 4,
   },
   spTagline: {
-    fontSize: 15,
+    fontSize: typeScale.body.fontSize,
+    lineHeight: typeScale.body.lineHeight,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 22,
     maxWidth: 280,
   },
   spBottom: {
@@ -178,7 +184,7 @@ const spStyles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
     fontWeight: '500',
     letterSpacing: 0.2,
   },

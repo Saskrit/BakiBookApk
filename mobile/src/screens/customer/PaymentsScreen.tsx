@@ -22,7 +22,6 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import * as ImagePicker from 'expo-image-picker';
 import Svg, { Circle, Path } from 'react-native-svg';
 import {
   fetchPortalDues,
@@ -32,11 +31,15 @@ import {
   type PortalSubmission,
 } from '../../api/portal';
 import { uploadImage } from '../../api/upload';
+import { promptImageSource } from '../../utils/pickImage';
 import NotificationBell from '../../components/NotificationBell';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { customerColors as c } from '../../theme/customerColors';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { formatRs } from '../../utils/format';
 import type { CustomerTabParamList, RootStackParamList } from '../../navigation/types';
 
@@ -573,38 +576,10 @@ function SubmitPaymentModal({
   };
 
   const pickScreenshot = () => {
-    appAlert(t('customer.chooseScreenshot'), undefined, [
-      {
-        text: t('upload.photoLibrary'),
-        onPress: async () => {
-          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!perm.granted) {
-            appAlert(t('common.error'), t('upload.photoLibraryRequired'));
-            return;
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.85,
-          });
-          if (result.canceled || !result.assets?.[0]?.uri) return;
-          await uploadShot(result.assets[0].uri);
-        },
-      },
-      {
-        text: t('upload.camera'),
-        onPress: async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) {
-            appAlert(t('common.error'), t('upload.cameraRequired'));
-            return;
-          }
-          const result = await ImagePicker.launchCameraAsync({ quality: 0.85 });
-          if (result.canceled || !result.assets?.[0]?.uri) return;
-          await uploadShot(result.assets[0].uri);
-        },
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    promptImageSource({
+      title: t('customer.chooseScreenshot'),
+      onPicked: uploadShot,
+    });
   };
 
   const uploadShot = async (uri: string) => {
@@ -765,8 +740,8 @@ function SubmitPaymentModal({
 
 const pyStyles = StyleSheet.create({
   pyScreen: { flex: 1, backgroundColor: '#F7F8FC' },
-  pyHeaderWrap: { paddingHorizontal: 16, paddingTop: 6 },
-  pyTopBar: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14 },
+  pyHeaderWrap: { paddingHorizontal: spacing.md, paddingTop: 6 },
+  pyTopBar: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: spacing.md },
   pyTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', textAlign: 'center' },
   pySubtitle: { marginTop: 3, fontSize: 12, color: '#64748B', textAlign: 'center' },
   pyHelpBtn: {
@@ -788,7 +763,7 @@ const pyStyles = StyleSheet.create({
   pyStatusTile: {
     width: '48%',
     flexGrow: 1,
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     minHeight: 88,
   },
@@ -804,7 +779,7 @@ const pyStyles = StyleSheet.create({
   pyStatusTileCount: { marginTop: 2, fontSize: 13, fontWeight: '800' },
   pySendCard: {
     backgroundColor: '#FFE8D4',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -832,7 +807,7 @@ const pyStyles = StyleSheet.create({
   },
   pyFilterBannerText: { flex: 1, fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
   pyFilterClear: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
-  pyTabs: { gap: 14, paddingBottom: 8, paddingRight: 8 },
+  pyTabs: { gap: spacing.md, paddingBottom: 8, paddingRight: 8 },
   pyTab: {
     paddingBottom: 8,
     borderBottomWidth: 2,
@@ -852,7 +827,7 @@ const pyStyles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -866,7 +841,7 @@ const pyStyles = StyleSheet.create({
   pyShopIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.container,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -897,7 +872,7 @@ const pyStyles = StyleSheet.create({
   pyTipIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.card,
     backgroundColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',
@@ -911,8 +886,8 @@ const pyStyles = StyleSheet.create({
   },
   pyDetailCard: {
     backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: radius.container,
+    padding: spacing.lg,
   },
   pyDetailTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
   pyDetailAmount: { marginTop: 6, fontSize: 22, fontWeight: '800', color: '#EA580C' },
@@ -929,7 +904,7 @@ const pyStyles = StyleSheet.create({
     marginTop: 14,
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   pyDetailCloseText: { fontWeight: '800', color: '#475569' },
@@ -943,8 +918,8 @@ const pyStyles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
   },
   pyModalHeader: {
     flexDirection: 'row',
@@ -1013,7 +988,7 @@ const pyStyles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: '#F97316',
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   pySubmitBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },

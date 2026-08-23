@@ -15,6 +15,9 @@ import LanguageSwitcher from '../../components/LanguageSwitcher';
 import { getTutorialStats } from '../../features/tutorial/catalog';
 import { colors } from '../../theme/colors';
 import { typography as t } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+
 import { getInitials } from '../../utils/format';
 import type { RootStackParamList, ShopkeeperTabParamList } from '../../navigation/types';
 
@@ -392,24 +395,24 @@ export default function SettingsScreen() {
 const stStyles = StyleSheet.create({
   stScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   stHero: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: radius.container,
+    borderBottomRightRadius: radius.container,
   },
   stHeroTitle: {
     color: '#FFFFFF',
     fontSize: t.h1,
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   stProfileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
-    gap: 12,
+    borderRadius: radius.container,
+    padding: spacing.md,
+    gap: spacing.sm,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -470,16 +473,16 @@ const stStyles = StyleSheet.create({
   stBadgeTextEmailPending: { color: colors.warning },
   stEditHint: { fontSize: t.bodyLg, fontWeight: '700', color: colors.primary },
   stScroll: { flex: 1, marginTop: -4 },
-  stContent: { paddingHorizontal: 16, paddingTop: 16 },
+  stContent: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   stLanguageCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  stSection: { marginBottom: 14 },
+  stSection: { marginBottom: spacing.md },
   stSectionTitle: {
     fontSize: t.caption,
     fontWeight: '700',
@@ -491,7 +494,7 @@ const stStyles = StyleSheet.create({
   },
   stSectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#ECEEF2',
@@ -499,9 +502,9 @@ const stStyles = StyleSheet.create({
   stMenuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
   stMenuRowPressed: { backgroundColor: '#F9FAFB' },
   stRowIcon: {
