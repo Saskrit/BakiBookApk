@@ -140,7 +140,12 @@ export default function RegisterScreen({ navigation }: Props) {
       });
 
       if ('requiresVerification' in result && result.requiresVerification) {
-        navigation.replace('VerifyEmail', { email: normalizedEmail, role });
+        navigation.replace('VerifyEmail', {
+          email: normalizedEmail,
+          role,
+          emailSent: result.emailSent,
+          message: result.message,
+        });
         return;
       }
 

@@ -18,12 +18,18 @@ function RegisterVerify() {
   const email = location.state?.email?.trim()?.toLowerCase() || '';
   const role = location.state?.role === 'customer' ? 'customer' : 'shopkeeper';
   const initialMessage = location.state?.message || '';
+  const emailSentInitially = location.state?.emailSent !== false;
 
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState(initialMessage);
+  const [error, setError] = useState(
+    emailSentInitially
+      ? ''
+      : initialMessage ||
+          'The verification email could not be sent. Tap Resend code after email is configured on the server.'
+  );
+  const [message, setMessage] = useState(emailSentInitially ? initialMessage : '');
 
   const code = useMemo(() => digits.join(''), [digits]);
   const auth = getAuth();
@@ -106,7 +112,13 @@ function RegisterVerify() {
     try {
       const data = await resendRegistrationCode({ email, role });
       setDigits(['', '', '', '', '', '']);
-      setMessage(data.message || 'A new verification code was sent to your email.');
+      if (data.emailSent === false) {
+        setError(data.message || 'Could not send the email. Check server email settings.');
+        setMessage('');
+      } else {
+        setError('');
+        setMessage(data.message || 'A new verification code was sent to your email.');
+      }
       inputs.current[0]?.focus();
     } catch (err) {
       setError(err.message || 'Could not resend the code');

@@ -154,10 +154,14 @@ if (!serveWebApp) {
 }
 
 app.get('/api/health', (_req, res) => {
+  const emailConfigured = Boolean(
+    process.env.EMAIL_USER?.trim() && process.env.EMAIL_APP_PASSWORD?.trim()
+  );
   res.json({
     status: 'ok',
     message: 'BakiBook API is running',
     timestamp: new Date().toISOString(),
+    emailConfigured,
   });
 });
 

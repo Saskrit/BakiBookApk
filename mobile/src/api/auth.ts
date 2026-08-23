@@ -88,6 +88,7 @@ export const register = (payload: {
     success: boolean;
     message: string;
     requiresVerification?: boolean;
+    emailSent?: boolean;
     email?: string;
     role?: 'shopkeeper' | 'customer';
     token?: string;
@@ -112,7 +113,13 @@ export const resendRegistrationCode = (payload: {
   email: string;
   role: 'shopkeeper' | 'customer';
 }) =>
-  request<{ success: boolean; message: string; email: string; role: string }>(
+  request<{
+    success: boolean;
+    message: string;
+    emailSent?: boolean;
+    email: string;
+    role: string;
+  }>(
     '/auth/register/resend-code',
     {
       method: 'POST',

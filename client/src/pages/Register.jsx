@@ -179,6 +179,7 @@ function Register() {
             email: data.email || form.email.trim().toLowerCase(),
             role: data.role || role,
             message: data.message,
+            emailSent: data.emailSent !== false,
           },
         });
         return;

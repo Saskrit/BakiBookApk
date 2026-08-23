@@ -197,25 +197,36 @@ export const registerUser = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Never block signup on SMTP — Gmail from Render can hang for 30s+.
-    // Pending signup is already saved; user can Resend on the verify screen.
-    queueEmail(
-      () =>
-        sendVerificationEmail(
-          { fullName: fullName.trim(), email: normalizedEmail },
-          code
-        ),
-      `register-code:${normalizedEmail}`
-    );
+    // Await send with a short timeout so the client gets an honest emailSent flag.
+    // Pending signup is saved either way; user can tap Resend if SMTP fails.
+    let emailSent = false;
+    let emailErrorMessage = '';
+    try {
+      await sendVerificationEmail(
+        { fullName: fullName.trim(), email: normalizedEmail },
+        code
+      );
+      emailSent = true;
+    } catch (emailError) {
+      emailErrorMessage = emailError.message || 'Email send failed';
+      console.error(
+        `Failed to send registration code to ${normalizedEmail}:`,
+        emailErrorMessage
+      );
+    }
 
     return res.status(200).json({
       success: true,
       requiresVerification: true,
-      emailSent: true,
-      message:
-        'We sent a verification code to your email. Enter it to finish creating your account.',
+      emailSent,
+      message: emailSent
+        ? 'We sent a verification code to your email. Enter it to finish creating your account.'
+        : 'Your signup is saved, but the verification email could not be sent. Tap Resend code, and make sure EMAIL_USER / EMAIL_APP_PASSWORD are set on the server.',
       email: normalizedEmail,
       role,
+      ...(emailSent
+        ? {}
+        : { emailError: 'smtp_failed', emailErrorDetail: emailErrorMessage }),
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -361,18 +372,26 @@ export const resendRegistrationCode = async (req, res) => {
     pending.attempts = 0;
     await pending.save();
 
-    queueEmail(
-      () =>
-        sendVerificationEmail(
-          { fullName: pending.fullName, email: normalizedEmail },
-          code
-        ),
-      `resend-register-code:${normalizedEmail}`
-    );
+    let emailSent = false;
+    try {
+      await sendVerificationEmail(
+        { fullName: pending.fullName, email: normalizedEmail },
+        code
+      );
+      emailSent = true;
+    } catch (emailError) {
+      console.error(
+        `Failed to resend registration code to ${normalizedEmail}:`,
+        emailError.message
+      );
+    }
 
     return res.json({
       success: true,
-      message: 'A new verification code was sent to your email.',
+      emailSent,
+      message: emailSent
+        ? 'A new verification code was sent to your email.'
+        : 'Could not send the email right now. Check server email settings (EMAIL_USER / EMAIL_APP_PASSWORD on Render), then try Resend again.',
       email: normalizedEmail,
       role,
     });

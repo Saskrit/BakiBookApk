@@ -47,14 +47,20 @@ function BackIcon() {
 }
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
-  const { email, role } = route.params;
+  const { email, role, emailSent: emailSentInitially = true, message: initialMessage } =
+    route.params;
   const { verifyRegistration, resendRegistrationCode } = useAuth();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const inputs = useRef<Array<TextInput | null>>([]);
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState(
+    emailSentInitially
+      ? ''
+      : initialMessage ||
+          'Verification email could not be sent. Tap Resend after email is configured on the server.'
+  );
+  const [message, setMessage] = useState(emailSentInitially ? initialMessage || '' : '');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
@@ -120,9 +126,15 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     setMessage('');
     setResending(true);
     try {
-      await resendRegistrationCode({ email, role });
+      const data = await resendRegistrationCode({ email, role });
       setDigits(['', '', '', '', '', '']);
-      setMessage(t('auth.codeResent'));
+      if (data.emailSent === false) {
+        setError(data.message || t('auth.resendFailed'));
+        setMessage('');
+      } else {
+        setError('');
+        setMessage(data.message || t('auth.codeResent'));
+      }
       inputs.current[0]?.focus();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.resendFailed'));

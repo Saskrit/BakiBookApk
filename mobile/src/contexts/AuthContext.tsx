@@ -26,7 +26,16 @@ interface AuthContextValue {
     fullName: string;
     email: string;
     password: string;
-  }) => Promise<{ requiresVerification: true; email: string; role: 'shopkeeper' | 'customer' } | User>;
+  }) => Promise<
+    | {
+        requiresVerification: true;
+        email: string;
+        role: 'shopkeeper' | 'customer';
+        emailSent?: boolean;
+        message?: string;
+      }
+    | User
+  >;
   verifyRegistration: (payload: {
     email: string;
     role: 'shopkeeper' | 'customer';
@@ -35,7 +44,7 @@ interface AuthContextValue {
   resendRegistrationCode: (payload: {
     email: string;
     role: 'shopkeeper' | 'customer';
-  }) => Promise<void>;
+  }) => Promise<{ emailSent?: boolean; message?: string }>;
   googleSignIn: (payload: {
     credential: string;
     mode: 'login' | 'register';
@@ -101,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           requiresVerification: true as const,
           email: data.email || payload.email.trim().toLowerCase(),
           role: (data.role as 'shopkeeper' | 'customer') || payload.role,
+          emailSent: data.emailSent,
+          message: data.message,
         };
       }
       const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
@@ -128,7 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendRegistrationCode = useCallback(
     async (payload: { email: string; role: 'shopkeeper' | 'customer' }) => {
-      await apiResendRegistrationCode(payload);
+      const data = await apiResendRegistrationCode(payload);
+      return { emailSent: data.emailSent, message: data.message };
     },
     []
   );

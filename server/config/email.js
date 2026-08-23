@@ -5,6 +5,9 @@ let transporter;
 /** Gmail from Render often stalls without short timeouts — keep auth APIs responsive. */
 const SMTP_TIMEOUT_MS = 10000;
 
+export const isEmailConfigured = () =>
+  Boolean(process.env.EMAIL_USER?.trim() && process.env.EMAIL_APP_PASSWORD?.trim());
+
 const getTransporter = () => {
   if (transporter) return transporter;
 
@@ -40,6 +43,11 @@ export const resetTransporter = () => {
 };
 
 export const verifyEmailConnection = async () => {
+  if (!isEmailConfigured()) {
+    throw new Error(
+      'EMAIL_USER / EMAIL_APP_PASSWORD are not set (check Render Environment)'
+    );
+  }
   const transport = getTransporter();
   await transport.verify();
   console.log(`Email service ready — sending from ${process.env.EMAIL_USER}`);
