@@ -1,6 +1,13 @@
 import { fetchPortalDashboard, fetchPortalLedger } from '../api/portal';
 import { formatRs } from './format';
-import { escapeHtml, formatReportDate, PDF_STYLES, shareHtmlAsPdf } from './pdfHtml';
+import {
+  buildStatsTableHtml,
+  buildTableHtml,
+  escapeHtml,
+  formatReportDate,
+  PDF_STYLES,
+  shareHtmlAsPdf,
+} from './pdfHtml';
 import i18n from '../i18n';
 
 type StatementOptions = {
@@ -32,29 +39,44 @@ export async function exportCustomerStatement(options: StatementOptions = {}) {
   const purchases = dashboard?.summary?.totalPurchases || 0;
   const paid = dashboard?.summary?.totalPaid || 0;
 
-  const rows = ledger.map((item) => {
-    const title = String(item.label || item.type || item.title || '—');
-    const shop = String(item.shopName || item.shop || '—');
-    const date = formatReportDate(String(item.sortAt || item.date || item.createdAt || ''));
-    const amount =
+  const titleSuffix = options.shopName ? ` · ${options.shopName}` : '';
+  const stamp = new Date().toISOString().slice(0, 10);
+  const safeName = (options.fullName || 'Customer').replace(/[^\w\-]+/g, '_').slice(0, 40);
+
+  const rows = ledger.map((item) => ({
+    date: formatReportDate(String(item.sortAt || item.date || item.createdAt || '')),
+    description: String(item.label || item.type || item.title || '—'),
+    shop: String(item.shopName || item.shop || '—'),
+    amount:
       item.creditAmount != null
         ? formatRs(Number(item.creditAmount))
         : item.paymentAmount != null
           ? `-${formatRs(Number(item.paymentAmount))}`
-          : formatRs(Number(item.amount || 0));
-    return `<tr><td>${escapeHtml(date)}</td><td>${escapeHtml(title)}</td><td>${escapeHtml(shop)}</td><td style="text-align:right">${escapeHtml(amount)}</td></tr>`;
-  });
+          : formatRs(Number(item.amount || 0)),
+  }));
 
-  const titleSuffix = options.shopName ? ` · ${options.shopName}` : '';
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>${PDF_STYLES}</head><body>
     <h1>${escapeHtml(t('customer.statementTitle'))}${escapeHtml(titleSuffix)}</h1>
-    <p>${escapeHtml(options.fullName || '')} · ${escapeHtml(options.email || '')}</p>
-    <p>${escapeHtml(t('customer.currentDue'))}: <strong>${escapeHtml(formatRs(due))}</strong></p>
-    <p>${escapeHtml(t('customer.totalPurchases'))}: ${escapeHtml(formatRs(purchases))} · ${escapeHtml(t('customer.totalPayments'))}: ${escapeHtml(formatRs(paid))}</p>
-    <table><thead><tr><th>${escapeHtml(t('pdf.colDate'))}</th><th>${escapeHtml(t('pdf.colDescription') || 'Description')}</th><th>${escapeHtml(t('pdf.colShop') || 'Shop')}</th><th>${escapeHtml(t('pdf.colAmount'))}</th></tr></thead>
-    <tbody>${rows.join('') || `<tr><td colspan="4">${escapeHtml(t('customer.noLedger'))}</td></tr>`}</tbody></table>
-    <p style="margin-top:16px;color:#64748B;font-size:12px">${escapeHtml(t('pdf.generated', { date: formatReportDate(new Date().toISOString()) }))}</p>
+    <div class="meta">
+      <p>${escapeHtml(options.fullName || '')}${options.email ? ` · ${escapeHtml(options.email)}` : ''}</p>
+    </div>
+    ${buildStatsTableHtml([
+      [t('customer.currentDue'), formatRs(due)],
+      [t('customer.totalPurchases'), formatRs(purchases)],
+      [t('customer.totalPayments'), formatRs(paid)],
+      [t('customer.linkedShops'), String(dashboard?.summary?.totalShops ?? dashboard?.shops?.length ?? 0)],
+    ])}
+    <h2>${escapeHtml(t('customer.recentTransactions'))}</h2>
+    ${buildTableHtml(rows, [
+      { label: t('pdf.colDate'), key: 'date' },
+      { label: t('pdf.colDescription'), key: 'description' },
+      { label: t('pdf.colShop'), key: 'shop' },
+      { label: t('pdf.colAmount'), key: 'amount' },
+    ])}
+    <p class="footer">${escapeHtml(t('pdf.generated', { date: formatReportDate(new Date().toISOString()) }))}</p>
   </body></html>`;
 
-  await shareHtmlAsPdf(html, t('customer.downloadStatement'));
+  await shareHtmlAsPdf(html, t('customer.downloadStatement'), {
+    fileName: `BakiBook_Statement_${safeName}_${stamp}`,
+  });
 }

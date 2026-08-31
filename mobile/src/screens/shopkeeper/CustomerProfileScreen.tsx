@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { deleteCustomer } from '../../api/customers';
 import { fetchSharedAccount, type LedgerEntry } from '../../api/shared';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSyncOnInvalidate } from '../../contexts/SyncContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
@@ -114,6 +115,10 @@ export default function CustomerProfileScreen({ route }: Props) {
     }, [load])
   );
 
+  useSyncOnInvalidate(['ledger', 'customers', 'all'], () => {
+    load().catch(() => {});
+  });
+
   const handleDelete = () => {
     if (!customer) return;
     appAlert(
@@ -145,8 +150,11 @@ export default function CustomerProfileScreen({ route }: Props) {
         ...tx,
         products:
           tx.products ||
-          ((tx.items as Array<{ name: string; qty: number }>) || [])
-            .map((i) => `${i.name} ×${i.qty}`)
+          ((tx.items as Array<{ name: string; qty: number; unit?: string; price?: number }>) || [])
+            .map((i) => {
+              const unit = i.unit === 'kg' || i.unit === 'ltr' ? ` ${i.unit}` : '';
+              return `${i.name} ×${i.qty}${unit}`;
+            })
             .join(', '),
       }));
       await exportCustomerReportPdf({

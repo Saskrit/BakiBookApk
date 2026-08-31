@@ -2,8 +2,11 @@ import Customer from '../models/Customer.js';
 import { formatCustomer } from '../utils/formatters.js';
 import { notifyCustomerOnCreate } from './linkController.js';
 import { parsePagination, buildPagination } from '../utils/pagination.js';
+import { getShopkeeperId, isRequestShopVerified } from '../utils/shopContext.js';
+import { emitShopDataSync } from '../utils/realtimeSync.js';
 
-const getShopkeeperId = (req) => req.user._id;
+const SHOP_UNVERIFIED_EMAIL_MESSAGE =
+  'Verify your shop before adding or editing a customer email';
 
 export const listCustomers = async (req, res) => {
   try {
@@ -85,6 +88,17 @@ export const createCustomer = async (req, res) => {
 
     const normalizedPhone = phone?.trim() || '';
     const normalizedEmail = email?.trim().toLowerCase() || '';
+
+    if (normalizedEmail) {
+      const shopVerified = await isRequestShopVerified(req);
+      if (!shopVerified) {
+        return res.status(403).json({
+          success: false,
+          message: SHOP_UNVERIFIED_EMAIL_MESSAGE,
+        });
+      }
+    }
+
     const linkStatus = normalizedEmail ? 'pending' : 'unlinked';
 
     const customer = await Customer.create({
@@ -99,6 +113,11 @@ export const createCustomer = async (req, res) => {
     });
 
     await notifyCustomerOnCreate(customer, req.user);
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'all'],
+      excludeUserId: req.user._id,
+    });
 
     res.status(201).json({ success: true, customer: formatCustomer(customer) });
   } catch (error) {
@@ -125,6 +144,16 @@ export const updateCustomer = async (req, res) => {
     if (phone !== undefined) customer.phone = phone?.trim() || '';
     if (email !== undefined) {
       const normalizedEmail = email?.trim().toLowerCase() || '';
+      const currentEmail = (customer.email || '').trim().toLowerCase();
+      if (normalizedEmail !== currentEmail) {
+        const shopVerified = await isRequestShopVerified(req);
+        if (!shopVerified) {
+          return res.status(403).json({
+            success: false,
+            message: SHOP_UNVERIFIED_EMAIL_MESSAGE,
+          });
+        }
+      }
       customer.email = normalizedEmail;
       if (normalizedEmail && !customer.linkedUser) {
         customer.linkStatus = 'pending';
@@ -137,6 +166,12 @@ export const updateCustomer = async (req, res) => {
     if (notes !== undefined) customer.notes = notes?.trim() || '';
 
     await customer.save();
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'all'],
+      excludeUserId: req.user._id,
+    });
+
     res.json({ success: true, customer: formatCustomer(customer) });
   } catch (error) {
     if (error.code === 11000) {
@@ -156,6 +191,11 @@ export const deleteCustomer = async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'all'],
+      excludeUserId: req.user._id,
+    });
 
     res.json({ success: true, message: 'Customer deleted' });
   } catch (error) {

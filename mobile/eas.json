@@ -20,7 +20,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://bakibookapp.onrender.com/api",
+        "EXPO_PUBLIC_API_URL": "https://api.bakibook.run.place/api",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com"
       }
     },
@@ -37,7 +37,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://bakibookapp.onrender.com/api",
+        "EXPO_PUBLIC_API_URL": "https://api.bakibook.run.place/api",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com"
       }
     }

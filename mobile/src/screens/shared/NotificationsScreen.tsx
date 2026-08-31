@@ -161,13 +161,15 @@ export default function NotificationsScreen({ navigation }: Props) {
     notifications,
     unreadCount,
     loading,
-    connected,
+    notificationsEnabled,
     refresh,
     markRead,
     markAllRead,
     archive,
+    enableDeviceNotifications,
   } = useNotifications();
   const [category, setCategory] = useState<Category>('all');
+  const [enablingAlerts, setEnablingAlerts] = useState(false);
 
   const customerMode = user?.role === 'customer';
   const palette = customerMode
@@ -242,6 +244,13 @@ export default function NotificationsScreen({ navigation }: Props) {
         return;
       }
 
+      if (
+        item.linkPath?.includes('/shop/payment-submissions') ||
+        /payment submitted|screenshot|payment submission/i.test(hay)
+      ) {
+        navigation.navigate('PaymentSubmissions', { initialTab: 'pending' });
+        return;
+      }
       if (item.customerId) {
         navigation.navigate('CustomerProfile', { customerId: item.customerId });
         return;
@@ -302,6 +311,44 @@ export default function NotificationsScreen({ navigation }: Props) {
     { key: 'account', label: t('notifications.filterAccount'), color: '#7C3AED' },
     // Offers hidden until the backend emits promo/offer notifications.
   ];
+
+  const handleEnableDeviceAlerts = useCallback(async () => {
+    setEnablingAlerts(true);
+    try {
+      await enableDeviceNotifications();
+    } finally {
+      setEnablingAlerts(false);
+    }
+  }, [enableDeviceNotifications]);
+
+  const deviceAlertsBanner = !notificationsEnabled ? (
+    <View
+      style={[
+        ntStyles.ntPermissionCard,
+        { backgroundColor: palette.card, borderColor: palette.border },
+      ]}
+    >
+      <Text style={[ntStyles.ntPermissionTitle, { color: palette.text }]}>
+        {t('notifications.deviceAlertsTitle')}
+      </Text>
+      <Text style={[ntStyles.ntPermissionBody, { color: palette.muted }]}>
+        {t('notifications.deviceAlertsBody')}
+      </Text>
+      <Pressable
+        onPress={handleEnableDeviceAlerts}
+        disabled={enablingAlerts}
+        style={({ pressed }) => [
+          ntStyles.ntPermissionBtn,
+          { backgroundColor: palette.accent },
+          pressed && { opacity: 0.9 },
+        ]}
+      >
+        <Text style={ntStyles.ntPermissionBtnText}>
+          {enablingAlerts ? t('common.loading') : t('notifications.enableDeviceAlerts')}
+        </Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   return (
     <View style={[ntStyles.ntScreen, { backgroundColor: palette.bg }]}>
@@ -398,17 +445,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                 <Text style={ntStyles.ntMarkAll}>{t('notifications.markAllRead')}</Text>
               </Pressable>
             ) : (
-              <View style={ntStyles.ntLivePill}>
-                <View
-                  style={[
-                    ntStyles.ntLiveDot,
-                    { backgroundColor: connected ? '#DCFCE7' : '#FEE2E2' },
-                  ]}
-                />
-                <Text style={ntStyles.ntLiveText}>
-                  {connected ? t('common.live') : t('common.offline')}
-                </Text>
-              </View>
+              <View style={{ width: 64 }} />
             )}
           </View>
           <Text style={ntStyles.ntTitle}>{t('notifications.title')}</Text>
@@ -427,6 +464,7 @@ export default function NotificationsScreen({ navigation }: Props) {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.accent} />
         }
+        ListHeaderComponent={deviceAlertsBanner}
         ListEmptyComponent={
           <View
             style={[
@@ -462,17 +500,6 @@ export default function NotificationsScreen({ navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={ntStyles.ntEnableTitle}>{t('notifications.liveUpdatesTitle')}</Text>
                 <Text style={ntStyles.ntEnableBody}>{t('notifications.liveUpdatesBody')}</Text>
-              </View>
-              <View style={ntStyles.ntLiveStatus}>
-                <View
-                  style={[
-                    ntStyles.ntLiveDot,
-                    { backgroundColor: connected ? '#16A34A' : '#EF4444' },
-                  ]}
-                />
-                <Text style={ntStyles.ntLiveStatusText}>
-                  {connected ? t('common.live') : t('common.offline')}
-                </Text>
               </View>
             </View>
           ) : null
@@ -706,4 +733,19 @@ const ntStyles = StyleSheet.create({
   ntEnableBody: { marginTop: 2, color: '#92400E', fontSize: 11, fontWeight: '600', lineHeight: 15 },
   ntLiveStatus: { alignItems: 'center', gap: 4 },
   ntLiveStatusText: { fontSize: 10, fontWeight: '800', color: '#64748B' },
+  ntPermissionCard: {
+    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1,
+  },
+  ntPermissionTitle: { fontSize: 14, fontWeight: '800' },
+  ntPermissionBody: { marginTop: 6, fontSize: 13, lineHeight: 18 },
+  ntPermissionBtn: {
+    marginTop: 12,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  ntPermissionBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 });

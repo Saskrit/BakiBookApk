@@ -4,7 +4,8 @@ import { applyPayment, generateReceiptNo } from '../utils/customerBalance.js';
 import { formatPayment } from '../utils/formatters.js';
 import { createNotification } from '../utils/notify.js';
 
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
+import { emitDataInvalidate, emitShopDataSync } from '../utils/realtimeSync.js';
 
 export const listPayments = async (req, res) => {
   try {
@@ -99,7 +100,13 @@ export const createPayment = async (req, res) => {
         type: 'success',
         customerId,
       });
+      emitDataInvalidate(customer.linkedUser, ['ledger', 'payments', 'all']);
     }
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'ledger', 'payments', 'all'],
+      excludeUserId: req.user._id,
+    });
 
     res.status(201).json({
       success: true,
@@ -123,6 +130,11 @@ export const deletePayment = async (req, res) => {
 
     const { recalculateBalance } = await import('../utils/customerBalance.js');
     await recalculateBalance(payment.customer);
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'ledger', 'payments', 'all'],
+      excludeUserId: req.user._id,
+    });
 
     res.json({ success: true, message: 'Payment deleted' });
   } catch (error) {

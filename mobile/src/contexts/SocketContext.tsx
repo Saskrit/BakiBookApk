@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
-import { getAuthToken } from '../api/client';
+import { getAuthToken, getActiveApiBaseUrl } from '../api/client';
 import { getSocketOrigin } from '../config/api';
 import { useAuth } from './AuthContext';
 
@@ -39,20 +39,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(async () => {
     const token = await getAuthToken();
-    if (!token || !user) {
+    if (!token || !user?.id) {
       disconnect();
       return;
     }
 
-    // Reuse existing connection when token/user already online
+    // Reuse existing connection when already online
     if (socketRef.current?.connected) {
       setConnected(true);
       return;
     }
 
-    disconnect();
+    // Drop a stale disconnected socket before creating a new one
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
 
-    const next = io(getSocketOrigin(), {
+    const apiBase = await getActiveApiBaseUrl();
+    const next = io(getSocketOrigin(apiBase), {
       auth: { token },
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -69,11 +75,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     socketRef.current = next;
     setSocket(next);
-  }, [disconnect, user]);
+  }, [disconnect, user?.id]);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
+    if (!user?.id) {
       disconnect();
       return;
     }

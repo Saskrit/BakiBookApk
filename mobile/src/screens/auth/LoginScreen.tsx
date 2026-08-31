@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +12,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AuthLanguageToggle from '../../components/AuthLanguageToggle';
+import OfflineBanner from '../../components/auth/OfflineBanner';
+import AuthKeyboardLayout from '../../components/auth/AuthKeyboardLayout';
 import LoginBackground from '../../components/auth/LoginBackground';
 import {
   AuthHeader,
@@ -30,10 +29,19 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors, layout, spacing, textStyles } from '../../theme';
+import { colors, spacing, textStyles } from '../../theme';
 import { warmAuthServices } from '../../utils/warmApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+function resolveLoginError(err: unknown, t: (key: string) => string): string {
+  if (err instanceof ApiError) {
+    if (err.code === 'NO_INTERNET') return t('errors.noInternet');
+    if (err.code === 'INVALID_EMAIL') return t('auth.invalidEmail');
+    if (err.code === 'INVALID_PASSWORD') return t('auth.invalidPassword');
+  }
+  return err instanceof Error ? err.message : t('auth.loginFailed');
+}
 
 export default function LoginScreen({ navigation }: Props) {
   const { login, googleSignIn } = useAuth();
@@ -105,8 +113,18 @@ export default function LoginScreen({ navigation }: Props) {
       const user = await login(normalizedEmail, password);
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
+      if (
+        err instanceof ApiError &&
+        (err.code === 'INVITE_ACTIVATION_REQUIRED' || err.data?.requiresInviteActivation)
+      ) {
+        navigation.navigate('InviteActivate', {
+          email: normalizedEmail,
+          message: err.message,
+        });
+        return;
+      }
       if (!handleLegacyVerification(err)) {
-        setError(err instanceof Error ? err.message : t('auth.loginFailed'));
+        setError(resolveLoginError(err, t));
       }
     } finally {
       setLoading(false);
@@ -120,7 +138,7 @@ export default function LoginScreen({ navigation }: Props) {
       const user = await googleSignIn({ credential, mode: 'login' });
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.googleFailed'));
+      setError(resolveLoginError(err, t));
     } finally {
       setLoading(false);
     }
@@ -135,130 +153,111 @@ export default function LoginScreen({ navigation }: Props) {
         <AuthLanguageToggle />
       </View>
 
-      <KeyboardAvoidingView
-        style={authStyles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={authStyles.flex}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingHorizontal: Math.max(layout.screenPaddingXWide, 20),
-              paddingTop: insets.top + spacing.xl,
-              paddingBottom: insets.bottom + spacing.md,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-        >
-          <AuthHeader compact />
+      <AuthKeyboardLayout>
+        <AuthHeader compact />
 
-          <View style={authStyles.card}>
-            <Text style={authStyles.cardTitle}>{t('auth.loginTitle')}</Text>
-            <Text style={authStyles.cardSubtitle}>{t('auth.loginSubtitle')}</Text>
-            {error ? <Text style={authStyles.error}>{error}</Text> : null}
+        <View style={authStyles.card}>
+          <Text style={authStyles.cardTitle}>{t('auth.loginTitle')}</Text>
+          <Text style={authStyles.cardSubtitle}>{t('auth.loginSubtitle')}</Text>
+          <OfflineBanner />
+          {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
-            <Text style={authStyles.label}>{t('auth.email')}</Text>
-            <View style={authStyles.inputRow}>
-              <EmailIcon />
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder={t('auth.email')}
-                placeholderTextColor={colors.textMuted}
-                style={authStyles.input}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                autoComplete="email"
-                returnKeyType="next"
-              />
-            </View>
-
-            <Text style={authStyles.label}>{t('auth.password')}</Text>
-            <View style={authStyles.inputRow}>
-              <LockIcon />
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder={t('auth.password')}
-                placeholderTextColor={colors.textMuted}
-                style={authStyles.input}
-                secureTextEntry={!showPassword}
-                textContentType="password"
-                autoComplete="password"
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
-              <Pressable
-                onPress={() => setShowPassword((current) => !current)}
-                hitSlop={spacing.sm}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-              >
-                <EyeIcon visible={showPassword} />
-              </Pressable>
-            </View>
-
-            <Pressable
-              onPress={() =>
-                appAlert(t('auth.forgotPassword'), t('auth.forgotPasswordBody'))
-              }
-              style={styles.forgotButton}
-            >
-              <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleLogin}
-              disabled={loading}
-              style={({ pressed }) => [
-                authStyles.primaryBtn,
-                loading && authStyles.primaryBtnDisabled,
-                pressed && authStyles.primaryBtnPressed,
-              ]}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.surface} />
-              ) : (
-                <>
-                  <Text style={authStyles.primaryBtnText}>{t('auth.signIn')}</Text>
-                  <Text style={authStyles.primaryBtnArrow}>→</Text>
-                </>
-              )}
-            </Pressable>
-
-            {showResendLink ? (
-              <Pressable
-                onPress={handleResendVerificationLink}
-                disabled={resendingLink || loading}
-                style={styles.resendLinkBtn}
-              >
-                <Text style={styles.resendLinkText}>
-                  {resendingLink ? t('auth.resendingLink') : t('auth.resendVerificationLink')}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <OrDivider />
-            <GoogleSignInButton
-              onCredential={handleGoogleCredential}
-              onError={setError}
-              disabled={loading}
+          <Text style={authStyles.label}>{t('auth.email')}</Text>
+          <View style={authStyles.inputRow}>
+            <EmailIcon />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('auth.email')}
+              placeholderTextColor={colors.textMuted}
+              style={authStyles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              returnKeyType="next"
             />
-
-            <View style={authStyles.altRow}>
-              <Text style={authStyles.altText}>{t('auth.noAccount')} </Text>
-              <Pressable onPress={() => navigation.navigate('Register')}>
-                <Text style={authStyles.altLink}>{t('auth.signUp')}</Text>
-              </Pressable>
-            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          <Text style={authStyles.label}>{t('auth.password')}</Text>
+          <View style={authStyles.inputRow}>
+            <LockIcon />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder={t('auth.password')}
+              placeholderTextColor={colors.textMuted}
+              style={authStyles.input}
+              secureTextEntry={!showPassword}
+              textContentType="password"
+              autoComplete="password"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+            />
+            <Pressable
+              onPress={() => setShowPassword((current) => !current)}
+              hitSlop={spacing.sm}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+            >
+              <EyeIcon visible={showPassword} />
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={() => navigation.navigate('ForgotPassword')}
+            style={styles.forgotButton}
+          >
+            <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleLogin}
+            disabled={loading}
+            style={({ pressed }) => [
+              authStyles.primaryBtn,
+              loading && authStyles.primaryBtnDisabled,
+              pressed && authStyles.primaryBtnPressed,
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <>
+                <Text style={authStyles.primaryBtnText}>{t('auth.signIn')}</Text>
+                <Text style={authStyles.primaryBtnArrow}>→</Text>
+              </>
+            )}
+          </Pressable>
+
+          {showResendLink ? (
+            <Pressable
+              onPress={handleResendVerificationLink}
+              disabled={resendingLink || loading}
+              style={styles.resendLinkBtn}
+            >
+              <Text style={styles.resendLinkText}>
+                {resendingLink ? t('auth.resendingLink') : t('auth.resendVerificationLink')}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <OrDivider />
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            onError={setError}
+            disabled={loading}
+          />
+
+          <View style={authStyles.altRow}>
+            <Text style={authStyles.altText}>{t('auth.noAccount')} </Text>
+            <Pressable onPress={() => navigation.navigate('Register')}>
+              <Text style={authStyles.altLink}>{t('auth.signUp')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </AuthKeyboardLayout>
     </View>
   );
 }
@@ -268,10 +267,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.md,
     zIndex: 2,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
   },
   forgotButton: {
     alignSelf: 'flex-end',

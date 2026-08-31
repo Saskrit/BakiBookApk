@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { fetchCustomers, deleteCustomer } from '../../api/customers';
 import { fetchDashboardStats } from '../../api/shop';
+import { useSyncOnInvalidate } from '../../contexts/SyncContext';
+import { getCachedCustomers, getCachedDashboard } from '../../utils/sessionCache';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -175,13 +177,37 @@ export default function CustomersScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       setError('');
+      // Instant paint from splash preload when not searching.
+      if (!debouncedSearch) {
+        const cachedCustomers = getCachedCustomers();
+        const cachedDashboard = getCachedDashboard();
+        if (cachedCustomers) {
+          setCustomers(cachedCustomers);
+          if (cachedDashboard) {
+            const pay = cachedDashboard.chart?.payment ?? [];
+            const credit = cachedDashboard.chart?.credit ?? [];
+            setMonthCollection(sumSlice(pay, -30, pay.length));
+            setMonthCredit(sumSlice(credit, -30, credit.length));
+            setCollectionTrend(
+              trendPercent(sumSlice(pay, -7, pay.length), sumSlice(pay, -14, -7))
+            );
+          }
+          setLoading(false);
+          load().catch(() => {});
+          return;
+        }
+      }
+      setLoading(true);
       load()
         .catch((err) => setError(err instanceof Error ? err.message : t('customers.loadFailed')))
         .finally(() => setLoading(false));
-    }, [load])
+    }, [load, debouncedSearch, t])
   );
+
+  useSyncOnInvalidate(['customers', 'dashboard', 'all'], () => {
+    load().catch(() => {});
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);

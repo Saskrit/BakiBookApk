@@ -1,6 +1,5 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,8 +15,11 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSyncOnInvalidate } from '../../contexts/SyncContext';
 import Sparkline from '../../components/dashboard/Sparkline';
 import NotificationBell from '../../components/NotificationBell';
+import ShopSetupPrompt from '../../components/ShopSetupPrompt';
+import UserAvatar from '../../components/UserAvatar';
 import { LoadingState } from '../../components/ui';
 import {
   fetchDashboardStats,
@@ -25,6 +27,14 @@ import {
   type DashboardRecentTransaction,
   type DashboardTopDueCustomer,
 } from '../../api/shop';
+import { fetchPendingSubmissionCount } from '../../api/paymentSubmissions';
+import { getCachedDashboard } from '../../utils/sessionCache';
+import { useSocket } from '../../contexts/SocketContext';
+import {
+  isShopPendingVerification,
+  isShopRejected,
+  needsShopSetup,
+} from '../../utils/authHelpers';
 import { colors } from '../../theme/colors';
 import { radius } from '../../theme/radius';
 import { spacing } from '../../theme/spacing';
@@ -196,12 +206,14 @@ function ReminderRow({ item }: { item: DashboardDueReminder }) {
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [pendingPayments, setPendingPayments] = useState(0);
   const [stats, setStats] = useState({
     totalOutstanding: 0,
     totalCustomers: 0,
@@ -213,9 +225,23 @@ export default function DashboardScreen() {
   const [recent, setRecent] = useState<DashboardRecentTransaction[]>([]);
   const [topDue, setTopDue] = useState<DashboardTopDueCustomer[]>([]);
   const [reminders, setReminders] = useState<DashboardDueReminder[]>([]);
+  const [shopPromptVisible, setShopPromptVisible] = useState(false);
+  const shopPromptDismissedRef = useRef<string | null>(null);
 
-  const load = useCallback(async () => {
-    const data = await fetchDashboardStats();
+  const needsSetup = needsShopSetup(user);
+  const shopPending = isShopPendingVerification(user);
+  const shopRejected = isShopRejected(user);
+  const shopPromptVariant = shopRejected
+    ? 'rejected'
+    : shopPending
+      ? 'pending'
+      : 'incomplete';
+  const shouldPromptShop =
+    Boolean(user?.id) &&
+    !user?.mustChangePassword &&
+    (needsSetup || shopPending || shopRejected);
+
+  const applyDashboard = useCallback((data: Awaited<ReturnType<typeof fetchDashboardStats>>) => {
     setStats({
       totalOutstanding: data.stats.totalOutstanding,
       totalCustomers: data.stats.totalCustomers,
@@ -232,17 +258,77 @@ export default function DashboardScreen() {
     setReminders(data.dueReminders || []);
   }, []);
 
+  const loadPendingPayments = useCallback(async () => {
+    try {
+      const res = await fetchPendingSubmissionCount();
+      setPendingPayments(Number(res.count || 0));
+    } catch {
+      // keep last known count
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    const [data] = await Promise.all([fetchDashboardStats(), loadPendingPayments()]);
+    applyDashboard(data);
+  }, [applyDashboard, loadPendingPayments]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onCount = (payload?: { count?: number }) => {
+      if (typeof payload?.count === 'number') {
+        setPendingPayments(payload.count);
+        return;
+      }
+      loadPendingPayments().catch(() => {});
+    };
+    socket.on('payment-submission:count', onCount);
+    return () => {
+      socket.off('payment-submission:count', onCount);
+    };
+  }, [socket, loadPendingPayments]);
+
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       setError('');
-      load()
-        .catch((err) =>
-          setError(err instanceof Error ? err.message : t('dashboard.loadFailed'))
-        )
-        .finally(() => setLoading(false));
-    }, [load, t])
+      const cached = getCachedDashboard();
+      if (cached) {
+        applyDashboard(cached);
+        setLoading(false);
+        load().catch(() => {});
+      } else {
+        setLoading(true);
+        load()
+          .catch((err) =>
+            setError(err instanceof Error ? err.message : t('dashboard.loadFailed'))
+          )
+          .finally(() => setLoading(false));
+      }
+
+      if (!shouldPromptShop || !user?.id) {
+        setShopPromptVisible(false);
+        return undefined;
+      }
+
+      const promptKey = `${user.id}:${shopPromptVariant}`;
+      if (shopPromptDismissedRef.current === promptKey) {
+        return undefined;
+      }
+
+      const timer = setTimeout(() => setShopPromptVisible(true), 450);
+      return () => clearTimeout(timer);
+    }, [
+      applyDashboard,
+      load,
+      shopPromptVariant,
+      shouldPromptShop,
+      t,
+      user?.id,
+    ])
   );
+
+  useSyncOnInvalidate(['dashboard', 'all'], () => {
+    load().catch(() => {});
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -269,13 +355,32 @@ export default function DashboardScreen() {
   const greetingLine = isNewUser
     ? t('dashboard.welcome', { name: firstName })
     : t('dashboard.welcomeBack', { name: firstName });
-  const openShopProfile = () => navigation.getParent()?.navigate('ShopProfile');
+  const openShopProfile = () =>
+    navigation.getParent()?.navigate('ShopProfile', { forceEdit: needsSetup || shopRejected });
   const avatarLabel = hasShop ? user!.shopName! : user?.fullName || t('auth.shopkeeper');
+
+  const dismissShopPrompt = () => {
+    if (user?.id) {
+      shopPromptDismissedRef.current = `${user.id}:${shopPromptVariant}`;
+    }
+    setShopPromptVisible(false);
+  };
+
+  const openShopFromPrompt = () => {
+    dismissShopPrompt();
+    openShopProfile();
+  };
 
   if (loading) return <LoadingState />;
 
   return (
     <View style={dbStyles.dbScreen}>
+      <ShopSetupPrompt
+        visible={shopPromptVisible}
+        variant={shopPromptVariant}
+        onComplete={openShopFromPrompt}
+        onDismiss={dismissShopPrompt}
+      />
       <ScrollView
         ref={scrollRef}
         style={dbStyles.dbScroll}
@@ -308,13 +413,13 @@ export default function DashboardScreen() {
 
           <View style={dbStyles.dbHeaderHero}>
             <Pressable onPress={openShopProfile} style={dbStyles.dbHeaderAvatarWrap}>
-              {user?.shopImage ? (
-                <Image source={{ uri: user.shopImage }} style={dbStyles.dbHeaderAvatar} />
-              ) : (
-                <View style={dbStyles.dbHeaderAvatarPlaceholder}>
-                  <Text style={dbStyles.dbHeaderAvatarInitial}>{getInitials(avatarLabel)}</Text>
-                </View>
-              )}
+              <UserAvatar
+                uri={user?.shopImage}
+                name={avatarLabel}
+                size={56}
+                fallbackBg="rgba(255,255,255,0.2)"
+                fallbackColor="#FFFFFF"
+              />
               {!hasShop ? <View style={dbStyles.dbHeaderAvatarDot} /> : null}
             </Pressable>
 
@@ -327,6 +432,15 @@ export default function DashboardScreen() {
                   <Text style={dbStyles.dbShopName} numberOfLines={1}>
                     {user!.shopName}
                   </Text>
+                  {user?.teamRole && user.teamRole !== 'owner' ? (
+                    <View style={dbStyles.dbTeamPill}>
+                      <Text style={dbStyles.dbTeamPillText}>
+                        {user.teamRole === 'partner'
+                          ? t('shopTeam.partner')
+                          : t('shopTeam.staff')}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={dbStyles.dbShopChevron}>▾</Text>
                 </Pressable>
               ) : (
@@ -355,6 +469,42 @@ export default function DashboardScreen() {
 
         <View style={dbStyles.dbBody}>
           {error ? <Text style={dbStyles.dbError}>{error}</Text> : null}
+
+          {needsSetup || shopRejected ? (
+            <Pressable onPress={openShopProfile} style={dbStyles.dbShopBannerWarn}>
+              <Text style={dbStyles.dbShopBannerTitle}>
+                {shopRejected
+                  ? t('dashboard.shopRejectedBannerTitle')
+                  : t('dashboard.shopSetupBannerTitle')}
+              </Text>
+              <Text style={dbStyles.dbShopBannerBody}>
+                {shopRejected
+                  ? t('dashboard.shopRejectedBannerBody')
+                  : t('dashboard.shopSetupBannerBody')}
+              </Text>
+              <Text style={dbStyles.dbShopBannerCta}>{t('dashboard.completeShopProfile')} ›</Text>
+            </Pressable>
+          ) : null}
+
+          {shopPending ? (
+            <Pressable onPress={openShopProfile} style={dbStyles.dbShopBannerInfo}>
+              <Text style={dbStyles.dbShopBannerTitle}>{t('dashboard.shopPendingBannerTitle')}</Text>
+              <Text style={dbStyles.dbShopBannerBody}>{t('dashboard.shopPendingBannerBody')}</Text>
+            </Pressable>
+          ) : null}
+
+          {pendingPayments > 0 ? (
+            <Pressable
+              onPress={() => navigation.getParent()?.navigate('PaymentSubmissions', { initialTab: 'pending' })}
+              style={dbStyles.dbShopBannerWarn}
+            >
+              <Text style={dbStyles.dbShopBannerTitle}>
+                {t('dashboard.pendingPaymentsBannerTitle', { count: pendingPayments })}
+              </Text>
+              <Text style={dbStyles.dbShopBannerBody}>{t('dashboard.pendingPaymentsBannerBody')}</Text>
+              <Text style={dbStyles.dbShopBannerCta}>{t('dashboard.reviewPayments')} ›</Text>
+            </Pressable>
+          ) : null}
 
           <ScrollView
             horizontal
@@ -454,8 +604,8 @@ export default function DashboardScreen() {
               }
             />
             <QuickAction
-              label={t('dashboard.receivePayment')}
-              onPress={() => navigation.navigate('Customers')}
+              label={t('dashboard.paymentSubmissions')}
+              onPress={() => navigation.getParent()?.navigate('PaymentSubmissions', { initialTab: 'pending' })}
               icon={
                 <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
                   <Circle cx={12} cy={12} r={8} stroke={colors.primary} strokeWidth={2} />
@@ -696,6 +846,13 @@ const dbStyles = StyleSheet.create({
   dbWelcomeText: { color: '#FFFFFF', fontSize: ty.xl, fontWeight: '800', marginBottom: 6 },
   dbShopRow: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   dbShopName: { color: 'rgba(255,255,255,0.92)', fontSize: ty.md, fontWeight: '600', flexShrink: 1 },
+  dbTeamPill: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  dbTeamPillText: { color: '#FFF', fontSize: ty.caption, fontWeight: '700' },
   dbShopChevron: { color: 'rgba(255,255,255,0.75)', fontSize: ty.body },
   dbRegisterShopBtn: {
     flexDirection: 'row',
@@ -748,6 +905,39 @@ const dbStyles = StyleSheet.create({
   dbHeaderStatValue: { color: '#FFFFFF', fontSize: ty.md, fontWeight: '800', marginTop: 2 },
   dbBody: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   dbError: { color: colors.danger, marginBottom: 12, fontSize: ty.bodyLg },
+  dbShopBannerWarn: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  dbShopBannerInfo: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  dbShopBannerTitle: {
+    fontSize: ty.bodyLg,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  dbShopBannerBody: {
+    fontSize: ty.body,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  dbShopBannerCta: {
+    marginTop: 8,
+    fontSize: ty.body,
+    fontWeight: '800',
+    color: colors.primary,
+  },
   dbStatsScroll: { gap: spacing.sm, paddingBottom: 4, paddingRight: 4 },
   dbStatCard: {
     width: 140,

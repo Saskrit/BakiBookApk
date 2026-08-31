@@ -1,4 +1,5 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,21 +7,28 @@ import SplashScreen from '../screens/auth/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+import InviteActivateScreen from '../screens/auth/InviteActivateScreen';
 import ShopkeeperNavigator from './ShopkeeperNavigator';
 import CustomerNavigator from './CustomerNavigator';
 import AddCustomerScreen from '../screens/shopkeeper/AddCustomerScreen';
 import CustomerProfileScreen from '../screens/shopkeeper/CustomerProfileScreen';
 import AddCreditScreen from '../screens/shopkeeper/AddCreditScreen';
 import RecordPaymentScreen from '../screens/shopkeeper/RecordPaymentScreen';
+import PaymentSubmissionsScreen from '../screens/shopkeeper/PaymentSubmissionsScreen';
 import LinkShopsScreen from '../screens/customer/LinkShopsScreen';
+import LinkShopInviteScreen from '../screens/customer/LinkShopInviteScreen';
 import ShopDetailScreen from '../screens/customer/ShopDetailScreen';
 import ShopTimelineScreen from '../screens/customer/ShopTimelineScreen';
 import EditCustomerScreen from '../screens/shopkeeper/EditCustomerScreen';
 import FilteredCustomersScreen from '../screens/shopkeeper/FilteredCustomersScreen';
 import ShopProfileScreen from '../screens/shopkeeper/ShopProfileScreen';
+import PersonalProfileScreen from '../screens/shopkeeper/PersonalProfileScreen';
 import ProductsScreen from '../screens/shopkeeper/ProductsScreen';
 import ExpensesScreen from '../screens/shopkeeper/ExpensesScreen';
 import SecurityScreen from '../screens/shopkeeper/SecurityScreen';
+import BackupRestoreScreen from '../screens/shopkeeper/BackupRestoreScreen';
 import PersonalInfoScreen from '../screens/customer/PersonalInfoScreen';
 import HelpSupportScreen from '../screens/shopkeeper/HelpSupportScreen';
 import LegalDocumentScreen from '../screens/shopkeeper/LegalDocumentScreen';
@@ -33,31 +41,51 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function getInitialRoute(loading: boolean, user: ReturnType<typeof useAuth>['user']) {
-  if (loading) return 'Splash';
-  if (!user) return 'Login';
-  return user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer';
-}
-
 export default function RootNavigator() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
-  const navKey = loading ? 'boot' : user ? `${user.id}-${user.role}` : 'guest';
+  const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [bootDone, setBootDone] = useState(false);
+  // Only remount after login/logout — never mid-splash when auth finishes loading.
+  const navKey = user ? `${user.id}-${user.role}` : 'guest';
+
+  useEffect(() => {
+    if (!bootDone || loading || !user?.mustChangePassword || user.role !== 'shopkeeper') {
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      navRef.current?.navigate('Security');
+    });
+    return () => cancelAnimationFrame(id);
+  }, [bootDone, loading, user?.id, user?.mustChangePassword, user?.role]);
+
+  // Full 8s splash on cold start, outside the navigator so auth loading cannot skip it.
+  if (!bootDone) {
+    return <SplashScreen onBootComplete={() => setBootDone(true)} />;
+  }
+
+  const initialRoute = user
+    ? user.role === 'shopkeeper'
+      ? 'Shopkeeper'
+      : 'Customer'
+    : 'Login';
 
   return (
-    <NavigationContainer key={navKey}>
+    <NavigationContainer key={navKey} ref={navRef}>
       <Stack.Navigator
-        initialRouteName={getInitialRoute(loading, user)}
+        initialRouteName={initialRoute}
         screenOptions={{
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.primaryDark,
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
         <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="InviteActivate" component={InviteActivateScreen} options={{ headerShown: false }} />
         <Stack.Screen
           name="Shopkeeper"
           component={ShopkeeperNavigator}
@@ -98,7 +126,17 @@ export default function RootNavigator() {
           component={RecordPaymentScreen}
           options={{ title: t('nav.recordPayment') }}
         />
+        <Stack.Screen
+          name="PaymentSubmissions"
+          component={PaymentSubmissionsScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="LinkShops" component={LinkShopsScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="LinkShopInvite"
+          component={LinkShopInviteScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="ShopDetail"
           component={ShopDetailScreen}
@@ -115,6 +153,11 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="PersonalProfile"
+          component={PersonalProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="Products"
           component={ProductsScreen}
           options={{ headerShown: false }}
@@ -127,6 +170,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Security"
           component={SecurityScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BackupRestore"
+          component={BackupRestoreScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

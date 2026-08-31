@@ -1,21 +1,37 @@
-import { API_BASE_URL } from '../config/api';
+import { checkServerStatus, getServerStatus, warmServerDuringSplash } from './serverStatus';
 import { configureGoogleSignIn, isGoogleSignInAvailable } from './googleSignIn';
 
 let warmed = false;
+let warming: Promise<void> | null = null;
 
-/** Wake Render / pre-configure Google Sign-In so auth feels faster. */
+/**
+ * Pre-open DNS/TLS to the API and configure Google Sign-In.
+ * Fire-and-forget on login/signup screens — splash does the heavy warm-up.
+ */
 export function warmAuthServices() {
-  if (warmed) return;
-  warmed = true;
+  if (warmed || warming) return;
 
+  warming = (async () => {
+    if (isGoogleSignInAvailable()) {
+      configureGoogleSignIn();
+    }
+    const ok = await checkServerStatus({ force: true });
+    warmed = ok || getServerStatus() === 'online';
+  })()
+    .catch(() => {
+      warmed = false;
+    })
+    .finally(() => {
+      warming = null;
+    });
+}
+
+/** Full splash warm-up: keep hitting the API for the splash duration. */
+export async function warmAuthDuringSplash(durationMs = 8_000): Promise<boolean> {
   if (isGoogleSignInAvailable()) {
     configureGoogleSignIn();
   }
-
-  if (!API_BASE_URL) return;
-
-  const origin = API_BASE_URL.replace(/\/api\/?$/, '');
-  fetch(`${origin}/api/health`, { method: 'GET' }).catch(() => {
-    warmed = false;
-  });
+  const ok = await warmServerDuringSplash(durationMs);
+  warmed = ok;
+  return ok;
 }

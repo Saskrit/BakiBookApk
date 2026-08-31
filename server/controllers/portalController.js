@@ -360,7 +360,7 @@ export const getPortalPayments = async (req, res) => {
         shopName: shopMap[p.customer.toString()] || 'Shop',
         paidFor: formatted.paidFor,
         note: p.note || '',
-        screenshotUrl: p.screenshotUrl || p.submission?.screenshotUrl || '',
+        screenshotUrl: formatted.screenshotUrl || '',
         receiptNo: p.receiptNo || '',
         submissionId,
         status: 'verified',
@@ -435,6 +435,87 @@ export const getPortalNotifications = async (req, res) => {
       success: true,
       notifications: notifications.map(formatNotification),
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const CUSTOMER_BACKUP_SCHEMA = 1;
+
+export const exportCustomerBackup = async (req, res) => {
+  try {
+    const linked = await findLinkedCustomers(req.user);
+    const customerIds = linked.map((c) => c._id);
+    const shopMap = Object.fromEntries(
+      linked.map((c) => [c._id.toString(), c.shopkeeper?.shopName || 'Shop'])
+    );
+
+    const [transactions, payments, submissions] = await Promise.all([
+      Transaction.find({ customer: { $in: customerIds } }).sort({ createdAt: -1 }),
+      Payment.find({ customer: { $in: customerIds } }).sort({ createdAt: -1 }),
+      PaymentSubmission.find({ customer: { $in: customerIds } }).sort({ createdAt: -1 }),
+    ]);
+
+    const ledgerByCustomer = customerIds.map((customerId) => {
+      const key = customerId.toString();
+      const customerTx = transactions.filter((tx) => tx.customer.toString() === key);
+      const customerPayments = payments.filter((p) => p.customer.toString() === key);
+      return buildGroupedLedger({
+        transactions: customerTx,
+        payments: customerPayments,
+        role: 'customer',
+        filter: 'active',
+        shopName: shopMap[key] || 'Shop',
+      }).map((entry) => ({
+        ...entry,
+        customerId: key,
+      }));
+    });
+
+    const ledger = ledgerByCustomer
+      .flat()
+      .sort((a, b) => new Date(b.sortAt || b.date) - new Date(a.sortAt || a.date));
+
+    const currentDue = linked.reduce((sum, c) => sum + c.balance, 0);
+    const totalPurchases = transactions.reduce((sum, tx) => sum + (tx.total || 0), 0);
+    const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const backup = {
+      schemaVersion: CUSTOMER_BACKUP_SCHEMA,
+      backupType: 'customer',
+      exportedAt: new Date().toISOString(),
+      userId: req.user._id.toString(),
+      profile: {
+        fullName: req.user.fullName || '',
+        email: req.user.email || '',
+        phone: req.user.phone || '',
+      },
+      summary: {
+        currentDue,
+        totalPurchases,
+        totalPaid,
+        totalShops: linked.length,
+        ledgerCount: ledger.length,
+      },
+      shops: linked.map((c) => ({
+        customerId: c._id.toString(),
+        shopName: c.shopkeeper?.shopName || 'Shop',
+        balance: c.balance,
+        creditScore: c.creditScore,
+        linkStatus: c.linkStatus,
+      })),
+      ledger,
+      paymentSubmissions: submissions.map((s) => ({
+        id: s._id.toString(),
+        customerId: s.customer?.toString(),
+        amount: s.amount,
+        method: s.method,
+        status: s.status,
+        createdAt: s.createdAt,
+      })),
+    };
+
+    res.json({ success: true, backup });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

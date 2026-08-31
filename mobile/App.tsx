@@ -7,12 +7,16 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { DialogProvider } from './src/contexts/DialogContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { SocketProvider } from './src/contexts/SocketContext';
+import { SyncProvider } from './src/contexts/SyncContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { MaintenanceProvider } from './src/contexts/MaintenanceContext';
 import { useAppFonts } from './src/hooks/useAppFonts';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/colors';
 import { warmAuthServices } from './src/utils/warmApi';
+import { configureNotificationPresentation } from './src/utils/deviceNotifications';
+
+configureNotificationPresentation();
 
 export default function App() {
   const fontsLoaded = useAppFonts();
@@ -36,10 +40,12 @@ export default function App() {
           <LanguageProvider>
             <MaintenanceProvider>
               <SocketProvider>
-                <NotificationProvider>
-                  <RootNavigator />
-                  <StatusBar style="dark" />
-                </NotificationProvider>
+                <SyncProvider>
+                  <NotificationProvider>
+                    <RootNavigator />
+                    <StatusBar style="dark" />
+                  </NotificationProvider>
+                </SyncProvider>
               </SocketProvider>
             </MaintenanceProvider>
           </LanguageProvider>

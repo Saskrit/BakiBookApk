@@ -12,6 +12,7 @@ import Product from './models/Product.js';
 import Expense from './models/Expense.js';
 import { initSocket } from './config/socket.js';
 import authRoutes from './routes/authRoutes.js';
+import verifyPageRoutes from './routes/verifyPageRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import geocodeRoutes from './routes/geocodeRoutes.js';
 import legalRoutes from './routes/legalRoutes.js';
@@ -33,6 +34,7 @@ import { seedLegalDocuments } from './utils/seedLegal.js';
 import { verifyEmailConnection } from './config/email.js';
 import { isCloudinaryConfigured, verifyCloudinaryConnection } from './config/cloudinary.js';
 import { maintenanceGuard } from './middleware/maintenanceMiddleware.js';
+import { handleApiRoot } from './utils/apiLandingPage.js';
 import SystemSetting from './models/SystemSetting.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +52,11 @@ connectDB().then(async () => {
   } catch (err) {
     console.warn('Index sync failed:', err.message);
   }
+
+  // Warm maintenance/settings cache so the first user request skips a Mongo round-trip.
+  SystemSetting.getGlobal().catch((err) => {
+    console.warn('SystemSetting warm failed:', err.message);
+  });
 
   seedLegalDocuments().catch((err) => {
     console.warn('Legal document seed failed:', err.message);
@@ -73,6 +80,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(maintenanceGuard);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/verify', verifyPageRoutes);
+app.use('/verify-email', verifyPageRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/geocode', geocodeRoutes);
 app.use('/api/auth', authRoutes);
@@ -165,85 +174,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.get('/api', (_req, res) => {
-  const accept = String(_req.headers.accept || '');
-  const payload = {
-    status: 'ok',
-    name: 'BakiBook API',
-    message: 'BakiBook API is running',
-    timestamp: new Date().toISOString(),
-    docs: {
-      health: '/api/health',
-      maintenance: '/api/maintenance-status',
-      auth: '/api/auth',
-    },
-  };
-
-  if (accept.includes('text/html')) {
-    return res.type('html').send(`
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>BakiBook API</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: Inter, system-ui, sans-serif;
-            background: #FBF6F6;
-            color: #4C5C2D;
-          }
-          .card {
-            width: min(480px, 92vw);
-            text-align: center;
-            padding: 40px 32px;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(76, 92, 45, 0.12);
-            border: 1px solid #e8e0e0;
-          }
-          h1 { font-size: 1.5rem; margin-bottom: 8px; }
-          p { color: #666; font-size: 0.95rem; margin-bottom: 20px; }
-          a {
-            display: inline-block;
-            margin: 4px 6px;
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: #6A7E3F;
-            color: #fff;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.875rem;
-          }
-          .dot {
-            width: 10px;
-            height: 10px;
-            background: #6A7E3F;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1><span class="dot"></span>BakiBook API is running</h1>
-          <p>Use the endpoints below. The mobile/web apps call these under <code>/api</code>.</p>
-          <a href="/api/health">/api/health</a>
-          <a href="/api/maintenance-status">/api/maintenance-status</a>
-        </div>
-      </body>
-    </html>
-  `);
-  }
-
-  return res.json(payload);
-});
+app.get(['/api', '/api/'], handleApiRoot);
 
 app.get('/api/maintenance-status', async (_req, res) => {
   try {
@@ -254,6 +185,21 @@ app.get('/api/maintenance-status', async (_req, res) => {
       message:
         settings.maintenanceMessage ||
         'BakiBook is temporarily unavailable. Please check back soon.',
+      supportEmail: settings.supportEmail || 'saskreetking@gmail.com',
+      supportPhone: settings.supportPhone || '+977 9703649841',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/platform-contact', async (_req, res) => {
+  try {
+    const settings = await SystemSetting.getGlobal();
+    res.json({
+      success: true,
+      supportEmail: settings.supportEmail || 'saskreetking@gmail.com',
+      supportPhone: settings.supportPhone || '+977 9703649841',
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

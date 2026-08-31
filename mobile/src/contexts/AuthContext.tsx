@@ -9,9 +9,14 @@ import {
   resendRegistrationCode as apiResendRegistrationCode,
   saveAuth,
   verifyRegistration as apiVerifyRegistration,
+  activateInviteLogin as apiActivateInviteLogin,
+  resendInviteLoginCode as apiResendInviteLoginCode,
 } from '../api/auth';
 import { ApiError, loadToken } from '../api/client';
 import type { User } from '../types';
+import { invalidateSessionCache } from '../utils/sessionCache';
+import { unregisterDevicePushTokenFromServer } from '../utils/deviceNotifications';
+import { withNormalizedUserImages } from '../utils/normalizeImageUrl';
 
 function isUnauthorized(err: unknown) {
   return err instanceof ApiError && err.status === 401;
@@ -45,6 +50,12 @@ interface AuthContextValue {
     email: string;
     role: 'shopkeeper' | 'customer';
   }) => Promise<{ emailSent?: boolean; message?: string }>;
+  activateInvite: (payload: {
+    email: string;
+    code: string;
+    password: string;
+  }) => Promise<User>;
+  resendInviteCode: (email: string) => Promise<{ emailSent?: boolean; message?: string }>;
   googleSignIn: (payload: {
     credential: string;
     mode: 'login' | 'register';
@@ -69,11 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!stored) return;
 
         // Restore session immediately so the user stays signed in for 30 days.
-        setUser(stored.user);
+        setUser(withNormalizedUserImages(stored.user));
         try {
           const me = await fetchMe();
-          setUser(me.user);
-          await saveAuth(stored.token, me.user, undefined, {
+          const normalized = withNormalizedUserImages(me.user);
+          setUser(normalized);
+          await saveAuth(stored.token, normalized, undefined, {
             sessionExpiresAt: stored.sessionExpiresAt,
           });
         } catch (err) {
@@ -91,7 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiLogin({ email, password });
-    const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
+    const nextUser = withNormalizedUserImages({
+      ...data.user,
+      pendingLinkCount: data.pendingLinkCount,
+    });
     await saveAuth(data.token, nextUser, data.pendingLinkCount);
     setUser(nextUser);
     return nextUser;
@@ -114,7 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: data.message,
         };
       }
-      const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
+      const nextUser = withNormalizedUserImages({
+        ...data.user,
+        pendingLinkCount: data.pendingLinkCount,
+      });
       await saveAuth(data.token, nextUser, data.pendingLinkCount);
       setUser(nextUser);
       return nextUser;
@@ -129,7 +147,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       code: string;
     }) => {
       const data = await apiVerifyRegistration(payload);
-      const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
+      const nextUser = withNormalizedUserImages({
+        ...data.user,
+        pendingLinkCount: data.pendingLinkCount,
+      });
       await saveAuth(data.token, nextUser, data.pendingLinkCount);
       setUser(nextUser);
       return nextUser;
@@ -145,6 +166,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const activateInvite = useCallback(
+    async (payload: { email: string; code: string; password: string }) => {
+      const data = await apiActivateInviteLogin(payload);
+      const nextUser = withNormalizedUserImages({
+        ...data.user,
+        pendingLinkCount: data.pendingLinkCount,
+      });
+      await saveAuth(data.token, nextUser, data.pendingLinkCount);
+      setUser(nextUser);
+      return nextUser;
+    },
+    []
+  );
+
+  const resendInviteCode = useCallback(async (email: string) => {
+    const data = await apiResendInviteLoginCode(email);
+    return { emailSent: data.emailSent, message: data.message };
+  }, []);
+
   const googleSignIn = useCallback(
     async (payload: {
       credential: string;
@@ -152,7 +192,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role?: 'shopkeeper' | 'customer';
     }) => {
       const data = await apiGoogleAuth(payload);
-      const nextUser = { ...data.user, pendingLinkCount: data.pendingLinkCount };
+      const nextUser = withNormalizedUserImages({
+        ...data.user,
+        pendingLinkCount: data.pendingLinkCount,
+      });
       await saveAuth(data.token, nextUser, data.pendingLinkCount);
       setUser(nextUser);
       return nextUser;
@@ -161,6 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    invalidateSessionCache();
+    await unregisterDevicePushTokenFromServer();
     await clearAuth();
     setUser(null);
   }, []);
@@ -168,19 +213,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     const stored = await getStoredAuth();
     const me = await fetchMe();
-    setUser(me.user);
+    const normalized = withNormalizedUserImages(me.user);
+    setUser(normalized);
     if (stored?.token) {
-      await saveAuth(stored.token, me.user, undefined, {
+      await saveAuth(stored.token, normalized, undefined, {
         sessionExpiresAt: stored.sessionExpiresAt,
       });
     }
   }, []);
 
   const applyUser = useCallback(async (next: User) => {
-    setUser(next);
     const stored = await getStoredAuth();
+    // Prefer the new URL; only fall back to stored when the API omits the field.
+    const profileImage =
+      next.profileImage !== undefined && next.profileImage !== null
+        ? next.profileImage
+        : stored?.user.profileImage || '';
+    const shopImage =
+      next.shopImage !== undefined && next.shopImage !== null
+        ? next.shopImage
+        : stored?.user.shopImage || '';
+    const normalized = withNormalizedUserImages({
+      ...next,
+      profileImage: profileImage || stored?.user.profileImage || '',
+      shopImage: shopImage || stored?.user.shopImage || '',
+    });
+    setUser(normalized);
     if (stored?.token) {
-      await saveAuth(stored.token, next, undefined, {
+      await saveAuth(stored.token, normalized, undefined, {
         sessionExpiresAt: stored.sessionExpiresAt,
       });
     }
@@ -194,6 +254,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       verifyRegistration,
       resendRegistrationCode,
+      activateInvite,
+      resendInviteCode,
       googleSignIn,
       logout,
       refreshUser,
@@ -206,6 +268,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       verifyRegistration,
       resendRegistrationCode,
+      activateInvite,
+      resendInviteCode,
       googleSignIn,
       logout,
       refreshUser,

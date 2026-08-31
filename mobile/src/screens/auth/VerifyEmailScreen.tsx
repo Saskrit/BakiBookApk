@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import AuthLanguageToggle from '../../components/AuthLanguageToggle';
+import AuthKeyboardLayout from '../../components/auth/AuthKeyboardLayout';
 import LoginBackground from '../../components/auth/LoginBackground';
 import { AuthHeader, authStyles } from '../../components/auth/AuthUi';
 import { useAuth } from '../../contexts/AuthContext';
@@ -168,19 +167,11 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
         <AuthLanguageToggle />
       </View>
 
-      <KeyboardAvoidingView
-        style={authStyles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <AuthKeyboardLayout
+        contentContainerStyle={{
+          paddingTop: insets.top + layout.touchTarget + spacing.md,
+        }}
       >
-        <View
-          style={[
-            authStyles.content,
-            {
-              paddingTop: insets.top + layout.touchTarget + spacing.md,
-              paddingBottom: insets.bottom + spacing.md,
-            },
-          ]}
-        >
           <AuthHeader compact />
           <View style={authStyles.card}>
             <Text style={styles.title}>{t('auth.verifyEmailTitle')}</Text>
@@ -240,8 +231,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
               </Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+      </AuthKeyboardLayout>
     </View>
   );
 }

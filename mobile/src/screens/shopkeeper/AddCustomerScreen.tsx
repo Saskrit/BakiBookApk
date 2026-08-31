@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { createCustomer } from '../../api/customers';
+import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText, Input, Screen, Subtitle, Title } from '../../components/ui';
+import { colors } from '../../theme/colors';
+import { typography as ty } from '../../theme/typography';
+import { isShopVerified } from '../../utils/authHelpers';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddCustomer'>;
 
 export default function AddCustomerScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const shopVerified = isShopVerified(user);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -26,7 +32,12 @@ export default function AddCustomerScreen({ navigation }: Props) {
     setLoading(true);
     setError('');
     try {
-      await createCustomer({ name: name.trim(), phone, email, address });
+      await createCustomer({
+        name: name.trim(),
+        phone,
+        email: shopVerified ? email : '',
+        address,
+      });
       appAlert(t('common.saved'), t('customers.addedSuccess'));
       navigation.goBack();
     } catch (err) {
@@ -50,7 +61,13 @@ export default function AddCustomerScreen({ navigation }: Props) {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={shopVerified}
         />
+        {!shopVerified ? (
+          <Text style={{ color: colors.textMuted, fontSize: ty.sm, marginBottom: 12, marginTop: -4 }}>
+            {t('customers.emailLockedUntilVerified')}
+          </Text>
+        ) : null}
         <Input label={t('customers.fields.address')} value={address} onChangeText={setAddress} />
         <Button title={t('customers.saveCustomer')} onPress={handleSave} loading={loading} />
       </ScrollView>

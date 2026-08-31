@@ -1,6 +1,7 @@
 import i18n from '../i18n';
 import {
   PDF_STYLES,
+  buildStatsTableHtml,
   buildTableHtml,
   escapeHtml,
   formatReportDate,
@@ -25,7 +26,7 @@ function t(key: string, options?: Record<string, unknown>) {
   return i18n.t(key, options);
 }
 
-function summaryItems(report: Record<string, unknown>) {
+function summaryItems(report: Record<string, unknown>): Array<[string, string]> {
   return [
     [t('pdf.periodStart'), formatReportDate(String(report.periodStart || ''))],
     [t('pdf.periodEnd'), formatReportDate(String(report.periodEnd || ''))],
@@ -42,14 +43,16 @@ function summaryItems(report: Record<string, unknown>) {
 
 export async function exportCompleteShopReportPdf(data: CompleteReportPayload) {
   const { period, shopName, shopOwner, report } = data;
-  const statsHtml = summaryItems(report)
-    .map(([label, value]) => `<div class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
-    .join('');
+  const statsHtml = buildStatsTableHtml(summaryItems(report));
 
   const creditsHtml = buildTableHtml(data.credits, [
     { label: t('pdf.colDate'), key: 'date' },
     { label: t('pdf.colCustomer'), key: 'customer' },
-    { label: t('pdf.colProducts'), key: 'products' },
+    {
+      label: t('pdf.colProducts'),
+      key: 'products',
+      format: (_, row) => String(row.products || row.items || '—'),
+    },
     { label: t('pdf.colTotal'), key: 'total', format: (v) => formatRs(Number(v)) },
     { label: t('pdf.colNote'), key: 'note' },
   ]);
@@ -57,26 +60,55 @@ export async function exportCompleteShopReportPdf(data: CompleteReportPayload) {
   const paymentsHtml = buildTableHtml(data.payments, [
     { label: t('pdf.colDate'), key: 'date' },
     { label: t('pdf.colCustomer'), key: 'customer' },
-    { label: t('pdf.colPaidFor'), key: 'paidFor' },
+    {
+      label: t('pdf.colPaidFor'),
+      key: 'paidFor',
+      format: (_, row) =>
+        String(row.paidFor || row.itemName || row.payLabel || row.note || '—'),
+    },
     { label: t('pdf.colAmount'), key: 'amount', format: (v) => formatRs(Number(v)) },
     { label: t('pdf.colMethod'), key: 'method' },
-    { label: t('pdf.colReceipt'), key: 'receiptNo' },
+    {
+      label: t('pdf.colReceipt'),
+      key: 'receipt',
+      format: (_, row) => String(row.receipt || row.receiptNo || '—'),
+    },
   ]);
 
   const productsHtml = buildTableHtml(data.products, [
     { label: t('pdf.colDate'), key: 'date' },
     { label: t('pdf.colCustomer'), key: 'customer' },
     { label: t('pdf.colProduct'), key: 'product' },
-    { label: t('pdf.colQty'), key: 'qty' },
-    { label: t('pdf.colUnitPrice'), key: 'price', format: (v) => formatRs(Number(v)) },
-    { label: t('pdf.colLineTotal'), key: 'total', format: (v) => formatRs(Number(v)) },
+    {
+      label: t('pdf.colQty'),
+      key: 'qty',
+      format: (v, row) => {
+        const unit = row.unit === 'kg' || row.unit === 'ltr' ? ` ${row.unit}` : '';
+        return `${v ?? 1}${unit}`;
+      },
+    },
+    {
+      label: t('pdf.colUnitPrice'),
+      key: 'unitPrice',
+      format: (v, row) => formatRs(Number(v ?? row.price ?? 0)),
+    },
+    {
+      label: t('pdf.colLineTotal'),
+      key: 'lineTotal',
+      format: (v, row) => formatRs(Number(v ?? row.total ?? 0)),
+    },
   ]);
 
   const activityHtml = buildTableHtml(data.activity, [
     { label: t('pdf.colDate'), key: 'date' },
     { label: t('pdf.colType'), key: 'type' },
     { label: t('pdf.colCustomer'), key: 'customer' },
-    { label: t('pdf.colDetails'), key: 'details' },
+    {
+      label: t('pdf.colDetails'),
+      key: 'detail',
+      format: (_, row) =>
+        String(row.detail || row.details || row.products || row.note || '—'),
+    },
     { label: t('pdf.colAmount'), key: 'amount', format: (v) => formatRs(Number(v)) },
   ]);
 
@@ -103,7 +135,7 @@ export async function exportCompleteShopReportPdf(data: CompleteReportPayload) {
       <div>${escapeHtml(t('pdf.generated', { date: generatedDate }))}</div>
     </div>
     <h2>${escapeHtml(t('pdf.summary'))}</h2>
-    <div class="stats">${statsHtml}</div>
+    ${statsHtml}
     <h2>${escapeHtml(t('pdf.creditTransactions'))}</h2>${creditsHtml}
     <h2>${escapeHtml(t('pdf.paymentsReceived'))}</h2>${paymentsHtml}
     <h2>${escapeHtml(t('pdf.productsSoldOnCredit'))}</h2>${productsHtml}
@@ -113,5 +145,7 @@ export async function exportCompleteShopReportPdf(data: CompleteReportPayload) {
     <div class="footer">${escapeHtml(t('pdf.footerShop'))}</div>
   </body></html>`;
 
-  await shareHtmlAsPdf(html, t('pdf.exportShopReport'));
+  await shareHtmlAsPdf(html, t('pdf.exportShopReport'), {
+    fileName: `BakiBook_Shop_${period}_${new Date().toISOString().slice(0, 10)}`,
+  });
 }

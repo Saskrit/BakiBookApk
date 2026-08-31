@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { request, setToken } from './client';
+import { migrateLegacyItem } from '../utils/secureStorage';
 import type { AuthResponse, User } from '../types';
 
 const AUTH_KEY = 'bakibook_auth';
@@ -41,7 +42,7 @@ export async function getStoredAuth(): Promise<{
   user: User;
   sessionExpiresAt?: number;
 } | null> {
-  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  const token = await migrateLegacyItem(TOKEN_KEY, TOKEN_KEY);
   const userJson = await AsyncStorage.getItem(AUTH_KEY);
   if (!token || !userJson) return null;
   try {
@@ -77,6 +78,31 @@ export const login = (payload: { email: string; password: string }) => {
     }),
   });
 };
+
+export const activateInviteLogin = (payload: {
+  email: string;
+  code: string;
+  password: string;
+}) =>
+  request<AuthResponse>('/auth/invite/activate', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: payload.email.trim().toLowerCase(),
+      code: payload.code.trim(),
+      password: payload.password,
+    }),
+  });
+
+export const resendInviteLoginCode = (email: string) =>
+  request<{
+    success: boolean;
+    message: string;
+    emailSent?: boolean;
+    email: string;
+  }>('/auth/invite/resend-code', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
 
 export const register = (payload: {
   role: 'shopkeeper' | 'customer';
@@ -158,10 +184,25 @@ export const updateTutorialProgress = (payload: {
     body: JSON.stringify(payload),
   });
 
-export const changePassword = (payload: { currentPassword: string; newPassword: string }) =>
+export const changePassword = (payload: { currentPassword?: string; newPassword: string }) =>
   request<{ success: boolean; message: string }>('/auth/change-password', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+
+export const registerPushToken = (payload: {
+  token: string;
+  platform?: 'android' | 'ios' | 'web';
+}) =>
+  request<{ success: boolean; message: string }>('/auth/push-token', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const unregisterPushToken = (token?: string) =>
+  request<{ success: boolean; message: string }>('/auth/push-token', {
+    method: 'DELETE',
+    body: JSON.stringify(token ? { token } : {}),
   });
 
 export const resendVerificationEmail = () =>
@@ -205,9 +246,15 @@ export const confirmEmailChange = (code: string) =>
   );
 
 export const forgotPassword = (email: string) =>
-  request<{ success: boolean; message: string }>('/auth/forgot-password', {
+  request<{ success: boolean; message: string; emailSent?: boolean }>('/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
+  });
+
+export const resetPassword = (token: string, password: string) =>
+  request<{ success: boolean; message: string }>(`/auth/reset-password/${encodeURIComponent(token)}`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
   });
 
 export const fetchPendingLinks = () =>

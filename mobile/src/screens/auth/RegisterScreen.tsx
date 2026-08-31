@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 import AuthLanguageToggle from '../../components/AuthLanguageToggle';
+import OfflineBanner from '../../components/auth/OfflineBanner';
+import AuthKeyboardLayout from '../../components/auth/AuthKeyboardLayout';
 import LoginBackground from '../../components/auth/LoginBackground';
 import {
   AuthHeader,
@@ -29,6 +28,7 @@ import {
   authStyles,
 } from '../../components/auth/AuthUi';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
+import { ApiError } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, iconSize, layout, radius, spacing } from '../../theme';
@@ -37,6 +37,13 @@ import { warmAuthServices } from '../../utils/warmApi';
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 type Role = 'shopkeeper' | 'customer';
 type Step = 'role' | 'details';
+
+function resolveAuthError(err: unknown, t: (key: string) => string, fallback: string): string {
+  if (err instanceof ApiError && err.code === 'NO_INTERNET') {
+    return t('errors.noInternet');
+  }
+  return err instanceof Error ? err.message : t(fallback);
+}
 
 function BackIcon() {
   return (
@@ -151,7 +158,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
       navigation.replace(result.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.registerFailed'));
+      setError(resolveAuthError(err, t, 'auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -169,7 +176,7 @@ export default function RegisterScreen({ navigation }: Props) {
       const user = await googleSignIn({ credential, mode: 'register', role });
       navigation.replace(user.role === 'shopkeeper' ? 'Shopkeeper' : 'Customer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.googleSignUpFailed'));
+      setError(resolveAuthError(err, t, 'auth.googleSignUpFailed'));
     } finally {
       setLoading(false);
     }
@@ -200,29 +207,17 @@ export default function RegisterScreen({ navigation }: Props) {
         <AuthLanguageToggle />
       </View>
 
-      <KeyboardAvoidingView
-        style={authStyles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <AuthKeyboardLayout
+        contentContainerStyle={{
+          paddingTop: insets.top + layout.touchTarget + spacing.md,
+        }}
       >
-        <ScrollView
-          style={authStyles.flex}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingHorizontal: Math.max(layout.screenPaddingXWide, 20),
-              paddingTop: insets.top + layout.touchTarget + spacing.md,
-              paddingBottom: insets.bottom + spacing.md,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-        >
           {step === 'role' ? (
             <View style={styles.panel}>
               <AuthHeader compact />
               <Text style={styles.title}>{t('auth.createAccount')}</Text>
               <Text style={styles.subtitle}>{t('auth.chooseRoleSubtitle')}</Text>
+              <OfflineBanner />
               {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
               <RoleCard
@@ -252,6 +247,7 @@ export default function RegisterScreen({ navigation }: Props) {
               <Text style={styles.subtitle}>
                 {t('auth.registerAsRole', { role: t(`auth.${role}`) })}
               </Text>
+              <OfflineBanner />
               {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
               <Text style={authStyles.label}>{t('auth.fullName')}</Text>
@@ -345,8 +341,7 @@ export default function RegisterScreen({ navigation }: Props) {
               </View>
             </View>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </AuthKeyboardLayout>
     </View>
   );
 }
@@ -360,10 +355,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
   },
   panel: {
     width: '100%',

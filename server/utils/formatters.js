@@ -1,3 +1,5 @@
+import { toPublicImageUrl } from './imageUpload.js';
+
 export const getInitials = (name = '') =>
   name
     .split(' ')
@@ -73,7 +75,12 @@ export const formatCustomer = (customer) => ({
 
 export const formatCreditProducts = (items = []) => {
   if (!items?.length) return '—';
-  return items.map((item) => `${item.name} ×${item.qty}`).join(', ');
+  return items
+    .map((item) => {
+      const unit = item.unit === 'kg' || item.unit === 'ltr' ? ` ${item.unit}` : '';
+      return `${item.name} ×${item.qty}${unit}`;
+    })
+    .join(', ');
 };
 
 export const buildPaymentForLabel = (payment, submission = null) => {
@@ -129,7 +136,7 @@ export const formatPayment = (payment, customerName, extras = {}) => {
     time: formatTime(payment.createdAt),
     note: payment.note || '',
     receiptNo: payment.receiptNo,
-    screenshotUrl: payment.screenshotUrl || '',
+    screenshotUrl: toPublicImageUrl(payment.screenshotUrl || submission?.screenshotUrl || ''),
     payType: payment.payType || submission?.payType || 'manual',
     payLabel: payment.payLabel || submission?.payLabel || '',
     itemName: payment.itemName || submission?.itemName || '',
@@ -154,7 +161,7 @@ export const formatPaymentSubmission = (submission, extras = {}) => ({
   transactionId: submission.transaction?.toString?.() || submission.transaction || null,
   itemIndex: submission.itemIndex,
   itemName: submission.itemName || '',
-  screenshotUrl: submission.screenshotUrl,
+  screenshotUrl: toPublicImageUrl(submission.screenshotUrl || ''),
   note: submission.note || '',
   status: submission.status,
   reviewNote: submission.reviewNote || '',

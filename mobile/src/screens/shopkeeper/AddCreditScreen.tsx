@@ -26,7 +26,7 @@ import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
 import { avatarColor, formatRs, getInitials } from '../../utils/format';
-import type { Customer, LineItem } from '../../types';
+import type { Customer, LineItem, ProductUnit } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddCredit'>;
@@ -34,10 +34,17 @@ type CustomerMode = 'existing' | 'new';
 
 type CreditLine = LineItem & { id: string };
 
+const PRODUCT_UNITS: ProductUnit[] = ['none', 'kg', 'ltr'];
+
 const newLineId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 function lineTotal(item: Pick<LineItem, 'qty' | 'price'>) {
   return (Number(item.qty) || 0) * (Number(item.price) || 0);
+}
+
+function formatQtyLabel(qty: number, unit?: ProductUnit) {
+  if (unit === 'kg' || unit === 'ltr') return `${qty} ${unit}`;
+  return String(qty);
 }
 
 function SectionCard({
@@ -63,6 +70,8 @@ function ProductFormFields({
   setDraftName,
   draftQty,
   setDraftQty,
+  draftUnit,
+  setDraftUnit,
   draftPrice,
   setDraftPrice,
   draftTotal,
@@ -71,11 +80,18 @@ function ProductFormFields({
   setDraftName: (v: string) => void;
   draftQty: string;
   setDraftQty: (v: string) => void;
+  draftUnit: ProductUnit;
+  setDraftUnit: (v: ProductUnit) => void;
   draftPrice: string;
   setDraftPrice: (v: string) => void;
   draftTotal: number;
 }) {
   const { t } = useTranslation();
+  const unitLabel = (unit: ProductUnit) => {
+    if (unit === 'kg') return t('credit.unitKg');
+    if (unit === 'ltr') return t('credit.unitLtr');
+    return t('credit.unitNone');
+  };
   return (
     <>
       <ProductSearchInput
@@ -84,13 +100,32 @@ function ProductFormFields({
         onChangeText={setDraftName}
         onSelectProduct={(product) => setDraftName(product.name)}
       />
+      <Text style={[adStyles.adFieldLabel, { marginTop: spacing.sm }]}>{t('credit.unit')}</Text>
+      <View style={adStyles.adModeRow}>
+        {PRODUCT_UNITS.map((unit) => (
+          <Pressable
+            key={unit}
+            onPress={() => setDraftUnit(unit)}
+            style={[adStyles.adModeChip, draftUnit === unit && adStyles.adModeChipActive]}
+          >
+            <Text
+              style={[
+                adStyles.adModeChipText,
+                draftUnit === unit && adStyles.adModeChipTextActive,
+              ]}
+            >
+              {unitLabel(unit)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       <View style={adStyles.adQtyPriceRow}>
         <View style={adStyles.adQtyCol}>
           <Text style={adStyles.adFieldLabel}>{t('credit.qty')}</Text>
           <TextInput
             value={draftQty}
             onChangeText={setDraftQty}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             style={adStyles.adFieldInput}
             placeholder="1"
             placeholderTextColor={colors.textMuted}
@@ -140,7 +175,10 @@ function LineItemRow({
           {item.name}
         </Text>
         <Text style={adStyles.adLineMeta}>
-          {t('credit.qtyMeta', { qty: item.qty, price: formatRs(item.price) })}
+          {t('credit.qtyMeta', {
+            qty: formatQtyLabel(item.qty, item.unit),
+            price: formatRs(item.price),
+          })}
         </Text>
       </View>
       <View style={adStyles.adLineRight}>
@@ -177,11 +215,11 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   );
 
   const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
 
   const [lines, setLines] = useState<CreditLine[]>([]);
   const [draftName, setDraftName] = useState('');
   const [draftQty, setDraftQty] = useState('1');
+  const [draftUnit, setDraftUnit] = useState<ProductUnit>('none');
   const [draftPrice, setDraftPrice] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -214,13 +252,24 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   const filteredCustomers = useMemo(() => {
     const list = Array.isArray(customers) ? customers : [];
     const q = search.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q)
-    );
+    if (q) {
+      return list
+        .filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.phone?.toLowerCase().includes(q) ||
+            c.email?.toLowerCase().includes(q)
+        )
+        .slice(0, 8);
+    }
+    return [...list]
+      .sort((a, b) => {
+        const da = a.lastCreditDate ? new Date(a.lastCreditDate).getTime() : 0;
+        const db = b.lastCreditDate ? new Date(b.lastCreditDate).getTime() : 0;
+        if (db !== da) return db - da;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 2);
   }, [customers, search]);
 
   const draftTotal = lineTotal({ qty: Number(draftQty) || 0, price: Number(draftPrice) || 0 });
@@ -240,6 +289,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
     if (mode === 'edit' && line) {
       setDraftName(line.name);
       setDraftQty(String(line.qty));
+      setDraftUnit(line.unit === 'kg' || line.unit === 'ltr' ? line.unit : 'none');
       setDraftPrice(String(line.price));
       setEditingLineId(line.id);
     } else {
@@ -272,17 +322,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
     );
     if (existingByName) return existingByName.id;
 
-    if (newPhone.trim()) {
-      const existingByPhone = list.find(
-        (c) => c.phone?.trim() && c.phone.trim() === newPhone.trim()
-      );
-      if (existingByPhone) return existingByPhone.id;
-    }
-
-    const created = await createCustomer({
-      name: trimmedName,
-      phone: newPhone.trim() || undefined,
-    });
+    const created = await createCustomer({ name: trimmedName });
     return created.customer.id;
   };
 
@@ -304,6 +344,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
       name: draftName.trim(),
       qty,
       price: Number(draftPrice),
+      unit: draftUnit,
     };
   };
 
@@ -312,6 +353,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
   const clearDraft = () => {
     setDraftName('');
     setDraftQty('1');
+    setDraftUnit('none');
     setDraftPrice('');
     setEditingLineId(null);
   };
@@ -438,7 +480,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
           {error ? <ErrorText message={error} /> : null}
 
           {!lockedCustomer ? (
-            <SectionCard title={t('credit.customerSection')} subtitle={t('credit.customerSectionSub')}>
+            <SectionCard title={t('credit.customerSection')}>
               <View style={adStyles.adModeRow}>
                 <Pressable
                   onPress={() => setMode('existing')}
@@ -484,7 +526,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                     <Text style={adStyles.adHint}>{t('credit.noCustomersHint')}</Text>
                   ) : (
                     <View style={adStyles.adCustomerList}>
-                      {filteredCustomers.slice(0, 8).map((item) => {
+                      {filteredCustomers.map((item) => {
                         const selected = selectedCustomer?.id === item.id;
                         return (
                           <Pressable
@@ -511,16 +553,7 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                   )}
                 </>
               ) : (
-                <>
-                  <Text style={adStyles.adHint}>{t('credit.autoCreateHint')}</Text>
-                  <Input label={t('credit.customerName')} value={newName} onChangeText={setNewName} />
-                  <Input
-                    label={t('credit.phoneOptional')}
-                    value={newPhone}
-                    onChangeText={setNewPhone}
-                    keyboardType="phone-pad"
-                  />
-                </>
+                <Input label={t('credit.customerName')} value={newName} onChangeText={setNewName} />
               )}
             </SectionCard>
           ) : null}
@@ -551,12 +584,14 @@ export default function AddCreditScreen({ route, navigation }: Props) {
               </Pressable>
             </SectionCard>
           ) : (
-            <SectionCard title={t('credit.product')} subtitle={t('credit.productSub')}>
+            <SectionCard title={t('credit.product')}>
               <ProductFormFields
                 draftName={draftName}
                 setDraftName={setDraftName}
                 draftQty={draftQty}
                 setDraftQty={setDraftQty}
+                draftUnit={draftUnit}
+                setDraftUnit={setDraftUnit}
                 draftPrice={draftPrice}
                 setDraftPrice={setDraftPrice}
                 draftTotal={draftTotal}
@@ -610,6 +645,8 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                   setDraftName={setDraftName}
                   draftQty={draftQty}
                   setDraftQty={setDraftQty}
+                  draftUnit={draftUnit}
+                  setDraftUnit={setDraftUnit}
                   draftPrice={draftPrice}
                   setDraftPrice={setDraftPrice}
                   draftTotal={draftTotal}

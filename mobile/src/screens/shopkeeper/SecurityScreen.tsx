@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -99,13 +100,32 @@ export default function SecurityScreen() {
   const [sendingReset, setSendingReset] = useState(false);
   const [resendingVerify, setResendingVerify] = useState(false);
 
-  const isGoogleOnly = user?.authProvider === 'google';
+  const isGoogleAccount = user?.authProvider === 'google';
+  const needsFirstPassword = isGoogleAccount && !user?.hasPassword;
+  const mustChangePassword = Boolean(user?.mustChangePassword);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!mustChangePassword) return undefined;
+      const onBack = () => true;
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      const unsub = navigation.addListener('beforeRemove', (e) => {
+        if (e.data.action.type === 'GO_BACK' || e.data.action.type === 'POP') {
+          e.preventDefault();
+        }
+      });
+      return () => {
+        sub.remove();
+        unsub();
+      };
+    }, [mustChangePassword, navigation])
+  );
 
   const handleChangePassword = async () => {
     setError('');
     setSuccess('');
 
-    if (!currentPassword.trim()) {
+    if (!needsFirstPassword && !currentPassword.trim()) {
       setError(t('security.enterCurrentPassword'));
       return;
     }
@@ -121,13 +141,17 @@ export default function SecurityScreen() {
     setSaving(true);
     try {
       const res = await changePassword({
-        currentPassword,
+        ...(needsFirstPassword ? {} : { currentPassword }),
         newPassword,
       });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setSuccess(res.message || t('security.passwordChanged'));
+      await refreshUser();
+      if (mustChangePassword) {
+        navigation.navigate(user?.role === 'customer' ? 'Customer' : 'Shopkeeper');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('security.changeFailed'));
     } finally {
@@ -149,7 +173,20 @@ export default function SecurityScreen() {
             setError('');
             try {
               const res = await forgotPassword(user.email);
-              appAlert(t('security.emailSent'), res.message);
+              if (res.emailSent === false) {
+                appAlert(t('common.error'), res.message || t('security.sendFailed'));
+                return;
+              }
+              appAlert(t('security.emailSent'), res.message, [
+                {
+                  text: t('common.ok'),
+                  onPress: () =>
+                    navigation.navigate('ResetPassword', {
+                      email: user.email,
+                      message: res.message,
+                    }),
+                },
+              ]);
             } catch (err) {
               appAlert(t('common.error'), err instanceof Error ? err.message : t('security.sendFailed'));
             } finally {
@@ -194,11 +231,21 @@ export default function SecurityScreen() {
         end={{ x: 1, y: 1 }}
         style={[secStyles.secHeader, { paddingTop: insets.top + 8 }]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={secStyles.secBack}>{t('common.back')}</Text>
+        <Pressable
+          onPress={() => {
+            if (!mustChangePassword) navigation.goBack();
+          }}
+          hitSlop={8}
+          disabled={mustChangePassword}
+        >
+          <Text style={[secStyles.secBack, mustChangePassword && { opacity: 0 }]}>
+            {t('common.back')}
+          </Text>
         </Pressable>
         <Text style={secStyles.secHeaderTitle}>{t('security.title')}</Text>
-        <Text style={secStyles.secHeaderSubtitle}>{t('security.subtitle')}</Text>
+        <Text style={secStyles.secHeaderSubtitle}>
+          {mustChangePassword ? t('security.mustChangeSubtitle') : t('security.subtitle')}
+        </Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -210,6 +257,13 @@ export default function SecurityScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {mustChangePassword ? (
+            <View style={secStyles.secMustBanner}>
+              <Text style={secStyles.secMustTitle}>{t('security.mustChangeTitle')}</Text>
+              <Text style={secStyles.secMustBody}>{t('security.mustChangeBody')}</Text>
+            </View>
+          ) : null}
+
           <View style={secStyles.secCard}>
             <Text style={secStyles.secCardTitle}>{t('security.account')}</Text>
             <StatusRow label={t('security.email')} value={user?.email || '—'} />
@@ -220,7 +274,7 @@ export default function SecurityScreen() {
             />
             <StatusRow
               label={t('security.signInMethod')}
-              value={isGoogleOnly ? t('security.google') : t('security.emailPassword')}
+              value={isGoogleAccount ? t('security.google') : t('security.emailPassword')}
               tone="muted"
             />
             {!user?.isEmailVerified ? (
@@ -234,56 +288,63 @@ export default function SecurityScreen() {
           </View>
 
           <View style={secStyles.secCard}>
-            <Text style={secStyles.secCardTitle}>{t('security.changePassword')}</Text>
-            {isGoogleOnly ? (
-              <Text style={secStyles.secHint}>{t('security.googleOnlyHint')}</Text>
-            ) : (
-              <>
-                {error ? <ErrorText message={error} /> : null}
-                {success ? <Text style={secStyles.secSuccess}>{success}</Text> : null}
-                <SecureField
-                  label={t('security.currentPassword')}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder={t('security.currentPasswordPlaceholder')}
+            <Text style={secStyles.secCardTitle}>
+              {needsFirstPassword ? t('security.setPassword') : t('security.changePassword')}
+            </Text>
+            {needsFirstPassword ? (
+              <Text style={secStyles.secHint}>{t('security.googleSetPasswordHint')}</Text>
+            ) : null}
+            {error ? <ErrorText message={error} /> : null}
+            {success ? <Text style={secStyles.secSuccess}>{success}</Text> : null}
+            {!needsFirstPassword ? (
+              <SecureField
+                label={t('security.currentPassword')}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder={t('security.currentPasswordPlaceholder')}
+              />
+            ) : null}
+            <SecureField
+              label={needsFirstPassword ? t('security.newPassword') : t('security.newPassword')}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder={t('security.newPasswordPlaceholder')}
+            />
+            <SecureField
+              label={t('security.confirmPassword')}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder={t('security.confirmPasswordPlaceholder')}
+            />
+            <View style={secStyles.secActionRow}>
+              <View style={secStyles.secActionHalf}>
+                <Button
+                  title={t('common.cancel')}
+                  variant="outline"
+                  onPress={() => {
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  disabled={saving}
                 />
-                <SecureField
-                  label={t('security.newPassword')}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder={t('security.newPasswordPlaceholder')}
+              </View>
+              <View style={secStyles.secActionHalf}>
+                <Button
+                  title={
+                    saving
+                      ? t('common.updating')
+                      : needsFirstPassword
+                        ? t('security.setPasswordAction')
+                        : t('security.updatePassword')
+                  }
+                  onPress={handleChangePassword}
+                  loading={saving}
                 />
-                <SecureField
-                  label={t('security.confirmPassword')}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder={t('security.confirmPasswordPlaceholder')}
-                />
-                <View style={secStyles.secActionRow}>
-                  <View style={secStyles.secActionHalf}>
-                    <Button
-                      title={t('common.cancel')}
-                      variant="outline"
-                      onPress={() => {
-                        setCurrentPassword('');
-                        setNewPassword('');
-                        setConfirmPassword('');
-                        setError('');
-                        setSuccess('');
-                      }}
-                      disabled={saving}
-                    />
-                  </View>
-                  <View style={secStyles.secActionHalf}>
-                    <Button
-                      title={saving ? t('common.updating') : t('security.updatePassword')}
-                      onPress={handleChangePassword}
-                      loading={saving}
-                    />
-                  </View>
-                </View>
-              </>
-            )}
+              </View>
+            </View>
           </View>
 
           <View style={secStyles.secCard}>
@@ -331,6 +392,16 @@ const secStyles = StyleSheet.create({
   secHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
   secHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
   secContent: { padding: spacing.md, paddingTop: spacing.md, gap: spacing.sm },
+  secMustBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    gap: 6,
+  },
+  secMustTitle: { fontSize: ty.md, fontWeight: '800', color: '#92400E' },
+  secMustBody: { fontSize: ty.body, color: '#78350F', lineHeight: 20 },
   secCard: {
     backgroundColor: '#FFF',
     borderRadius: radius.card,

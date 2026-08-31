@@ -4,8 +4,8 @@ import { applyCredit, recalculateBalance } from '../utils/customerBalance.js';
 import { formatTransaction } from '../utils/formatters.js';
 import { createNotification } from '../utils/notify.js';
 import { upsertProductsFromItems } from '../utils/productCatalog.js';
-
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
+import { emitDataInvalidate, emitShopDataSync } from '../utils/realtimeSync.js';
 
 const getCustomerName = async (customerId) => {
   const c = await Customer.findById(customerId).select('name');
@@ -71,11 +71,16 @@ export const createTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'At least one item is required' });
     }
 
-    const normalizedItems = parsedItems.map((item) => ({
-      name: String(item.name || '').trim(),
-      qty: Number(item.qty) || 1,
-      price: Number(item.price) || 0,
-    }));
+    const normalizedItems = parsedItems.map((item) => {
+      const rawUnit = String(item.unit || 'none').toLowerCase();
+      const unit = rawUnit === 'kg' || rawUnit === 'ltr' ? rawUnit : 'none';
+      return {
+        name: String(item.name || '').trim(),
+        qty: Number(item.qty) || 1,
+        price: Number(item.price) || 0,
+        unit,
+      };
+    });
 
     const total = normalizedItems.reduce((sum, item) => sum + item.qty * item.price, 0);
     if (total <= 0) {
@@ -110,7 +115,13 @@ export const createTransaction = async (req, res) => {
         type: 'info',
         customerId,
       });
+      emitDataInvalidate(customer.linkedUser, ['ledger', 'payments', 'all']);
     }
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'ledger', 'all'],
+      excludeUserId: req.user._id,
+    });
 
     res.status(201).json({
       success: true,
@@ -136,11 +147,16 @@ export const updateTransaction = async (req, res) => {
     if (note !== undefined) tx.note = note?.trim() || '';
 
     if (items?.length) {
-      tx.items = items.map((item) => ({
-        name: String(item.name || '').trim(),
-        qty: Number(item.qty) || 1,
-        price: Number(item.price) || 0,
-      }));
+      tx.items = items.map((item) => {
+        const rawUnit = String(item.unit || 'none').toLowerCase();
+        const unit = rawUnit === 'kg' || rawUnit === 'ltr' ? rawUnit : 'none';
+        return {
+          name: String(item.name || '').trim(),
+          qty: Number(item.qty) || 1,
+          price: Number(item.price) || 0,
+          unit,
+        };
+      });
       tx.total = tx.items.reduce((sum, item) => sum + item.qty * item.price, 0);
     } else if (total !== undefined) {
       tx.total = Number(total);
@@ -153,6 +169,12 @@ export const updateTransaction = async (req, res) => {
     }
 
     const customerName = await getCustomerName(tx.customer);
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'ledger', 'all'],
+      excludeUserId: req.user._id,
+    });
+
     res.json({ success: true, transaction: formatTransaction(tx, customerName) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -171,6 +193,12 @@ export const deleteTransaction = async (req, res) => {
     }
 
     await recalculateBalance(tx.customer);
+
+    await emitShopDataSync(getShopkeeperId(req), {
+      scopes: ['dashboard', 'customers', 'ledger', 'all'],
+      excludeUserId: req.user._id,
+    });
+
     res.json({ success: true, message: 'Transaction deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

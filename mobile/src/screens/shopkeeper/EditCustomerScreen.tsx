@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { fetchCustomer, updateCustomer } from '../../api/customers';
+import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText, Input, LoadingState, Screen, Subtitle, Title } from '../../components/ui';
+import { colors } from '../../theme/colors';
+import { typography as ty } from '../../theme/typography';
+import { isShopVerified } from '../../utils/authHelpers';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditCustomer'>;
 
 export default function EditCustomerScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { customerId } = route.params;
+  const shopVerified = isShopVerified(user);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -42,13 +48,16 @@ export default function EditCustomerScreen({ route, navigation }: Props) {
     setSaving(true);
     setError('');
     try {
-      await updateCustomer(customerId, {
+      const payload: Record<string, string | undefined> = {
         name: name.trim(),
         phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
         address: address.trim() || undefined,
         notes: notes.trim() || undefined,
-      });
+      };
+      if (shopVerified) {
+        payload.email = email.trim() || undefined;
+      }
+      await updateCustomer(customerId, payload);
       appAlert(t('common.saved'), t('customers.updatedSuccess'));
       navigation.goBack();
     } catch (err) {
@@ -74,7 +83,13 @@ export default function EditCustomerScreen({ route, navigation }: Props) {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={shopVerified}
         />
+        {!shopVerified ? (
+          <Text style={{ color: colors.textMuted, fontSize: ty.sm, marginBottom: 12, marginTop: -4 }}>
+            {t('customers.emailLockedUntilVerified')}
+          </Text>
+        ) : null}
         <Input label={t('customers.fields.address')} value={address} onChangeText={setAddress} />
         <Input label={t('customers.fields.notes')} value={notes} onChangeText={setNotes} multiline />
         <Button title={t('customers.saveChanges')} onPress={handleSave} loading={saving} />

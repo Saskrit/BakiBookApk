@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { AppState } from 'react-native';
@@ -18,17 +19,26 @@ import {
 import type { AppNotification } from '../types/notification';
 import { useAuth } from './AuthContext';
 import { useSocket, useSocketEvent } from './SocketContext';
+import {
+  getNotificationPermissionStatus,
+  presentDeviceNotification,
+  registerDevicePushTokenWithServer,
+  requestNotificationPermissions,
+  setDeviceBadgeCount,
+} from '../utils/deviceNotifications';
 
 type NotificationContextValue = {
   notifications: AppNotification[];
   unreadCount: number;
   loading: boolean;
   connected: boolean;
+  notificationsEnabled: boolean;
   refresh: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   archive: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  enableDeviceNotifications: () => Promise<boolean>;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -47,14 +57,35 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const userId = user?.id ? String(user.id) : null;
+  const prevConnected = useRef(false);
+  const hadConnected = useRef(false);
+  const refreshInFlight = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (!user) {
+  const refreshPermissionState = useCallback(async () => {
+    const status = await getNotificationPermissionStatus();
+    setNotificationsEnabled(status === 'granted');
+    return status === 'granted';
+  }, []);
+
+  const enableDeviceNotifications = useCallback(async () => {
+    const granted = await requestNotificationPermissions({ force: true });
+    setNotificationsEnabled(granted);
+    if (granted) await registerDevicePushTokenWithServer();
+    return granted;
+  }, []);
+
+  const refresh = useCallback(async (opts?: { showLoading?: boolean }) => {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
       return;
     }
-    setLoading(true);
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    const showLoading = Boolean(opts?.showLoading);
+    if (showLoading) setLoading(true);
     try {
       const [listRes, countRes] = await Promise.all([
         fetchNotifications(1, 50),
@@ -65,31 +96,52 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch {
       // Keep existing state on transient network errors
     } finally {
-      setLoading(false);
+      refreshInFlight.current = false;
+      if (showLoading) setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
+      setNotificationsEnabled(false);
+      prevConnected.current = false;
+      hadConnected.current = false;
+      void setDeviceBadgeCount(0);
       return;
     }
-    void refresh();
-  }, [user?.id, authLoading, refresh]);
+    void refresh({ showLoading: true });
+    void refreshPermissionState().then((granted) => {
+      if (granted) {
+        void registerDevicePushTokenWithServer();
+      } else {
+        void requestNotificationPermissions();
+      }
+    });
+  }, [userId, authLoading, refresh, refreshPermissionState]);
 
-  // Refresh when socket reconnects or app becomes active
   useEffect(() => {
-    if (connected && user) void refresh();
-  }, [connected, user?.id, refresh]);
+    void setDeviceBadgeCount(unreadCount);
+  }, [unreadCount]);
+
+  // Only refetch after a real reconnect (offline → online), not on every connected=true render.
+  useEffect(() => {
+    if (!userId) return;
+    if (connected && !prevConnected.current && hadConnected.current) {
+      void refresh({ showLoading: false });
+    }
+    if (connected) hadConnected.current = true;
+    prevConnected.current = connected;
+  }, [connected, userId, refresh]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && user) void refresh();
+      if (state === 'active' && userId) void refresh({ showLoading: false });
     });
     return () => sub.remove();
-  }, [refresh, user]);
+  }, [refresh, userId]);
 
   const onNew = useCallback((payload: AppNotification) => {
     if (!payload?.id) return;
@@ -99,7 +151,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
       return sortNewest([{ ...payload, read: Boolean(payload.read) }, ...prev]);
     });
-    // Unread badge is set accurately by notification:count from the server
+    if (!payload.read) {
+      void presentDeviceNotification(payload);
+    }
   }, []);
 
   const onCount = useCallback((payload: { count?: number }) => {
@@ -108,8 +162,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  useSocketEvent<AppNotification>('notification:new', onNew, Boolean(user));
-  useSocketEvent<{ count?: number }>('notification:count', onCount, Boolean(user));
+  useSocketEvent<AppNotification>('notification:new', onNew, Boolean(userId));
+  useSocketEvent<{ count?: number }>('notification:count', onCount, Boolean(userId));
 
   const markRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
@@ -119,7 +173,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await apiMarkRead(id);
     } catch {
-      void refresh();
+      void refresh({ showLoading: false });
     }
   }, [refresh]);
 
@@ -129,7 +183,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await apiMarkAllRead();
     } catch {
-      void refresh();
+      void refresh({ showLoading: false });
     }
   }, [refresh]);
 
@@ -138,7 +192,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await apiArchive(id);
     } catch {
-      void refresh();
+      void refresh({ showLoading: false });
     }
   }, [refresh]);
 
@@ -153,9 +207,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await apiDelete(id);
     } catch {
-      void refresh();
+      void refresh({ showLoading: false });
     }
   }, [refresh]);
+
+  const publicRefresh = useCallback(() => refresh({ showLoading: true }), [refresh]);
 
   const value = useMemo(
     () => ({
@@ -163,22 +219,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       unreadCount,
       loading,
       connected,
-      refresh,
+      notificationsEnabled,
+      refresh: publicRefresh,
       markRead,
       markAllRead,
       archive,
       remove,
+      enableDeviceNotifications,
     }),
     [
       notifications,
       unreadCount,
       loading,
       connected,
-      refresh,
+      notificationsEnabled,
+      publicRefresh,
       markRead,
       markAllRead,
       archive,
       remove,
+      enableDeviceNotifications,
     ]
   );
 

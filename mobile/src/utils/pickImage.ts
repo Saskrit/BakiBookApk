@@ -11,7 +11,7 @@ function pickerOptions(aspect?: [number, number]): ImagePicker.ImagePickerOption
     mediaTypes: ['images'],
     // Android crop UI often returns canceled immediately.
     allowsEditing: Platform.OS !== 'android',
-    quality: 0.8,
+    quality: 0.7,
     base64: true,
     ...(aspect && Platform.OS !== 'android' ? { aspect } : {}),
   };
@@ -25,12 +25,17 @@ async function writeBase64Jpeg(base64: string): Promise<string> {
   return dest;
 }
 
-/** Copy content:// / ph:// URIs to a real jpeg so FormData upload works on Android. */
+/** Always produce a real on-disk jpeg/png so native uploadAsync can read it. */
 export async function prepareUploadUri(
   uri: string,
   base64?: string | null
 ): Promise<string> {
-  if (uri.startsWith('file://') && /\.(jpe?g|png|webp|gif)$/i.test(uri)) {
+  // Prefer base64 rewrite — most reliable across content:// and picker URIs on Android.
+  if (base64) {
+    return writeBase64Jpeg(base64);
+  }
+
+  if (uri.startsWith('file://') && /\.(jpe?g|png|webp|gif)$/i.test(uri.split('?')[0])) {
     return uri;
   }
 
@@ -39,9 +44,6 @@ export async function prepareUploadUri(
     await FileSystem.copyAsync({ from: uri, to: dest });
     return dest;
   } catch {
-    if (base64) {
-      return writeBase64Jpeg(base64);
-    }
     throw new Error(i18n.t('upload.pickFailed'));
   }
 }
@@ -112,4 +114,21 @@ export function promptImageSource(options: {
     },
     { text: i18n.t('common.cancel'), style: 'cancel' },
   ]);
+}
+
+/** True when the URI points to a local file not yet uploaded to the server. */
+export function isLocalImageUri(uri: string): boolean {
+  const trimmed = uri.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('data:image/')) return false;
+  if (/^https?:\/\//i.test(trimmed)) return false;
+  if (trimmed.startsWith('/uploads')) return false;
+  return (
+    trimmed.startsWith('file:') ||
+    trimmed.startsWith('content:') ||
+    trimmed.startsWith('ph://') ||
+    trimmed.startsWith('asset:') ||
+    trimmed.startsWith('assets-library:') ||
+    (trimmed.startsWith('/') && !trimmed.startsWith('/uploads'))
+  );
 }

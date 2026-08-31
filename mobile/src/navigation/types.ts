@@ -27,6 +27,15 @@ export type RootStackParamList = {
     emailSent?: boolean;
     message?: string;
   };
+  ForgotPassword: undefined;
+  ResetPassword: {
+    email: string;
+    message?: string;
+  };
+  InviteActivate: {
+    email: string;
+    message?: string;
+  };
   Shopkeeper: NavigatorScreenParams<ShopkeeperTabParamList> | undefined;
   Customer: NavigatorScreenParams<CustomerTabParamList> | undefined;
   AddCustomer: undefined;
@@ -39,10 +48,13 @@ export type RootStackParamList = {
   };
   AddCredit: { customerId?: string; customerName?: string } | undefined;
   RecordPayment: { customerId: string; customerName?: string };
+  PaymentSubmissions: { initialTab?: 'pending' | 'all' } | undefined;
   LinkShops: undefined;
+  LinkShopInvite: { customerId: string; shopName?: string };
   ShopDetail: { customerId: string; shopName?: string };
   ShopTimeline: { customerId: string; shopName?: string };
-  ShopProfile: undefined;
+  ShopProfile: { forceEdit?: boolean } | undefined;
+  PersonalProfile: undefined;
   Products: undefined;
   Expenses: undefined;
   Security: undefined;
@@ -53,4 +65,5 @@ export type RootStackParamList = {
   QRScanner: { initialTab?: 'scan' | 'myqr' } | undefined;
   Tutorial: undefined;
   TutorialChapter: { chapterId: TutorialChapterId };
+  BackupRestore: undefined;
 };

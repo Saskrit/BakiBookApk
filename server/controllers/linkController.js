@@ -2,6 +2,7 @@ import Customer from '../models/Customer.js';
 import User from '../models/User.js';
 import { formatCustomer, formatDate } from '../utils/formatters.js';
 import { createNotification } from '../utils/notify.js';
+import { toPublicImageUrl } from '../utils/imageUpload.js';
 
 const formatPendingLink = (customer) => {
   const base = formatCustomer(customer);
@@ -16,7 +17,7 @@ const formatPendingLink = (customer) => {
     shopName: shopkeeper?.shopName || 'Shop',
     shopkeeperName: shopkeeper?.fullName || 'Shopkeeper',
     shopLocation: shopkeeper?.shopLocation || '',
-    shopImage: shopkeeper?.shopImage || '',
+    shopImage: toPublicImageUrl(shopkeeper?.shopImage || ''),
     shopkeeperPhone: shopkeeper?.phone || '',
     shopVerificationStatus,
     shopVerified: shopVerificationStatus === 'verified',

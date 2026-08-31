@@ -9,7 +9,7 @@ import {
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { API_BASE_URL } from '../config/api';
+import { getActiveApiBaseUrl } from '../api/client';
 import { colors } from '../theme/colors';
 import { typography as ty } from '../theme/typography';
 
@@ -53,13 +53,14 @@ export function MaintenanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const retry = useCallback(async () => {
-    if (!API_BASE_URL) {
-      clearMaintenance();
-      return;
-    }
     setChecking(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/maintenance-status`);
+      const apiBase = await getActiveApiBaseUrl();
+      if (!apiBase) {
+        clearMaintenance();
+        return;
+      }
+      const response = await fetch(`${apiBase}/maintenance-status`);
       const data = await response.json().catch(() => ({}));
       if (response.ok && !data.maintenanceMode) {
         clearMaintenance();

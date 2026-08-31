@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Linking,
   Pressable,
@@ -14,15 +14,15 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
+import { getActiveApiBaseUrl } from '../../api/client';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
 import type { RootStackParamList } from '../../navigation/types';
 
-const SUPPORT_EMAIL = 'support@bakibook.com';
-const SUPPORT_PHONE = '01-5971234';
-const SUPPORT_WHATSAPP = '9801234567';
+const DEFAULT_SUPPORT_EMAIL = 'saskreetking@gmail.com';
+const DEFAULT_SUPPORT_PHONE = '+977 9703649841';
 const SUPPORT_HOURS = '8:00 AM – 8:00 PM';
 
 type TopicKey =
@@ -74,6 +74,34 @@ export default function HelpSupportScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const isCustomer = user?.role === 'customer';
+  const [supportEmail, setSupportEmail] = useState(DEFAULT_SUPPORT_EMAIL);
+  const [supportPhone, setSupportPhone] = useState(DEFAULT_SUPPORT_PHONE);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const apiBase = await getActiveApiBaseUrl();
+        if (!apiBase || cancelled) return;
+        const res = await fetch(`${apiBase}/platform-contact`);
+        const data = res.ok ? await res.json() : null;
+        if (cancelled || !data) return;
+        if (typeof data.supportEmail === 'string' && data.supportEmail.trim()) {
+          setSupportEmail(data.supportEmail.trim());
+        }
+        if (typeof data.supportPhone === 'string' && data.supportPhone.trim()) {
+          setSupportPhone(data.supportPhone.trim());
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const whatsappDigits = supportPhone.replace(/[^\d]/g, '').replace(/^977/, '') || '9703649841';
 
   const popularTopics = useMemo(() => {
     if (isCustomer) {
@@ -98,19 +126,18 @@ export default function HelpSupportScreen() {
 
   const openEmail = () => {
     Linking.openURL(
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('help.supportSubject'))}`
-    ).catch(() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {}));
+      `mailto:${supportEmail}?subject=${encodeURIComponent(t('help.supportSubject'))}`
+    ).catch(() => Linking.openURL(`mailto:${supportEmail}`).catch(() => {}));
   };
 
   const openWhatsApp = () => {
-    const digits = SUPPORT_WHATSAPP.replace(/[^\d]/g, '');
-    Linking.openURL(`https://wa.me/977${digits}`).catch(() =>
+    Linking.openURL(`https://wa.me/977${whatsappDigits}`).catch(() =>
       appAlert(t('common.error'), t('help.whatsappFailed'))
     );
   };
 
   const openCall = () => {
-    Linking.openURL(`tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`).catch(() =>
+    Linking.openURL(`tel:${supportPhone.replace(/[^\d+]/g, '')}`).catch(() =>
       appAlert(t('common.error'), t('help.callFailed'))
     );
   };
@@ -422,7 +449,7 @@ export default function HelpSupportScreen() {
               <Text style={hsStyles.hsContactTitle}>{t('help.whatsappSupport')}</Text>
               <Text style={hsStyles.hsContactSub}>{t('help.whatsappSub')}</Text>
             </View>
-            <Text style={hsStyles.hsContactValue}>{SUPPORT_WHATSAPP}</Text>
+            <Text style={hsStyles.hsContactValue}>{supportPhone}</Text>
           </Pressable>
 
           <Pressable style={hsStyles.hsContactRow} onPress={openEmail}>
@@ -436,7 +463,7 @@ export default function HelpSupportScreen() {
               <Text style={hsStyles.hsContactTitle}>{t('help.emailSupport')}</Text>
               <Text style={hsStyles.hsContactSub}>{t('help.emailSub')}</Text>
             </View>
-            <Text style={[hsStyles.hsContactValue, { fontSize: 11 }]}>{SUPPORT_EMAIL}</Text>
+            <Text style={[hsStyles.hsContactValue, { fontSize: 11 }]}>{supportEmail}</Text>
           </Pressable>
 
           <Pressable style={[hsStyles.hsContactRow, { borderBottomWidth: 0 }]} onPress={openCall}>
@@ -453,7 +480,7 @@ export default function HelpSupportScreen() {
               <Text style={hsStyles.hsContactTitle}>{t('help.callSupport')}</Text>
               <Text style={hsStyles.hsContactSub}>{t('help.callSub')}</Text>
             </View>
-            <Text style={hsStyles.hsContactValue}>{SUPPORT_PHONE}</Text>
+            <Text style={hsStyles.hsContactValue}>{supportPhone}</Text>
           </Pressable>
         </View>
 

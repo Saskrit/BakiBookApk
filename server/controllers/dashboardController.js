@@ -3,8 +3,7 @@ import Transaction from '../models/Transaction.js';
 import Payment from '../models/Payment.js';
 import { formatTransaction, formatPayment } from '../utils/formatters.js';
 import { parsePagination, paginateArray } from '../utils/pagination.js';
-
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 const AGING_COLORS = ['#6A7E3F', '#D4A843', '#C08552', '#C45C5C'];
 
@@ -186,6 +185,7 @@ const fetchProductsReport = async (shopkeeperId, start, end) => {
         customer: customerName,
         product: item.name,
         qty: item.qty,
+        unit: item.unit === 'kg' || item.unit === 'ltr' ? item.unit : 'none',
         unitPrice: item.price,
         lineTotal: (item.qty || 0) * (item.price || 0),
       });

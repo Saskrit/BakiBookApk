@@ -9,6 +9,7 @@ import {
   getPortalPayments,
   getPortalDues,
   getPortalNotifications,
+  exportCustomerBackup,
 } from '../controllers/portalController.js';
 import {
   submitPayment,
@@ -28,5 +29,7 @@ router.get('/dues', getPortalDues);
 router.get('/notifications', getPortalNotifications);
 router.get('/payment-submissions', listCustomerSubmissions);
 router.post('/payment-submissions', submitPayment);
+
+router.get('/backup', exportCustomerBackup);
 
 export default router;

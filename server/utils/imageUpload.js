@@ -7,8 +7,42 @@ const CLOUDINARY_FOLDERS = {
   payments: 'bakibook/payments',
 };
 
-const getPublicBaseUrl = () =>
-  process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`;
+const LOCAL_HOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?/i;
+
+function publicBaseUrl() {
+  return String(process.env.SERVER_URL || '').replace(/\/+$/, '');
+}
+
+/** Convert stored paths into a URL the app/web can load (never localhost). */
+export const toPublicImageUrl = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  let trimmed = value.trim();
+  if (!trimmed) return '';
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+
+  if (trimmed.startsWith('data:')) return trimmed;
+
+  // Always serve Cloudinary over https (mobile release blocks cleartext HTTP).
+  if (/cloudinary\.com/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, 'https://');
+  }
+
+  const base = publicBaseUrl();
+  if (trimmed.startsWith('/')) {
+    return base ? `${base}${trimmed}` : trimmed;
+  }
+  if (LOCAL_HOST_RE.test(trimmed)) {
+    const path = trimmed.replace(/^https?:\/\/[^/]+/i, '');
+    return base ? `${base}${path}` : trimmed;
+  }
+  return trimmed;
+};
 
 export const uploadLocalFileToCloudinary = async (filePath, type = 'profiles') => {
   const folder = CLOUDINARY_FOLDERS[type] || CLOUDINARY_FOLDERS.profiles;
@@ -46,7 +80,7 @@ export const uploadRemoteImageToCloudinary = async (imageUrl, type = 'profiles')
 
 export const processUploadedFile = async (file, type = 'profiles') => {
   const folderName = type === 'shop' ? 'shops' : type === 'payment' ? 'payments' : 'profiles';
-  const localUrl = `${getPublicBaseUrl()}/uploads/${folderName}/${file.filename}`;
+  const localUrl = toPublicImageUrl(`/uploads/${folderName}/${file.filename}`);
 
   let cloudinaryUrl = null;
 
@@ -67,8 +101,8 @@ export const processUploadedFile = async (file, type = 'profiles') => {
 export const resolveImageUrl = async (value, type = 'profiles') => {
   if (!value) return '';
 
-  if (value.includes('res.cloudinary.com')) {
-    return value;
+  if (value.includes('res.cloudinary.com') || /cloudinary\.com/i.test(value)) {
+    return value.replace(/^http:\/\//i, 'https://');
   }
 
   if (value.startsWith('data:image/')) {
@@ -84,19 +118,23 @@ export const resolveImageUrl = async (value, type = 'profiles') => {
     return result.secure_url;
   }
 
+  if (LOCAL_HOST_RE.test(value) || value.startsWith('/')) {
+    return toPublicImageUrl(value);
+  }
+
   if (value.startsWith('http://') || value.startsWith('https://')) {
     if (isCloudinaryConfigured()) {
       try {
         return await uploadRemoteImageToCloudinary(value, type);
       } catch (error) {
         console.error('Remote image Cloudinary upload failed:', error.message);
-        return value;
+        return toPublicImageUrl(value);
       }
     }
-    return value;
+    return toPublicImageUrl(value);
   }
 
-  return value;
+  return toPublicImageUrl(value);
 };
 
 export const removeLocalFile = async (filePath) => {

@@ -7,7 +7,7 @@ import { createNotification, emitNotificationCount } from '../utils/notify.js';
 import { parsePagination, paginateArray } from '../utils/pagination.js';
 import { buildGroupedLedger } from '../utils/groupedLedger.js';
 
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 export const getLedger = async (req, res) => {
   try {

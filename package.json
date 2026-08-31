@@ -1,20 +1,20 @@
 {
   "name": "bakibook",
   "version": "1.0.0",
-  "description": "BakiBook - Digital Credit Management System for Shopkeepers",
+  "description": "BakiBook Android app + API backend",
   "private": true,
   "scripts": {
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix mobile",
     "install:mobile": "npm install --prefix mobile",
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "install:api": "npm install --prefix server",
+    "dev": "npm run dev --prefix server",
     "dev:mobile": "npm run start --prefix mobile",
+    "dev:app": "concurrently \"npm run dev --prefix server\" \"npm run start --prefix mobile\"",
     "android:mobile": "npm run android --prefix mobile",
-    "dev:full": "concurrently \"npm run dev --prefix server\" \"npm run start --prefix mobile\"",
+    "build:apk:local": "npm run build:apk:local --prefix mobile",
     "build:android": "npm run build:android --prefix mobile",
+    "build:android:preview": "npm run build:android:preview --prefix mobile",
     "submit:android": "npm run submit:android --prefix mobile",
-    "build": "npm run build --prefix client",
-    "build:railway": "npm install --prefix server && npm install --prefix client --include=dev && npm run build --prefix client",
-    "build:render": "npm install --prefix server && npm install --prefix client --include=dev && npm run build --prefix client",
     "start": "npm start --prefix server"
   },
   "devDependencies": {

@@ -2,6 +2,7 @@ import Customer from '../models/Customer.js';
 import Message from '../models/Message.js';
 import { emitToCustomerRoom, emitToUser, isUserOnline } from '../config/socket.js';
 import { createNotification } from '../utils/notify.js';
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 const getShopkeeperUnreadCount = async (shopkeeperId) => {
   const customers = await Customer.find({
@@ -28,7 +29,7 @@ const emitShopkeeperUnreadCount = async (shopkeeperId) => {
 export const getUnreadMessageCount = async (req, res) => {
   try {
     if (req.user.role === 'shopkeeper') {
-      const count = await getShopkeeperUnreadCount(req.user._id);
+      const count = await getShopkeeperUnreadCount(getShopkeeperId(req));
       return res.json({ success: true, count });
     }
 
@@ -53,11 +54,12 @@ export const getUnreadMessageCount = async (req, res) => {
   }
 };
 
-const canAccessCustomer = async (user, customerId) => {
+const canAccessCustomer = async (user, customerId, shopOwnerId = null) => {
   const customer = await Customer.findById(customerId).populate('shopkeeper', '_id fullName shopName');
   if (!customer) return null;
 
-  if (user.role === 'shopkeeper' && customer.shopkeeper._id.toString() === user._id.toString()) {
+  const ownerId = (shopOwnerId || user._id).toString();
+  if (user.role === 'shopkeeper' && customer.shopkeeper._id.toString() === ownerId) {
     return { customer, role: 'shopkeeper' };
   }
 
@@ -99,7 +101,7 @@ export const listConversations = async (req, res) => {
 
     if (req.user.role === 'shopkeeper') {
       customers = await Customer.find({
-        shopkeeper: req.user._id,
+        shopkeeper: getShopkeeperId(req),
         linkStatus: 'linked',
         chatHiddenAt: null,
       }).sort({ updatedAt: -1 });
@@ -141,7 +143,7 @@ export const listConversations = async (req, res) => {
 
 export const getMessages = async (req, res) => {
   try {
-    const access = await canAccessCustomer(req.user, req.params.customerId);
+    const access = await canAccessCustomer(req.user, req.params.customerId, getShopkeeperId(req));
     if (!access) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -180,7 +182,7 @@ export const getMessages = async (req, res) => {
       });
 
       if (access.role === 'shopkeeper') {
-        await emitShopkeeperUnreadCount(req.user._id);
+        await emitShopkeeperUnreadCount(getShopkeeperId(req));
       }
     }
 
@@ -211,7 +213,7 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message is required' });
     }
 
-    const access = await canAccessCustomer(req.user, req.params.customerId);
+    const access = await canAccessCustomer(req.user, req.params.customerId, getShopkeeperId(req));
     if (!access) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -312,7 +314,7 @@ const requireShopkeeperChatAccess = async (req, res) => {
     return null;
   }
 
-  const access = await canAccessCustomer(req.user, req.params.customerId);
+  const access = await canAccessCustomer(req.user, req.params.customerId, getShopkeeperId(req));
   if (!access || access.role !== 'shopkeeper') {
     res.status(403).json({ success: false, message: 'Access denied' });
     return null;
@@ -327,7 +329,7 @@ const requireShopkeeperChatAccess = async (req, res) => {
 };
 
 const requireLinkedChatAccess = async (req, res) => {
-  const access = await canAccessCustomer(req.user, req.params.customerId);
+  const access = await canAccessCustomer(req.user, req.params.customerId, getShopkeeperId(req));
   if (!access) {
     res.status(403).json({ success: false, message: 'Access denied' });
     return null;

@@ -1,5 +1,6 @@
 import Payment from '../models/Payment.js';
 import Customer from '../models/Customer.js';
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 const getPaymentForCustomer = async (paymentId, userId) => {
   const payment = await Payment.findById(paymentId);
@@ -69,7 +70,7 @@ export const unarchivePaidEntryForCustomer = async (req, res) => {
 
 export const hidePaidEntryForShopkeeper = async (req, res) => {
   try {
-    const payment = await getPaymentForShopkeeper(req.params.paymentId, req.user._id);
+    const payment = await getPaymentForShopkeeper(req.params.paymentId, getShopkeeperId(req));
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Paid entry not found' });
     }
@@ -86,7 +87,7 @@ export const hidePaidEntryForShopkeeper = async (req, res) => {
 
 export const restorePaidEntryForShopkeeper = async (req, res) => {
   try {
-    const payment = await getPaymentForShopkeeper(req.params.paymentId, req.user._id);
+    const payment = await getPaymentForShopkeeper(req.params.paymentId, getShopkeeperId(req));
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Paid entry not found' });
     }

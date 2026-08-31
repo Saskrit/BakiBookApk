@@ -143,6 +143,71 @@ const userSchema = new mongoose.Schema(
       enum: ['en', 'ne'],
       default: 'en',
     },
+    /**
+     * Invited partners/staff must activate via email code before first password login.
+     * Cleared after they set their own password with the invite code.
+     */
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+    inviteLoginCodeHash: {
+      type: String,
+      select: false,
+    },
+    inviteLoginCodeExpires: {
+      type: Date,
+      select: false,
+    },
+    inviteLoginAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    /** Native FCM device tokens for Android push (closed-app alerts). */
+    fcmTokens: {
+      type: [
+        {
+          token: { type: String, required: true },
+          platform: { type: String, enum: ['android', 'ios', 'web'], default: 'android' },
+          updatedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      select: false,
+    },
+    /** Admin moderation: active | suspended | banned */
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended', 'banned'],
+      default: 'active',
+      index: true,
+    },
+    accountStatusReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    accountStatusChangedAt: {
+      type: Date,
+      default: null,
+    },
+    /**
+     * For invited shop team members: the owner account whose shop data they share.
+     * Null/undefined for shop owners and customers.
+     */
+    shopOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
+    /** owner (default) | partner | staff — only meaningful for role shopkeeper */
+    teamRole: {
+      type: String,
+      enum: ['owner', 'partner', 'staff'],
+      default: 'owner',
+    },
     tutorialProgress: {
       completedStepIds: {
         type: [String],

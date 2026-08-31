@@ -1,7 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,11 +20,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchPortalDashboard } from '../../api/portal';
-import { updateProfile } from '../../api/auth';
-import { uploadImage } from '../../api/upload';
-import { promptImageSource } from '../../utils/pickImage';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import UserAvatar from '../../components/UserAvatar';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
@@ -34,7 +31,7 @@ import { typeScale } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
-import { formatRs, getInitials } from '../../utils/format';
+import { formatRs } from '../../utils/format';
 import { exportCustomerStatement } from '../../utils/customerStatement';
 import type { CustomerTabParamList, RootStackParamList } from '../../navigation/types';
 
@@ -43,17 +40,16 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type RowIcon = 'user' | 'shield' | 'bell' | 'doc' | 'help' | 'info';
+type RowIcon = 'user' | 'shield' | 'bell' | 'doc' | 'help' | 'info' | 'backup';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const { user, logout, applyUser } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [due, setDue] = useState(0);
   const [shopCount, setShopCount] = useState(0);
   const [paid, setPaid] = useState(0);
@@ -83,34 +79,7 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const savePhoto = async (url: string) => {
-    const res = await updateProfile({ profileImage: url });
-    await applyUser(res.user);
-  };
-
-  const uploadPickedPhoto = async (localUri: string) => {
-    setUploadingPhoto(true);
-    try {
-      const url = await uploadImage(localUri, 'profile');
-      await savePhoto(url);
-    } catch (err) {
-      appAlert(
-        t('common.error'),
-        err instanceof Error ? err.message : t('upload.uploadFailed')
-      );
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  const changeProfilePhoto = () => {
-    if (uploadingPhoto) return;
-    promptImageSource({
-      title: t('customer.profileTitle'),
-      aspect: [1, 1],
-      onPicked: uploadPickedPhoto,
-    });
-  };
+  const openPersonalInfo = () => navigation.navigate('PersonalInfo');
 
   const downloadStatement = async () => {
     setExporting(true);
@@ -180,32 +149,25 @@ export default function ProfileScreen() {
           <View style={cpStyles.cpHeroMain}>
             <View style={cpStyles.cpAvatarRing}>
               <Pressable
-                onPress={changeProfilePhoto}
+                onPress={openPersonalInfo}
                 style={cpStyles.cpAvatarPress}
-                disabled={uploadingPhoto}
               >
-                {user?.profileImage ? (
-                  <Image source={{ uri: user.profileImage }} style={cpStyles.cpAvatarImg} />
-                ) : (
-                  <View style={cpStyles.cpAvatarFallback}>
-                    <Text style={cpStyles.cpAvatarText}>
-                      {getInitials(user?.fullName || 'C')}
-                    </Text>
-                  </View>
-                )}
+                <UserAvatar
+                  uri={user?.profileImage}
+                  name={user?.fullName || 'C'}
+                  size={64}
+                  fallbackBg={c.peachDark}
+                  fallbackColor="#FFF"
+                />
                 <View style={cpStyles.cpCameraBadge}>
-                  {uploadingPhoto ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M4 8 H8 L10 5 H14 L16 8 H20 V19 H4 Z"
-                        stroke="#FFF"
-                        strokeWidth={2}
-                      />
-                      <Circle cx={12} cy={13} r={3.5} stroke="#FFF" strokeWidth={2} />
-                    </Svg>
-                  )}
+                  <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M4 8 H8 L10 5 H14 L16 8 H20 V19 H4 Z"
+                      stroke="#FFF"
+                      strokeWidth={2}
+                    />
+                    <Circle cx={12} cy={13} r={3.5} stroke="#FFF" strokeWidth={2} />
+                  </Svg>
                 </View>
               </Pressable>
             </View>
@@ -317,6 +279,12 @@ export default function ProfileScreen() {
                 <ActivityIndicator size="small" color={c.peachDark} />
               ) : undefined
             }
+          />
+          <SettingsRow
+            title={t('settings.backupRestore')}
+            subtitle={t('backupRestore.connectHint', { email: user?.email || '' })}
+            icon="backup"
+            onPress={() => navigation.navigate('BackupRestore')}
             last
           />
         </View>
@@ -440,6 +408,8 @@ function iconTone(icon: RowIcon) {
       return { bg: '#FEF3C7', fg: '#D97706' };
     case 'doc':
       return { bg: c.sky, fg: '#2563EB' };
+    case 'backup':
+      return { bg: '#DBEAFE', fg: '#2563EB' };
     case 'help':
       return { bg: '#E0F2FE', fg: '#0EA5E9' };
     default:
@@ -487,6 +457,13 @@ function RowGlyph({ name, color }: { name: RowIcon; color: string }) {
       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
         <Path d="M7 3 H14 L19 8 V21 H7 Z" stroke={color} strokeWidth={2} />
         <Path d="M14 3 V8 H19" stroke={color} strokeWidth={2} />
+      </Svg>
+    );
+  }
+  if (name === 'backup') {
+    return (
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path d="M7 18 H17 C19 18 21 16 21 14 C21 11 18 9 15 9 C14 5 11 3 7 3 C4 3 2 5 2 8 C2 11 4 13 7 13" stroke={color} strokeWidth={2} />
       </Svg>
     );
   }
@@ -583,10 +560,12 @@ const cpStyles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#FFF',
+    overflow: 'visible',
   },
   cpAvatarPress: {
     width: 64,
     height: 64,
+    overflow: 'visible',
   },
   cpAvatarImg: {
     width: 64,

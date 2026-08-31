@@ -1,6 +1,6 @@
 import Expense, { EXPENSE_CATEGORIES } from '../models/Expense.js';
 
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 const formatExpense = (expense) => ({
   id: expense._id.toString(),

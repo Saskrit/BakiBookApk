@@ -5,6 +5,10 @@ import Customer from '../models/Customer.js';
 import generateToken from '../utils/generateToken.js';
 import { createEmailToken, hashToken } from '../utils/emailToken.js';
 import {
+  LEGACY_VERIFY_LINK_TTL_MS,
+  verifyEmailByToken,
+} from '../utils/emailVerification.js';
+import {
   queueEmail,
   sendWelcomeEmail,
   sendVerificationEmail,
@@ -13,7 +17,7 @@ import {
 } from '../utils/emailService.js';
 import { verifyGoogleToken } from '../utils/googleVerify.js';
 import { assertEmailAvailableForRole } from '../utils/emailRoleGuard.js';
-import { resolveImageUrl } from '../utils/imageUpload.js';
+import { resolveImageUrl, toPublicImageUrl } from '../utils/imageUpload.js';
 import { isAdminEmail, getAdminEmails, matchesAdminCredentials, getAdminEnvEmail, getAdminEnvPassword } from '../utils/adminCheck.js';
 import { notifyPendingInvitationsForUser } from './linkController.js';
 import { createNotification } from '../utils/notify.js';
@@ -22,6 +26,14 @@ import {
   sanitizeTutorialStepIds,
   TUTORIAL_STEP_ID_SET,
 } from '../utils/tutorialCatalog.js';
+import { accountStatusDenial } from '../utils/accountStatus.js';
+import { emitShopDataSync } from '../utils/realtimeSync.js';
+import { getShopkeeperId } from '../utils/shopContext.js';
+import {
+  INVITE_LOGIN_MAX_ATTEMPTS,
+  isInviteActivationPending,
+  issueInviteLoginCode,
+} from '../utils/inviteLogin.js';
 
 const isShopDetailsComplete = (user) =>
   Boolean(user.shopName?.trim() && user.shopLocation?.trim() && user.shopImage);
@@ -62,29 +74,98 @@ const applyShopVerificationState = async (user, { notifyAdmin = true } = {}) => 
   }
 };
 
-const formatUser = (user) => {
-  const shopVerificationStatus = resolveShopVerificationStatus(user);
+const formatUser = (user, options = {}) => {
+  const shopVerificationStatus = resolveShopVerificationStatus(options.shopSource || user);
+  const shopSource = options.shopSource || user;
+  const teamRole =
+    options.teamRole ||
+    (user.teamRole && user.teamRole !== 'owner' ? user.teamRole : 'owner');
+  const canEditShop =
+    options.canEditShop !== undefined
+      ? Boolean(options.canEditShop)
+      : user.role === 'shopkeeper' && teamRole === 'owner' && !user.shopOwner;
+  const shopOwnerId = options.shopOwnerId || user.shopOwner || user._id;
 
   return {
     id: user._id,
     role: user.role,
     fullName: user.fullName,
-    profileImage: user.profileImage || '',
+    profileImage: toPublicImageUrl(user.profileImage || ''),
     email: user.email,
     phone: user.phone || '',
-    shopName: user.shopName || '',
-    shopLocation: user.shopLocation || '',
-    shopImage: user.shopImage || '',
+    shopName: shopSource.shopName || '',
+    shopLocation: shopSource.shopLocation || '',
+    shopImage: toPublicImageUrl(shopSource.shopImage || ''),
     authProvider: user.authProvider || 'local',
     isEmailVerified: user.isEmailVerified,
-    isShopVerified: user.isShopVerified,
+    isShopVerified: shopSource.isShopVerified,
     shopVerificationStatus,
-    needsShopSetup: user.role === 'shopkeeper' && shopVerificationStatus !== 'verified',
+    needsShopSetup:
+      user.role === 'shopkeeper' &&
+      canEditShop &&
+      shopVerificationStatus !== 'verified',
     isAdmin: isAdminEmail(user.email),
     preferredLanguage: user.preferredLanguage === 'ne' ? 'ne' : 'en',
     tutorialProgress: formatTutorialProgress(user),
     createdAt: user.createdAt,
+    teamRole: user.role === 'shopkeeper' ? teamRole : undefined,
+    canEditShop: user.role === 'shopkeeper' ? canEditShop : false,
+    shopOwnerId: user.role === 'shopkeeper' ? String(shopOwnerId) : undefined,
+    mustChangePassword: Boolean(user.mustChangePassword),
+    hasPassword: Boolean(options.hasPassword),
+    accountStatus: user.accountStatus === 'suspended' || user.accountStatus === 'banned'
+      ? user.accountStatus
+      : 'active',
   };
+};
+
+/** Enrich shop display fields for partners/staff from the owner account. */
+const buildUserPayload = async (user, req = null) => {
+  const withPassword = user.password !== undefined
+    ? user
+    : await User.findById(user._id).select('+password');
+  const hasPassword = Boolean(withPassword?.password);
+
+  if (user.role !== 'shopkeeper') {
+    return formatUser(user, { hasPassword });
+  }
+
+  if (req) {
+    let shopSource = user;
+    if (!req.canEditShop && req.shopOwnerId) {
+      const owner = await User.findById(req.shopOwnerId).select(
+        'shopName shopLocation shopImage isShopVerified shopVerificationStatus'
+      );
+      if (owner) shopSource = owner;
+    }
+    return formatUser(user, {
+      shopSource,
+      teamRole: req.teamRole,
+      canEditShop: req.canEditShop,
+      shopOwnerId: req.shopOwnerId,
+      hasPassword,
+    });
+  }
+
+  if (user.shopOwner && user.teamRole && user.teamRole !== 'owner') {
+    const owner = await User.findById(user.shopOwner).select(
+      'shopName shopLocation shopImage isShopVerified shopVerificationStatus'
+    );
+    return formatUser(user, {
+      shopSource: owner || user,
+      teamRole: user.teamRole,
+      canEditShop: false,
+      shopOwnerId: user.shopOwner,
+      hasPassword,
+    });
+  }
+
+  return formatUser(user, {
+    teamRole: 'owner',
+    canEditShop: true,
+    shopOwnerId: user._id,
+    hasPassword,
+  });
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -107,7 +188,7 @@ const sendAuthResponse = async (res, user, message, status = 200) => {
     success: true,
     message,
     token,
-    user: formatUser(user),
+    user: await buildUserPayload(user),
     pendingLinkCount,
   });
 };
@@ -440,10 +521,59 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const users = await User.find({ email: trimmed }).select('+password');
+    const users = await User.find({ email: trimmed }).select(
+      '+password +inviteLoginCodeHash +inviteLoginCodeExpires +inviteLoginAttempts'
+    );
 
     if (!users.length) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email address',
+        code: 'INVALID_EMAIL',
+      });
+    }
+
+    const invitePending = users.find((candidate) => isInviteActivationPending(candidate));
+    if (invitePending) {
+      const denial = accountStatusDenial(invitePending);
+      if (denial) {
+        return res.status(denial.status).json({
+          success: false,
+          code: denial.code,
+          message: denial.message,
+        });
+      }
+
+      const needsFreshCode =
+        !invitePending.inviteLoginCodeExpires ||
+        invitePending.inviteLoginCodeExpires.getTime() < Date.now();
+
+      if (needsFreshCode) {
+        let ownerName = 'A shop owner';
+        let shopName = 'BakiBook shop';
+        if (invitePending.shopOwner) {
+          const owner = await User.findById(invitePending.shopOwner).select('fullName shopName');
+          if (owner) {
+            ownerName = owner.fullName || ownerName;
+            shopName = owner.shopName || shopName;
+          }
+        }
+        await issueInviteLoginCode(invitePending, {
+          ownerName,
+          shopName,
+          teamRole: invitePending.teamRole,
+        });
+      }
+
+      return res.status(403).json({
+        success: false,
+        code: 'INVITE_ACTIVATION_REQUIRED',
+        requiresInviteActivation: true,
+        email: invitePending.email,
+        emailSent: true,
+        message:
+          'This is an invited account. Check your email for the first-login code, then set your own password to continue.',
+      });
     }
 
     const matchedUsers = [];
@@ -462,13 +592,26 @@ export const loginUser = async (req, res) => {
           message: 'This account uses Google sign-in. Please login with Google.',
         });
       }
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid password',
+        code: 'INVALID_PASSWORD',
+      });
     }
 
     const user =
       matchedUsers.find((candidate) => isAdminEmail(candidate.email)) ||
       matchedUsers.find((candidate) => candidate.role === 'shopkeeper') ||
       matchedUsers[0];
+
+    const denial = accountStatusDenial(user);
+    if (denial) {
+      return res.status(denial.status).json({
+        success: false,
+        code: denial.code,
+        message: denial.message,
+      });
+    }
 
     if (user.authProvider !== 'google' && !user.isEmailVerified) {
       // Legacy accounts (created before code-based signup): queue a one-time verify link.
@@ -513,37 +656,150 @@ export const loginUser = async (req, res) => {
   }
 };
 
-export const verifyEmail = async (req, res) => {
+export const activateInviteLogin = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { email, code, password } = req.body;
+    const normalizedEmail = email?.trim()?.toLowerCase();
+    const trimmedCode = String(code || '').trim();
 
-    if (!token) {
-      return res.status(400).json({ success: false, message: 'Verification token is required' });
+    if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
+    }
+    if (!/^\d{6}$/.test(trimmedCode)) {
+      return res.status(400).json({ success: false, message: 'Enter the 6-digit invite code from your email' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const hashed = hashToken(token);
+    const user = await User.findOne({ email: normalizedEmail, role: 'shopkeeper' }).select(
+      '+password +inviteLoginCodeHash +inviteLoginCodeExpires +inviteLoginAttempts'
+    );
 
-    const user = await User.findOne({
-      emailVerificationToken: hashed,
-      emailVerificationExpires: { $gt: Date.now() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
-
-    if (!user) {
+    if (!user || !isInviteActivationPending(user)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired verification link',
+        message: 'No pending invite found for this email. Sign in with your password, or ask the shop owner to invite you again.',
       });
     }
 
+    const denial = accountStatusDenial(user);
+    if (denial) {
+      return res.status(denial.status).json({
+        success: false,
+        code: denial.code,
+        message: denial.message,
+      });
+    }
+
+    if (!user.inviteLoginCodeHash || !user.inviteLoginCodeExpires || user.inviteLoginCodeExpires.getTime() < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invite code expired. Tap Resend code, then try again.',
+        code: 'INVITE_CODE_EXPIRED',
+      });
+    }
+
+    if ((user.inviteLoginAttempts || 0) >= INVITE_LOGIN_MAX_ATTEMPTS) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect attempts. Tap Resend code for a new one.',
+        code: 'INVITE_CODE_LOCKED',
+      });
+    }
+
+    if (user.inviteLoginCodeHash !== hashToken(trimmedCode)) {
+      user.inviteLoginAttempts = (user.inviteLoginAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid invite code',
+        code: 'INVALID_INVITE_CODE',
+      });
+    }
+
+    user.password = password;
+    user.mustChangePassword = false;
+    user.inviteLoginCodeHash = undefined;
+    user.inviteLoginCodeExpires = undefined;
+    user.inviteLoginAttempts = 0;
     user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
     await user.save();
+
+    return sendAuthResponse(res, user, 'Invite activated. You are signed in.');
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to activate invite',
+    });
+  }
+};
+
+export const resendInviteLoginCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email?.trim()?.toLowerCase();
+
+    if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail, role: 'shopkeeper' }).select(
+      '+inviteLoginCodeHash +inviteLoginCodeExpires +inviteLoginAttempts'
+    );
+
+    if (!user || !isInviteActivationPending(user)) {
+      // Do not reveal whether the email exists.
+      return res.json({
+        success: true,
+        emailSent: true,
+        email: normalizedEmail,
+        message: 'If this email has a pending invite, a new first-login code was sent.',
+      });
+    }
+
+    let ownerName = 'A shop owner';
+    let shopName = 'BakiBook shop';
+    if (user.shopOwner) {
+      const owner = await User.findById(user.shopOwner).select('fullName shopName');
+      if (owner) {
+        ownerName = owner.fullName || ownerName;
+        shopName = owner.shopName || shopName;
+      }
+    }
+
+    await issueInviteLoginCode(user, {
+      ownerName,
+      shopName,
+      teamRole: user.teamRole,
+    });
 
     return res.json({
       success: true,
-      message: 'Email verified successfully!',
-      user: formatUser(user),
+      emailSent: true,
+      email: normalizedEmail,
+      message: 'We sent a new first-login invite code to your email.',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to resend invite code',
+    });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const result = await verifyEmailByToken(req.params.token);
+
+    if (!result.ok) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+      user: formatUser(result.user),
     });
   } catch (error) {
     return res.status(500).json({
@@ -557,7 +813,7 @@ export const verifyEmail = async (req, res) => {
 async function issueLegacyVerificationLink(user) {
   const rawVerificationToken = createEmailToken();
   user.emailVerificationToken = hashToken(rawVerificationToken);
-  user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  user.emailVerificationExpires = Date.now() + LEGACY_VERIFY_LINK_TTL_MS;
   await user.save();
   queueEmail(
     () =>
@@ -672,25 +928,49 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
     }
 
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select(
-      '+passwordResetToken +passwordResetExpires'
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      '+passwordResetToken +passwordResetExpires +password'
     );
 
-    if (user && user.password) {
-      const rawResetToken = createEmailToken();
-      user.passwordResetToken = hashToken(rawResetToken);
-      user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
-      await user.save();
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account exists with that email',
+        code: 'EMAIL_NOT_FOUND',
+      });
+    }
 
-      queueEmail(
-        () => sendPasswordResetEmail(user, rawResetToken),
-        `password-reset:${user.email}`
-      );
+    // Include Google sign-in accounts that have not set a password yet —
+    // they use the same email code flow to create their first password.
+    const settingFirstPassword = !user.password;
+    const rawResetToken = String(crypto.randomInt(100000, 999999));
+    user.passwordResetToken = hashToken(rawResetToken);
+    user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+    await user.save();
+
+    let emailSent = false;
+    try {
+      await Promise.race([
+        sendPasswordResetEmail(user, rawResetToken, { settingFirstPassword }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Email send timed out')), 12000)
+        ),
+      ]);
+      emailSent = true;
+    } catch (emailErr) {
+      console.warn(`password-reset:${user.email}`, emailErr?.message || emailErr);
+      emailSent = false;
     }
 
     return res.json({
       success: true,
-      message: 'If an account exists with that email, a password reset link has been sent.',
+      emailSent,
+      message: emailSent
+        ? settingFirstPassword
+          ? 'A code to set your password has been sent to your email.'
+          : 'A password reset code has been sent to your email.'
+        : 'Reset code could not be emailed right now. Please try again in a moment.',
     });
   } catch (error) {
     return res.status(500).json({
@@ -723,18 +1003,20 @@ export const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset link. Please request a new one.',
+        message: 'Invalid or expired reset code. Please request a new one.',
       });
     }
 
     user.password = password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.mustChangePassword = false;
+    // Google accounts that set a password here can also sign in with email + password.
     await user.save();
 
     return res.json({
       success: true,
-      message: 'Password reset successfully! You can now log in with your new password.',
+      message: 'Password updated successfully! You can now log in with your new password.',
     });
   } catch (error) {
     return res.status(500).json({
@@ -747,7 +1029,7 @@ export const resetPassword = async (req, res) => {
 export const getMe = async (req, res) => {
   return res.json({
     success: true,
-    user: formatUser(req.user),
+    user: await buildUserPayload(req.user, req),
   });
 };
 
@@ -763,6 +1045,13 @@ const linkGoogleToUser = async (user, googleUser, profileImage) => {
     if (user.authProvider === 'local') {
       user.authProvider = 'google';
     }
+  }
+  // Google has verified the mailbox — clear pending invite activation.
+  if (user.mustChangePassword) {
+    user.mustChangePassword = false;
+    user.inviteLoginCodeHash = undefined;
+    user.inviteLoginCodeExpires = undefined;
+    user.inviteLoginAttempts = 0;
   }
   await user.save();
   return user;
@@ -826,6 +1115,16 @@ export const googleAuth = async (req, res) => {
       }
 
       await linkGoogleToUser(user, googleUser, profileImage);
+
+      const denial = accountStatusDenial(user);
+      if (denial) {
+        return res.status(denial.status).json({
+          success: false,
+          code: denial.code,
+          message: denial.message,
+        });
+      }
+
       if (user.role === 'customer') {
         notifyPendingInvitationsForUser(user).catch((error) => {
           console.error(`Failed to notify pending invitations for ${user.email}:`, error.message);
@@ -966,6 +1265,13 @@ export const completeShopProfile = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only shopkeepers can update shop details' });
     }
 
+    if (!req.canEditShop) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the shop owner can change shop details',
+      });
+    }
+
     const { shopName, shopLocation, shopImage } = req.body;
 
     if (!shopName?.trim()) {
@@ -989,7 +1295,7 @@ export const completeShopProfile = async (req, res) => {
     return res.json({
       success: true,
       message: 'Shop details submitted for admin verification',
-      user: formatUser(user),
+      user: await buildUserPayload(user, req),
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -1281,24 +1587,36 @@ export const updateProfile = async (req, res) => {
       });
     }
 
+    let shopChanged = false;
+
     if (user.role === 'shopkeeper') {
-      let shopChanged = false;
+      const wantsShopChange =
+        shopName !== undefined || shopLocation !== undefined || Boolean(shopImage);
 
-      if (shopName !== undefined) {
-        user.shopName = shopName.trim();
-        shopChanged = true;
-      }
-      if (shopLocation !== undefined) {
-        user.shopLocation = shopLocation.trim();
-        shopChanged = true;
-      }
-      if (shopImage) {
-        user.shopImage = await resolveImageUrl(shopImage, 'shops');
-        shopChanged = true;
+      if (wantsShopChange && !req.canEditShop) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the shop owner can change shop details',
+        });
       }
 
-      if (shopChanged) {
-        await applyShopVerificationState(user);
+      if (req.canEditShop) {
+        if (shopName !== undefined) {
+          user.shopName = shopName.trim();
+          shopChanged = true;
+        }
+        if (shopLocation !== undefined) {
+          user.shopLocation = shopLocation.trim();
+          shopChanged = true;
+        }
+        if (shopImage) {
+          user.shopImage = await resolveImageUrl(shopImage, 'shops');
+          shopChanged = true;
+        }
+
+        if (shopChanged) {
+          await applyShopVerificationState(user);
+        }
       }
     }
 
@@ -1306,15 +1624,24 @@ export const updateProfile = async (req, res) => {
 
     const shopSubmitted =
       user.role === 'shopkeeper' &&
+      req.canEditShop &&
       resolveShopVerificationStatus(user) === 'pending' &&
       isShopDetailsComplete(user);
+
+    if (user.role === 'shopkeeper' && shopChanged) {
+      await emitShopDataSync(getShopkeeperId(req), {
+        userSync: { refresh: true },
+        scopes: ['shop', 'dashboard', 'all'],
+        excludeUserId: req.user._id,
+      });
+    }
 
     return res.json({
       success: true,
       message: shopSubmitted
         ? 'Shop details submitted for admin verification'
         : 'Profile updated successfully',
-      user: formatUser(user),
+      user: await buildUserPayload(user, req),
     });
   } catch (error) {
     return res.status(500).json({
@@ -1328,10 +1655,10 @@ export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (!newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required',
+        message: 'New password is required',
       });
     }
 
@@ -1348,22 +1675,40 @@ export const changePassword = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (!user.password) {
-      return res.status(400).json({
-        success: false,
-        message: 'This account uses Google sign-in. Set a password via email reset on the web app.',
-      });
-    }
+    const settingFirstPassword = !user.password;
 
-    const matches = await user.matchPassword(currentPassword);
-    if (!matches) {
-      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+    if (settingFirstPassword) {
+      if (user.authProvider !== 'google' && !user.mustChangePassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required',
+        });
+      }
+    } else {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required',
+        });
+      }
+
+      const matches = await user.matchPassword(currentPassword);
+      if (!matches) {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+      }
     }
 
     user.password = newPassword;
+    user.mustChangePassword = false;
     await user.save();
 
-    return res.json({ success: true, message: 'Password changed successfully' });
+    return res.json({
+      success: true,
+      message: settingFirstPassword
+        ? 'Password set successfully. You can now sign in with email and password.'
+        : 'Password changed successfully',
+      user: await buildUserPayload(user, req),
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -1428,6 +1773,70 @@ export const updateTutorialProgress = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to update tutorial progress',
+    });
+  }
+};
+
+/** Register native FCM device token for closed-app push. */
+export const registerPushToken = async (req, res) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const platform =
+      req.body?.platform === 'ios' || req.body?.platform === 'web'
+        ? req.body.platform
+        : 'android';
+
+    if (!token || token.length < 20) {
+      return res.status(400).json({ success: false, message: 'Valid push token is required' });
+    }
+
+    const user = await User.findById(req.user._id).select('+fcmTokens');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const existing = (user.fcmTokens || []).filter((entry) => {
+      const value = typeof entry === 'string' ? entry : entry?.token;
+      return value && value !== token;
+    });
+
+    existing.push({ token, platform, updatedAt: new Date() });
+    // Keep last 5 devices per account
+    user.fcmTokens = existing.slice(-5);
+    await user.save();
+
+    return res.json({ success: true, message: 'Push token registered' });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to register push token',
+    });
+  }
+};
+
+export const unregisterPushToken = async (req, res) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const user = await User.findById(req.user._id).select('+fcmTokens');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (token) {
+      user.fcmTokens = (user.fcmTokens || []).filter((entry) => {
+        const value = typeof entry === 'string' ? entry : entry?.token;
+        return value && value !== token;
+      });
+    } else {
+      user.fcmTokens = [];
+    }
+    await user.save();
+
+    return res.json({ success: true, message: 'Push token removed' });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to unregister push token',
     });
   }
 };

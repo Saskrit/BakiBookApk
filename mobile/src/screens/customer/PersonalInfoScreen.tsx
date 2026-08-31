@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -20,6 +20,7 @@ import {
   requestEmailChange,
   updateProfile,
 } from '../../api/auth';
+import ProfileImagePicker from '../../components/ProfileImagePicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText } from '../../components/ui';
@@ -38,9 +39,13 @@ export default function PersonalInfoScreen() {
 
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [profileImage, setProfileImage] = useState(user?.profileImage || '');
+  const [photoError, setPhotoError] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingPhoto, setSavingPhoto] = useState(false);
+  const photoDirtyRef = useRef(false);
   const [newEmail, setNewEmail] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
   const [confirmationCode, setConfirmationCode] = useState('');
@@ -51,9 +56,38 @@ export default function PersonalInfoScreen() {
   const [emailChangePassword, setEmailChangePassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
+  useEffect(() => {
+    setFullName(user?.fullName || '');
+    setPhone(user?.phone || '');
+  }, [user?.id, user?.fullName, user?.phone]);
+
+  useEffect(() => {
+    if (photoDirtyRef.current) return;
+    if (user?.profileImage) setProfileImage(user.profileImage);
+  }, [user?.id, user?.profileImage]);
+
+  const handleSavePhoto = async (url: string) => {
+    setPhotoError('');
+    setSuccess('');
+    setSavingPhoto(true);
+    try {
+      const res = await updateProfile({ profileImage: url });
+      const savedImage = res.user.profileImage || url;
+      await applyUser({ ...res.user, profileImage: savedImage });
+      photoDirtyRef.current = false;
+      setProfileImage(savedImage);
+      setSuccess(t('personalProfile.photoSaved'));
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : t('upload.uploadFailed'));
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     setError('');
     setSuccess('');
+    setPhotoError('');
     const name = fullName.trim();
     if (!name) {
       setError(t('auth.fullName'));
@@ -62,8 +96,14 @@ export default function PersonalInfoScreen() {
 
     setSaving(true);
     try {
-      const res = await updateProfile({ fullName: name, phone: phone.trim() });
-      await applyUser(res.user);
+      const res = await updateProfile({
+        fullName: name,
+        phone: phone.trim(),
+      });
+      await applyUser({
+        ...res.user,
+        profileImage: res.user.profileImage || user?.profileImage || profileImage,
+      });
       setSuccess(t('customer.personalInfoUpdated'));
       appAlert(t('customer.personalInfo'), t('customer.personalInfoUpdated'));
     } catch (err) {
@@ -78,7 +118,9 @@ export default function PersonalInfoScreen() {
   const handleCancelPersonalInfo = () => {
     setFullName(user?.fullName || '');
     setPhone(user?.phone || '');
+    setProfileImage(user?.profileImage || '');
     setError('');
+    setPhotoError('');
     setSuccess('');
     navigation.goBack();
   };
@@ -179,6 +221,26 @@ export default function PersonalInfoScreen() {
             <Text style={piStyles.piCardTitle}>{t('customer.editPersonalInfo')}</Text>
             {error ? <ErrorText message={error} /> : null}
             {success ? <Text style={piStyles.piSuccess}>{success}</Text> : null}
+
+            <ProfileImagePicker
+              label={t('customer.profilePhoto')}
+              value={profileImage}
+              savedUrl={user?.profileImage || ''}
+              onChange={(url) => {
+                photoDirtyRef.current = url !== (user?.profileImage || '');
+                setProfileImage(url);
+              }}
+              onSavePhoto={handleSavePhoto}
+              savingPhoto={savingPhoto}
+              savePhotoLabel={t('customer.saveProfilePhoto')}
+              onError={setPhotoError}
+              uploadType="profile"
+              fallbackName={fullName || user?.fullName || 'C'}
+              size={80}
+              disabled={saving}
+            />
+            {photoError ? <ErrorText message={photoError} /> : null}
+            <Text style={piStyles.piHint}>{t('customer.profilePhotoHint')}</Text>
 
             <View style={piStyles.piFieldWrap}>
               <Text style={piStyles.piFieldLabel}>{t('auth.fullName')}</Text>

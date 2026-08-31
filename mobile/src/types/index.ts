@@ -1,5 +1,6 @@
 export type UserRole = 'shopkeeper' | 'customer';
 export type AppLanguage = 'en' | 'ne';
+export type ShopTeamRole = 'owner' | 'partner' | 'staff';
 
 export interface TutorialProgress {
   completedStepIds: string[];
@@ -29,6 +30,11 @@ export interface User {
   preferredLanguage?: AppLanguage;
   tutorialProgress?: TutorialProgress;
   createdAt?: string;
+  teamRole?: ShopTeamRole;
+  canEditShop?: boolean;
+  shopOwnerId?: string;
+  mustChangePassword?: boolean;
+  hasPassword?: boolean;
 }
 
 export interface Customer {
@@ -48,10 +54,13 @@ export interface Customer {
   lastPaymentDate?: string;
 }
 
+export type ProductUnit = 'none' | 'kg' | 'ltr';
+
 export interface LineItem {
   name: string;
   qty: number;
   price: number;
+  unit?: ProductUnit;
 }
 
 export interface ShopProduct {

@@ -4,7 +4,7 @@ import {
   formatProduct,
 } from '../utils/productCatalog.js';
 
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 export const listProducts = async (req, res) => {
   try {

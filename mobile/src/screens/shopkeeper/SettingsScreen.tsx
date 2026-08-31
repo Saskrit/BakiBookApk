@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,13 +12,14 @@ import { appAlert } from '../../contexts/DialogContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import EmailVerificationBanner from '../../components/EmailVerificationBanner';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import UserAvatar from '../../components/UserAvatar';
 import { getTutorialStats } from '../../features/tutorial/catalog';
 import { colors } from '../../theme/colors';
 import { typography as t } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
-import { getInitials } from '../../utils/format';
+import { APP_DEVELOPER } from '../../constants/appMeta';
 import type { RootStackParamList, ShopkeeperTabParamList } from '../../navigation/types';
 
 type SettingsNav = CompositeNavigationProp<
@@ -73,12 +74,20 @@ function MenuRow({ item }: { item: MenuItem }) {
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNav>();
   const { user, logout } = useAuth();
-  const { unreadCount, connected } = useNotifications();
+  const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const tutorialStats = getTutorialStats(user?.tutorialProgress?.completedStepIds || []);
 
   const openShopProfile = () => navigation.getParent()?.navigate('ShopProfile');
+  const openPersonalProfile = () => navigation.getParent()?.navigate('PersonalProfile');
+
+  const teamRoleLabel =
+    user?.teamRole === 'partner'
+      ? t('shopTeam.partner')
+      : user?.teamRole === 'staff'
+        ? t('shopTeam.staff')
+        : t('shopTeam.owner');
 
   const handleLogout = () => {
     appAlert(t('settings.signOutConfirmTitle'), t('settings.signOutConfirmBody'), [
@@ -87,12 +96,9 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const notifSubtitle = connected
-    ? unreadCount > 0
+  const notifSubtitle =
+    unreadCount > 0
       ? t('settings.notificationsUnread', { count: unreadCount })
-      : t('settings.notificationsCaughtUp')
-    : unreadCount > 0
-      ? t('settings.notificationsOffline', { count: unreadCount })
       : t('settings.notificationsHistory');
 
   const sections: MenuSection[] = [
@@ -161,6 +167,18 @@ export default function SettingsScreen() {
           onPress: () => navigation.getParent()?.navigate('AddCredit'),
         },
         {
+          label: t('settings.paymentSubmissions'),
+          subtitle: t('settings.paymentSubmissionsSubtitle'),
+          color: '#0F766E',
+          icon: (
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Rect x={4} y={5} width={16} height={14} rx={2} stroke="#0F766E" strokeWidth={2} />
+              <Path d="M8 10 H16 M8 14 H13" stroke="#0F766E" strokeWidth={2} />
+            </Svg>
+          ),
+          onPress: () => navigation.getParent()?.navigate('PaymentSubmissions', { initialTab: 'pending' }),
+        },
+        {
           label: t('settings.scanQr'),
           color: '#DB2777',
           icon: (
@@ -188,6 +206,18 @@ export default function SettingsScreen() {
     {
       title: t('settings.account'),
       items: [
+        {
+          label: t('settings.personalProfile'),
+          subtitle: t('settings.personalProfileSubtitle'),
+          color: '#0F766E',
+          icon: (
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Circle cx={12} cy={8} r={3.5} stroke="#0F766E" strokeWidth={2} />
+              <Path d="M5 19 C5 15.5 8 13.5 12 13.5 C16 13.5 19 15.5 19 19" stroke="#0F766E" strokeWidth={2} />
+            </Svg>
+          ),
+          onPress: openPersonalProfile,
+        },
         {
           label: t('settings.shopProfile'),
           subtitle: t('settings.shopProfileSubtitle'),
@@ -259,8 +289,7 @@ export default function SettingsScreen() {
               <Path d="M7 18 H17 C19 18 21 16 21 14 C21 11 18 9 15 9 C14 5 11 3 7 3 C4 3 2 5 2 8 C2 11 4 13 7 13" stroke="#2563EB" strokeWidth={2} />
             </Svg>
           ),
-          onPress: () =>
-            comingSoon(t('settings.backupRestore'), t('common.comingSoon'), t('settings.comingSoonBody')),
+          onPress: () => navigation.getParent()?.navigate('BackupRestore'),
         },
         {
           label: t('common.signOut'),
@@ -291,22 +320,27 @@ export default function SettingsScreen() {
       >
         <Text style={stStyles.stHeroTitle}>{t('settings.profile')}</Text>
 
-        <Pressable style={stStyles.stProfileCard} onPress={openShopProfile}>
+        <Pressable style={stStyles.stProfileCard} onPress={openPersonalProfile}>
           <View style={stStyles.stAvatarWrap}>
-            {profileUri ? (
-              <Image source={{ uri: profileUri }} style={stStyles.stAvatar} />
-            ) : (
-              <View style={stStyles.stAvatarPlaceholder}>
-                <Text style={stStyles.stAvatarText}>{getInitials(user?.fullName || shopName)}</Text>
-              </View>
-            )}
-            {shopUri ? (
-              <Image source={{ uri: shopUri }} style={stStyles.stShopBadge} />
-            ) : (
-              <View style={stStyles.stShopBadgePlaceholder}>
-                <Text style={stStyles.stShopBadgeText}>{getInitials(shopName).slice(0, 1)}</Text>
-              </View>
-            )}
+            <UserAvatar
+              uri={profileUri}
+              name={user?.fullName || shopName}
+              size={52}
+            />
+            <UserAvatar
+              uri={shopUri}
+              name={shopName}
+              size={22}
+              borderRadius={6}
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                right: -4,
+                borderWidth: 2,
+                borderColor: '#FFFFFF',
+              }}
+              fontSize={10}
+            />
           </View>
 
           <View style={stStyles.stProfileInfo}>
@@ -320,6 +354,9 @@ export default function SettingsScreen() {
               {user?.email}
             </Text>
             <View style={stStyles.stBadgeRow}>
+              <View style={[stStyles.stBadge, stStyles.stBadgeTeam]}>
+                <Text style={[stStyles.stBadgeText, stStyles.stBadgeTextTeam]}>{teamRoleLabel}</Text>
+              </View>
               <View style={[stStyles.stBadge, verified ? stStyles.stBadgeVerified : stStyles.stBadgePending]}>
                 <Text style={[stStyles.stBadgeText, verified ? stStyles.stBadgeTextVerified : stStyles.stBadgeTextPending]}>
                   {verified ? t('settings.verifiedShop') : t('settings.shopProfileBadge')}
@@ -387,6 +424,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={stStyles.stVersion}>{t('settings.version')}</Text>
+        <Text style={stStyles.stDeveloper}>{t('settings.developer', { name: APP_DEVELOPER })}</Text>
       </ScrollView>
     </View>
   );
@@ -467,10 +505,12 @@ const stStyles = StyleSheet.create({
   stBadgeVerified: { backgroundColor: '#DCFCE7' },
   stBadgePending: { backgroundColor: '#F3F4F6' },
   stBadgeEmailPending: { backgroundColor: '#FEF3C7' },
+  stBadgeTeam: { backgroundColor: '#DBEAFE' },
   stBadgeText: { fontSize: t.sm, fontWeight: '700' },
   stBadgeTextVerified: { color: colors.primary },
   stBadgeTextPending: { color: colors.textMuted },
   stBadgeTextEmailPending: { color: colors.warning },
+  stBadgeTextTeam: { color: '#1D4ED8' },
   stEditHint: { fontSize: t.bodyLg, fontWeight: '700', color: colors.primary },
   stScroll: { flex: 1, marginTop: -4 },
   stContent: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
@@ -560,5 +600,12 @@ const stStyles = StyleSheet.create({
     fontSize: t.caption,
     color: colors.textMuted,
     marginTop: 16,
+  },
+  stDeveloper: {
+    textAlign: 'center',
+    fontSize: t.caption,
+    color: colors.textMuted,
+    marginTop: 4,
+    marginBottom: 8,
   },
 });

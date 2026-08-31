@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { fetchPortalDashboard, fetchPortalLedger } from '../../api/portal';
+import { useSyncOnInvalidate } from '../../contexts/SyncContext';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
@@ -128,6 +129,13 @@ export default function LedgerScreen() {
         .finally(() => setLoading(false));
     }, [load, route.params?.customerId, route.params?.shopName])
   );
+
+  useSyncOnInvalidate(['ledger', 'payments', 'all'], () => {
+    const scopedId = route.params?.customerId
+      ? String(route.params.customerId)
+      : shopFilterId;
+    load(scopedId).catch(() => {});
+  });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

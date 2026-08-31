@@ -16,7 +16,7 @@ const webClientId = resolveGoogleWebClientId();
 let configured = false;
 let googleModule: GoogleSigninModule | null | undefined;
 
-function loadGoogleModule(): GoogleSigninModule | null {
+export function loadGoogleModule(): GoogleSigninModule | null {
   if (googleModule !== undefined) return googleModule;
 
   // Expo Go / missing native binary — avoid hard crash on import
@@ -50,6 +50,17 @@ export function configureGoogleSignIn() {
     offlineAccess: false,
   });
   configured = true;
+}
+
+/** Clears the Google SDK session so the next sign-in shows the account picker. Does not log out of BakiBook. */
+export async function signOutGoogleSdk(): Promise<void> {
+  const mod = loadGoogleModule();
+  if (!mod) return;
+  try {
+    await mod.GoogleSignin.signOut();
+  } catch {
+    // Already signed out or native module unavailable.
+  }
 }
 
 export async function getGoogleIdToken(): Promise<string> {

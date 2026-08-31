@@ -7,6 +7,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import AppLoading from '../AppLoading';
 import { customerColors as c } from '../../theme/customerColors';
 import { layout } from '../../theme/layout';
 import { radius } from '../../theme/radius';
@@ -47,12 +48,16 @@ export function CustomerButton({
   variant = 'primary',
   loading,
   disabled,
+  size = 'default',
+  style,
 }: {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   loading?: boolean;
   disabled?: boolean;
+  size?: 'default' | 'medium';
+  style?: ViewStyle;
 }) {
   const variantStyle =
     variant === 'secondary'
@@ -63,21 +68,32 @@ export function CustomerButton({
           ? cuiStyles.cuiBtnDanger
           : cuiStyles.cuiBtnPrimary;
 
+  const isMedium = size === 'medium';
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         cuiStyles.cuiBtn,
+        isMedium && cuiStyles.cuiBtnMedium,
         variantStyle,
         (disabled || loading) && cuiStyles.cuiBtnDisabled,
         pressed && cuiStyles.cuiBtnPressed,
+        style,
       ]}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? c.peachDark : '#fff'} />
       ) : (
-        <Text style={[cuiStyles.cuiBtnText, variant === 'outline' && { color: c.peachDark }]}>
+        <Text
+          style={[
+            cuiStyles.cuiBtnText,
+            isMedium && cuiStyles.cuiBtnTextMedium,
+            variant === 'outline' && { color: c.peachDark },
+          ]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
       )}
@@ -103,11 +119,7 @@ export function CustomerStatCard({
 }
 
 export function CustomerLoading() {
-  return (
-    <View style={cuiStyles.cuiCenter}>
-      <ActivityIndicator size="large" color={c.peachDark} />
-    </View>
-  );
+  return <AppLoading accent={c.peachDark} />;
 }
 
 const cuiStyles = StyleSheet.create({
@@ -138,6 +150,11 @@ const cuiStyles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.xs,
   },
+  cuiBtnMedium: {
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    marginTop: 0,
+  },
   cuiBtnPrimary: { backgroundColor: c.peach },
   cuiBtnSecondary: { backgroundColor: c.sand },
   cuiBtnOutline: {
@@ -149,6 +166,11 @@ const cuiStyles = StyleSheet.create({
   cuiBtnDisabled: { opacity: 0.55 },
   cuiBtnPressed: { opacity: 0.88 },
   cuiBtnText: { ...typeScale.buttonLarge, color: c.white },
+  cuiBtnTextMedium: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
   cuiStatCard: {
     flex: 1,
     backgroundColor: c.white,

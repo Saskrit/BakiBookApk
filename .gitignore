@@ -1,7 +1,33 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+!.env*.example
 *.log
 .DS_Store
+Thumbs.db
+
+# AI / editor metadata (not part of the app)
+CLAUDE.md
+AGENTS.md
+.claude/
+.cursor/
+
+# Web client — not part of app-only GitHub deploy (keep locally if needed)
+client/
+
+# Mobile build outputs
+*.apk
+*.aab
+.expo/
+web-build/
+
+# Never commit Firebase / Google keys
+server/firebase-service-account.json
+**/firebase-service-account.json
+mobile/google-services.json
+google-play-service-account.json
+
 server/uploads/**/*
 !server/uploads/**/.gitkeep

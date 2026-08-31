@@ -81,12 +81,12 @@ export const sendVerificationEmail = async ({ fullName, email }, rawTokenOrCode)
        <div style="margin:24px 0;padding:16px;text-align:center;background:#FBF6F6;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#454040;">${rawTokenOrCode}</div>
        <p style="font-size:13px;color:#666;">This code expires in 15 minutes.<br/>If you did not try to create an account, you can ignore this email.</p>`
     : (() => {
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-        const verifyUrl = `${clientUrl}/verify-email/${rawTokenOrCode}`;
+        const clientUrl = (process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '');
+        const verifyUrl = `${clientUrl}/verify?token=${encodeURIComponent(rawTokenOrCode)}`;
         return `       <p>Hi ${fullName},</p>
        <p>Click the button below to verify your existing BakiBook account email (one-time link):</p>
        <a class="btn" href="${verifyUrl}">Verify Email</a>
-       <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 24 hours.<br/>New signups use a 6-digit code instead of this link.</p>`;
+       <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 10 minutes and works only once.<br/>New signups use a 6-digit code instead of this link.</p>`;
       })();
 
   const html = baseTemplate('Verify Your Email', content);
@@ -116,22 +116,64 @@ export const sendEmailChangeCode = async ({ fullName }, email, code) => {
   });
 };
 
-export const sendPasswordResetEmail = async ({ fullName, email }, rawToken) => {
+export const sendPasswordResetEmail = async ({ fullName, email }, rawToken, options = {}) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   const resetUrl = `${clientUrl}/reset-password/${rawToken}`;
+  const isShortCode = /^\d{6}$/.test(String(rawToken || ''));
+  const settingFirstPassword = Boolean(options.settingFirstPassword);
+  const actionLabel = settingFirstPassword ? 'set your password' : 'reset your password';
+  const subject = settingFirstPassword
+    ? 'Set your BakiBook password'
+    : 'Reset your BakiBook password';
+  const heading = settingFirstPassword ? 'Set Your Password' : 'Reset Your Password';
+
+  const codeBlock = isShortCode
+    ? `<p>Enter this code in the BakiBook app to ${actionLabel}:</p>
+     <div style="margin:24px 0;padding:16px;text-align:center;background:#FBF6F6;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#454040;">${rawToken}</div>
+     <p style="font-size:13px;color:#666;">Or use the web link below if you prefer.</p>`
+    : `<p>We received a request to ${actionLabel}. Click below to continue:</p>`;
 
   const html = baseTemplate(
-    'Reset Your Password',
+    heading,
     `<p>Hi ${fullName},</p>
-     <p>We received a request to reset your password. Click below to set a new one:</p>
-     <a class="btn" href="${resetUrl}">Reset Password</a>
-     <p style="margin-top:24px;font-size:13px;color:#666;">This link expires in 1 hour.</p>`
+     ${codeBlock}
+     <a class="btn" href="${resetUrl}">${settingFirstPassword ? 'Set Password on Web' : 'Reset Password on Web'}</a>
+     <p style="margin-top:24px;font-size:13px;color:#666;">This code and link expire in 1 hour. If you did not request this, you can ignore this email.</p>`
   );
 
   await sendMail({
     from: fromAddress(),
     to: email,
-    subject: 'Reset your BakiBook password',
+    subject,
+    html,
+  });
+};
+
+export const sendShopTeamInviteEmail = async ({
+  inviteeEmail,
+  ownerName,
+  shopName,
+  teamRole,
+  code,
+}) => {
+  const roleLabel = teamRole === 'partner' ? 'Partner' : 'Staff';
+  const shopLabel = shopName || 'their shop';
+
+  const html = baseTemplate(
+    `First login — Invited account`,
+    `<p>Hi,</p>
+     <p><strong>${ownerName}</strong> invited you to join <strong>${shopLabel}</strong> on BakiBook as <strong>${roleLabel}</strong>.</p>
+     <p><strong>This is an invited account.</strong> For your first login, open the BakiBook app (or website), enter your email, then use this one-time code and choose your own password.</p>
+     <div style="margin:24px 0;padding:16px;text-align:center;background:#FBF6F6;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#454040;">${code}</div>
+     <p>Email: <strong>${inviteeEmail}</strong></p>
+     <p>Do not share this code. Anyone with only your email cannot sign in without it.</p>
+     <p style="color:#888;font-size:13px;">The code expires in 48 hours. You can request a new one from the login screen.</p>`
+  );
+
+  await sendMail({
+    from: fromAddress(),
+    to: inviteeEmail,
+    subject: `BakiBook invite code: first login for ${shopLabel}`,
     html,
   });
 };

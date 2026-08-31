@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import {
   CompositeNavigationProp,
   RouteProp,
@@ -41,6 +41,7 @@ import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
 import { formatRs } from '../../utils/format';
+import { normalizeImageUrlSync } from '../../utils/normalizeImageUrl';
 import type { CustomerTabParamList, RootStackParamList } from '../../navigation/types';
 
 type Nav = CompositeNavigationProp<
@@ -143,7 +144,7 @@ export default function PaymentsScreen() {
       date: s.date,
       time: s.time,
       reviewedAt: s.reviewedAt,
-      screenshotUrl: s.screenshotUrl,
+      screenshotUrl: normalizeImageUrlSync(s.screenshotUrl),
       note: s.note,
       reviewNote: s.reviewNote || s.reportReason,
       receiptNo: s.paymentId ? undefined : undefined,
@@ -175,7 +176,7 @@ export default function PaymentsScreen() {
         date: p.date,
         time: p.time,
         reviewedAt: p.date,
-        screenshotUrl: p.screenshotUrl,
+        screenshotUrl: normalizeImageUrlSync(p.screenshotUrl),
         note: p.note,
         receiptNo: p.receiptNo || '',
       }))
@@ -302,22 +303,22 @@ export default function PaymentsScreen() {
 
   return (
     <View style={[pyStyles.pyScreen, { paddingTop: insets.top }]}>
-      <FlatList
+    <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              await load();
-              setRefreshing(false);
-            }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await load();
+            setRefreshing(false);
+          }}
             tintColor={c.peachDark}
-          />
-        }
-        ListHeaderComponent={
+        />
+      }
+      ListHeaderComponent={
           <View style={pyStyles.pyHeaderWrap}>
             <View style={pyStyles.pyTopBar}>
               <View style={{ width: 40 }} />
@@ -442,9 +443,9 @@ export default function PaymentsScreen() {
             <NotificationBell tint="#2563EB" badgeColor="#16A34A" />
           </View>
         }
-        renderItem={({ item }) => {
+      renderItem={({ item }) => {
           const status = statusMeta(item.status);
-          return (
+        return (
             <Pressable style={pyStyles.pyPayCard} onPress={() => setDetail(item)}>
               <View style={[pyStyles.pyShopIcon, { backgroundColor: status.iconBg }]}>
                 <Text style={{ color: status.icon, fontWeight: '900' }}>
@@ -477,7 +478,12 @@ export default function PaymentsScreen() {
                 </View>
                 <Text style={pyStyles.pyVerifiedOn}>{statusDateLabel(item)}</Text>
                 {item.screenshotUrl ? (
-                  <Image source={{ uri: item.screenshotUrl }} style={pyStyles.pyThumb} />
+                  <Image
+                    source={{ uri: item.screenshotUrl }}
+                    style={pyStyles.pyThumb}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
                 ) : null}
               </View>
               <Text style={pyStyles.pyChevron}>›</Text>
@@ -503,7 +509,12 @@ export default function PaymentsScreen() {
               <Text style={pyStyles.pyDetailNote}>{detail.reviewNote}</Text>
             ) : null}
             {detail?.screenshotUrl ? (
-              <Image source={{ uri: detail.screenshotUrl }} style={pyStyles.pyDetailImage} />
+              <Image
+                source={{ uri: detail.screenshotUrl }}
+                style={pyStyles.pyDetailImage}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
             ) : null}
             <Pressable style={pyStyles.pyDetailClose} onPress={() => setDetail(null)}>
               <Text style={pyStyles.pyDetailCloseText}>{t('common.close')}</Text>
@@ -714,7 +725,7 @@ function SubmitPaymentModal({
             <Text style={pyStyles.pyFieldLabel}>{t('customer.paymentScreenshot')}</Text>
             <Pressable style={pyStyles.pyUploadBox} onPress={pickScreenshot} disabled={uploading}>
               {preview ? (
-                <Image source={{ uri: preview }} style={pyStyles.pyPreview} />
+                <Image source={{ uri: preview }} style={pyStyles.pyPreview} contentFit="cover" />
               ) : (
                 <Text style={pyStyles.pyUploadText}>
                   {uploading ? t('upload.uploading') : t('customer.tapUploadScreenshot')}

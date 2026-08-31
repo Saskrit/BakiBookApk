@@ -7,6 +7,7 @@ const ALLOWED_PREFIXES = [
   '/api/health',
   '/api/stats',
   '/api/maintenance-status',
+  '/api/platform-contact',
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/google',
@@ -21,11 +22,15 @@ const ALLOWED_PREFIXES = [
 const isAllowedDuringMaintenance = (path) => {
   if (
     path === '/' ||
+    path === '/verify' ||
+    path.startsWith('/verify/') ||
+    path.startsWith('/verify-email/') ||
     path === '/api' ||
     path === '/api/' ||
     path === '/api/health' ||
     path === '/api/stats' ||
-    path === '/api/maintenance-status'
+    path === '/api/maintenance-status' ||
+    path === '/api/platform-contact'
   ) {
     return true;
   }
@@ -52,6 +57,7 @@ export const maintenanceGuard = async (req, res, next) => {
       return next();
     }
 
+    // Cached — normally no DB hit. Only loads from Mongo when cache is cold/expired.
     const settings = await SystemSetting.getGlobal();
     if (!settings.maintenanceMode) {
       return next();

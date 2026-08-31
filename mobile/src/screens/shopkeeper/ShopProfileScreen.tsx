@@ -1,23 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import Svg, { Circle, Path } from 'react-native-svg';
 import { updateProfile } from '../../api/auth';
-import { uploadImage, type UploadType } from '../../api/upload';
-import ProfileImagePicker from '../../components/ProfileImagePicker';
-import EmailVerificationBanner from '../../components/EmailVerificationBanner';
+import { uploadImage } from '../../api/upload';
+import {
+  inviteShopTeamMember,
+  listShopTeam,
+  revokeShopTeamMember,
+  type ShopTeamMember,
+  type TeamRole,
+} from '../../api/shopTeam';
 import { useAuth } from '../../contexts/AuthContext';
+import { appAlert } from '../../contexts/DialogContext';
+import UserAvatar from '../../components/UserAvatar';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { radius } from '../../theme/radius';
@@ -29,86 +35,141 @@ import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShopProfile'>;
 
-function statusLabel(status: string | undefined, verified: boolean | undefined, t: (key: string) => string) {
-  if (status === 'verified' || verified) return { text: t('shopProfile.verified'), color: colors.primary, bg: '#DCFCE7' };
-  if (status === 'pending') return { text: t('shopProfile.pendingReview'), color: colors.warning, bg: '#FEF3C7' };
-  if (status === 'rejected') return { text: t('shopProfile.needsUpdate'), color: colors.danger, bg: '#FEE2E2' };
+function statusLabel(
+  status: string | undefined,
+  verified: boolean | undefined,
+  t: (key: string) => string
+) {
+  if (status === 'verified' || verified)
+    return { text: t('shopProfile.verified'), color: colors.primary, bg: '#DCFCE7' };
+  if (status === 'pending')
+    return { text: t('shopProfile.pendingReview'), color: colors.warning, bg: '#FEF3C7' };
+  if (status === 'rejected')
+    return { text: t('shopProfile.needsUpdate'), color: colors.danger, bg: '#FEE2E2' };
   return { text: t('shopProfile.notSetUp'), color: colors.textMuted, bg: '#F3F4F6' };
 }
 
-export default function ShopProfileScreen({ navigation }: Props) {
+export default function ShopProfileScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user, refreshUser, applyUser } = useAuth();
-  const [editing, setEditing] = useState(!user?.shopName?.trim());
+  const canEditShop = user?.canEditShop !== false && (user?.teamRole || 'owner') === 'owner';
+  const forceEdit = Boolean(route.params?.forceEdit);
+  const needsShopDetails =
+    canEditShop &&
+    (forceEdit ||
+      !user?.shopName?.trim() ||
+      !user?.shopLocation?.trim() ||
+      !user?.shopImage ||
+      user?.shopVerificationStatus === 'incomplete' ||
+      user?.shopVerificationStatus === 'rejected');
+
+  const [editing, setEditing] = useState(needsShopDetails);
   const [shopName, setShopName] = useState(user?.shopName || '');
   const [shopLocation, setShopLocation] = useState(user?.shopLocation || '');
   const [shopImage, setShopImage] = useState(user?.shopImage || '');
-  const [profileImage, setProfileImage] = useState(user?.profileImage || '');
-  const [fullName, setFullName] = useState(user?.fullName || '');
   const [loading, setLoading] = useState(false);
-  const [uploadingHero, setUploadingHero] = useState<'profile' | 'shop' | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [savingPhoto, setSavingPhoto] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const [members, setMembers] = useState<ShopTeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<TeamRole>('staff');
+  const [inviting, setInviting] = useState(false);
+  const photoDirtyRef = useRef(false);
 
   const badge = statusLabel(user?.shopVerificationStatus, user?.isShopVerified, t);
   const hasShop = Boolean(user?.shopName?.trim());
 
+  // Only hydrate form from server when not editing — otherwise realtime user:sync
+  // / refreshUser resets shopName & shopLocation on every keystroke.
   useEffect(() => {
+    if (editing) return;
     setShopName(user?.shopName || '');
     setShopLocation(user?.shopLocation || '');
-    setShopImage(user?.shopImage || '');
-    setProfileImage(user?.profileImage || '');
-    setFullName(user?.fullName || '');
-  }, [user]);
+    if (!photoDirtyRef.current) {
+      setShopImage(user?.shopImage || '');
+    }
+  }, [editing, user?.shopName, user?.shopLocation, user?.shopImage]);
 
-  const resetForm = () => {
+  const startEditing = () => {
     setShopName(user?.shopName || '');
     setShopLocation(user?.shopLocation || '');
     setShopImage(user?.shopImage || '');
-    setProfileImage(user?.profileImage || '');
-    setFullName(user?.fullName || '');
     setError('');
     setMessage('');
+    setEditing(true);
   };
 
-  const persistPhoto = async (type: UploadType, url: string) => {
-    if (type === 'profile') setProfileImage(url);
-    else setShopImage(url);
-
-    setError('');
+  const loadTeam = useCallback(async () => {
+    if (!canEditShop) return;
+    setTeamLoading(true);
     try {
-      const data = await updateProfile(type === 'profile' ? { profileImage: url } : { shopImage: url });
-      if (data.user) await applyUser(data.user);
-      else await refreshUser();
-      setMessage(t('shopProfile.photoSaved'));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('shopProfile.saveFailed'));
+      const data = await listShopTeam();
+      setMembers(data.members || []);
+    } catch {
+      setMembers([]);
+    } finally {
+      setTeamLoading(false);
     }
-  };
+  }, [canEditShop]);
 
-  const pickHeroPhoto = (type: 'profile' | 'shop') => {
-    if (uploadingHero) return;
+  useEffect(() => {
+    void loadTeam();
+  }, [loadTeam]);
+
+  const pickShopPhoto = () => {
+    if (!canEditShop || uploading || savingPhoto) return;
     promptImageSource({
-      title: type === 'shop' ? t('shopProfile.shopPhoto') : t('shopProfile.yourPhoto'),
-      aspect: type === 'shop' ? [4, 3] : [1, 1],
+      title: t('shopProfile.shopPhoto'),
+      aspect: [4, 3],
       onError: setError,
       onPicked: async (uri) => {
-        setUploadingHero(type);
+        setUploading(true);
         setError('');
         try {
-          const url = await uploadImage(uri, type);
-          await persistPhoto(type, url);
+          const url = await uploadImage(uri, 'shop');
+          photoDirtyRef.current = url !== (user?.shopImage || '');
+          setShopImage(url);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('upload.uploadFailed'));
         } finally {
-          setUploadingHero(null);
+          setUploading(false);
         }
       },
     });
   };
 
+  const handleSaveShopPhoto = async () => {
+    if (!canEditShop) return;
+    const url = shopImage.trim();
+    if (!/^https?:\/\//i.test(url) || url === (user?.shopImage || '')) return;
+    setSavingPhoto(true);
+    setError('');
+    setMessage('');
+    try {
+      const data = await updateProfile({ shopImage: url });
+      if (data.user) {
+        const saved = data.user.shopImage || url;
+        await applyUser({ ...data.user, shopImage: saved });
+        photoDirtyRef.current = false;
+        setShopImage(saved);
+      } else {
+        await refreshUser();
+      }
+      setMessage(t('shopProfile.photoSaved'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('upload.uploadFailed'));
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (!canEditShop) return;
     if (!shopName.trim()) {
       setError(t('shopProfile.shopNameRequired'));
       return;
@@ -117,19 +178,27 @@ export default function ShopProfileScreen({ navigation }: Props) {
       setError(t('shopProfile.locationRequired'));
       return;
     }
+    if (!shopImage.trim()) {
+      setError(t('shopProfile.shopPhotoRequired'));
+      return;
+    }
 
     setLoading(true);
     setError('');
     setMessage('');
     try {
       const data = await updateProfile({
-        fullName: fullName.trim(),
         shopName: shopName.trim(),
         shopLocation: shopLocation.trim(),
-        ...(profileImage.trim() ? { profileImage: profileImage.trim() } : {}),
         ...(shopImage.trim() ? { shopImage: shopImage.trim() } : {}),
       });
-      await refreshUser();
+      if (data.user) {
+        await applyUser({
+          ...data.user,
+          shopImage: data.user.shopImage || shopImage.trim(),
+        });
+        photoDirtyRef.current = false;
+      } else await refreshUser();
       setMessage(data.message || t('shopProfile.saved'));
       setEditing(false);
     } catch (err) {
@@ -139,122 +208,120 @@ export default function ShopProfileScreen({ navigation }: Props) {
     }
   };
 
-  const displayShopImage = editing ? shopImage : user?.shopImage;
-  const displayProfileImage = editing ? profileImage : user?.profileImage;
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) {
+      setError(t('shopTeam.emailRequired'));
+      return;
+    }
+    setInviting(true);
+    setError('');
+    setMessage('');
+    try {
+      const data = await inviteShopTeamMember({
+        email: inviteEmail.trim(),
+        teamRole: inviteRole,
+      });
+      setMessage(data.message);
+      setInviteEmail('');
+      await loadTeam();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('shopTeam.inviteFailed'));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRevoke = (member: ShopTeamMember) => {
+    appAlert(t('shopTeam.removeTitle'), t('shopTeam.removeBody', { name: member.fullName }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('shopTeam.remove'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await revokeShopTeamMember(member.id);
+            setMessage(t('shopTeam.removed'));
+            await loadTeam();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : t('shopTeam.removeFailed'));
+          }
+        },
+      },
+    ]);
+  };
+
+  const displayShopImage = shopImage || user?.shopImage;
 
   return (
-    <View style={spfStyles.spfScreen}>
+    <View style={styles.screen}>
       <ScrollView
-        style={spfStyles.spfScroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
           colors={[colors.primaryDark, colors.primary]}
-          style={[spfStyles.spfHero, { paddingTop: insets.top + 12 }]}
+          style={[styles.hero, { paddingTop: insets.top + 12 }]}
         >
-          <Pressable onPress={() => navigation.goBack()} style={spfStyles.spfBackBtn} hitSlop={8}>
-            <Text style={spfStyles.spfBackBtnText}>{t('common.back')}</Text>
+          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
 
-          <View style={spfStyles.spfHeroImages}>
+          <Pressable
+            onPress={pickShopPhoto}
+            disabled={!canEditShop || uploading || savingPhoto}
+            style={styles.shopImageWrap}
+          >
+            <UserAvatar
+              uri={displayShopImage}
+              name={shopName || user?.shopName || 'Shop'}
+              size={88}
+              borderRadius={radius.card}
+            />
+            {canEditShop ? (
+              <Text style={styles.tapHint}>
+                {uploading ? t('common.loading') : t('shopProfile.tapToChangePhoto')}
+              </Text>
+            ) : null}
+          </Pressable>
+          {canEditShop &&
+          /^https?:\/\//i.test(shopImage.trim()) &&
+          shopImage.trim() !== (user?.shopImage || '') ? (
             <Pressable
-              onPress={() => pickHeroPhoto('shop')}
-              style={spfStyles.spfShopImageWrap}
-              accessibilityLabel={t('shopProfile.shopPhoto')}
-              disabled={!!uploadingHero}
+              onPress={() => void handleSaveShopPhoto()}
+              disabled={uploading || savingPhoto}
+              style={[styles.savePhotoBtn, (uploading || savingPhoto) && styles.savePhotoBtnDisabled]}
             >
-              {displayShopImage ? (
-                <Image source={{ uri: displayShopImage }} style={spfStyles.spfShopHeroImage} />
+              {savingPhoto ? (
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <View style={spfStyles.spfShopHeroPlaceholder}>
-                  <Text style={spfStyles.spfShopHeroInitial}>
-                    {getInitials(shopName || user?.shopName || 'Shop')}
-                  </Text>
-                </View>
+                <Text style={styles.savePhotoBtnText}>{t('shopProfile.saveShopPhoto')}</Text>
               )}
-              <HeroCameraBadge loading={uploadingHero === 'shop'} />
             </Pressable>
-            <Pressable
-              onPress={() => pickHeroPhoto('profile')}
-              style={spfStyles.spfProfileImageWrap}
-              accessibilityLabel={t('shopProfile.yourPhoto')}
-              disabled={!!uploadingHero}
-            >
-              {displayProfileImage ? (
-                <Image source={{ uri: displayProfileImage }} style={spfStyles.spfProfileHeroImage} />
-              ) : (
-                <View style={spfStyles.spfProfileHeroPlaceholder}>
-                  <Text style={spfStyles.spfProfileHeroInitial}>
-                    {getInitials(fullName || user?.fullName || 'U')}
-                  </Text>
-                </View>
-              )}
-              <HeroCameraBadge loading={uploadingHero === 'profile'} />
-            </Pressable>
-          </View>
-          <Text style={spfStyles.spfTapHint}>{t('shopProfile.tapToChangePhoto')}</Text>
-
-          <Text style={spfStyles.spfHeroTitle}>{hasShop ? user?.shopName : t('shopProfile.registerShop')}</Text>
-          {user?.shopLocation ? (
-            <View style={spfStyles.spfLocationRow}>
-              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M12 21 C12 21 19 14.5 19 10 C19 6.13 15.87 3 12 3 C8.13 3 5 6.13 5 10 C5 14.5 12 21 12 21 Z"
-                  stroke="rgba(255,255,255,0.9)"
-                  strokeWidth={2}
-                />
-                <Path d="M12 12 C13.1 12 14 11.1 14 10 C14 8.9 13.1 8 12 8 C10.9 8 10 8.9 10 10 C10 11.1 10.9 12 12 12 Z" fill="rgba(255,255,255,0.9)" />
-              </Svg>
-              <Text style={spfStyles.spfHeroLocation}>{user.shopLocation}</Text>
-            </View>
           ) : null}
-          <Text style={spfStyles.spfHeroOwner}>{user?.fullName}</Text>
-          <View style={[spfStyles.spfStatusBadge, { backgroundColor: badge.bg }]}>
-            <Text style={[spfStyles.spfStatusBadgeText, { color: badge.color }]}>{badge.text}</Text>
+
+          <Text style={styles.heroTitle}>
+            {hasShop ? user?.shopName : t('shopProfile.registerShop')}
+          </Text>
+          {user?.shopLocation ? (
+            <Text style={styles.heroLocation}>{user.shopLocation}</Text>
+          ) : null}
+          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.text}</Text>
           </View>
+          {!canEditShop ? (
+            <Text style={styles.viewOnly}>{t('shopTeam.viewOnlyShop')}</Text>
+          ) : null}
         </LinearGradient>
 
-        <View style={spfStyles.spfBody}>
-          <EmailVerificationBanner user={user} />
-          {message ? <Text style={spfStyles.spfSuccess}>{message}</Text> : null}
+        <View style={styles.body}>
+          {message ? <Text style={styles.success}>{message}</Text> : null}
           {error ? <ErrorText message={error} /> : null}
 
-          {editing ? (
-            <View style={spfStyles.spfCard}>
-              <Text style={spfStyles.spfCardTitle}>{hasShop ? t('shopProfile.editProfile') : t('shopProfile.setUpShop')}</Text>
-              <Text style={spfStyles.spfCardSub}>{t('shopProfile.editSub')}</Text>
-
-              <View style={spfStyles.spfPickerRow}>
-                <ProfileImagePicker
-                  label={t('shopProfile.yourPhoto')}
-                  value={profileImage}
-                  onChange={(url) => {
-                    setProfileImage(url);
-                    if (url) void persistPhoto('profile', url);
-                  }}
-                  onError={setError}
-                  uploadType="profile"
-                  fallbackName={fullName}
-                  shape="circle"
-                  size={72}
-                />
-                <ProfileImagePicker
-                  label={t('shopProfile.shopPhoto')}
-                  value={shopImage}
-                  onChange={(url) => {
-                    setShopImage(url);
-                    if (url) void persistPhoto('shop', url);
-                  }}
-                  onError={setError}
-                  uploadType="shop"
-                  fallbackName={shopName}
-                  shape="rounded"
-                  size={72}
-                />
-              </View>
-
-              <Input label={t('shopProfile.yourName')} value={fullName} onChangeText={setFullName} />
+          {canEditShop && editing ? (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>
+                {hasShop ? t('shopProfile.editShop') : t('shopProfile.setUpShop')}
+              </Text>
               <Input label={t('shopProfile.shopName')} value={shopName} onChangeText={setShopName} />
               <Input
                 label={t('shopProfile.shopLocation')}
@@ -262,15 +329,16 @@ export default function ShopProfileScreen({ navigation }: Props) {
                 onChangeText={setShopLocation}
                 placeholder={t('shopProfile.locationPlaceholder')}
               />
-
-              <View style={spfStyles.spfActions}>
+              <View style={styles.actions}>
                 {hasShop ? (
                   <Button
                     title={t('common.cancel')}
                     variant="outline"
                     onPress={() => {
-                      resetForm();
+                      setShopName(user?.shopName || '');
+                      setShopLocation(user?.shopLocation || '');
                       setEditing(false);
+                      setError('');
                     }}
                   />
                 ) : null}
@@ -278,17 +346,96 @@ export default function ShopProfileScreen({ navigation }: Props) {
               </View>
             </View>
           ) : (
-            <>
-              <View style={spfStyles.spfCard}>
-                <Text style={spfStyles.spfCardTitle}>{t('shopProfile.shopDetails')}</Text>
-                <InfoRow icon="shop" label={t('shopProfile.shopNameLabel')} value={user?.shopName || '—'} />
-                <InfoRow icon="pin" label={t('shopProfile.location')} value={user?.shopLocation || '—'} />
-                <InfoRow icon="user" label={t('shopProfile.owner')} value={user?.fullName || '—'} />
-                <InfoRow icon="mail" label={t('security.email')} value={user?.email || '—'} last />
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>{t('shopProfile.shopDetails')}</Text>
+              <Text style={styles.infoLabel}>{t('shopProfile.shopNameLabel')}</Text>
+              <Text style={styles.infoValue}>{user?.shopName || '—'}</Text>
+              <Text style={styles.infoLabel}>{t('shopProfile.location')}</Text>
+              <Text style={styles.infoValue}>{user?.shopLocation || '—'}</Text>
+              {canEditShop ? (
+                <Button
+                  title={t('shopProfile.editShop')}
+                  onPress={startEditing}
+                />
+              ) : null}
+            </View>
+          )}
+
+          {canEditShop ? (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>{t('shopTeam.title')}</Text>
+              <Text style={styles.cardSub}>{t('shopTeam.subtitle')}</Text>
+
+              <Text style={styles.infoLabel}>{t('shopTeam.inviteEmail')}</Text>
+              <TextInput
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                placeholder={t('shopTeam.emailPlaceholder')}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+                placeholderTextColor={colors.textMuted}
+              />
+
+              <View style={styles.roleRow}>
+                {(['staff', 'partner'] as TeamRole[]).map((role) => (
+                  <Pressable
+                    key={role}
+                    onPress={() => setInviteRole(role)}
+                    style={[styles.roleChip, inviteRole === role && styles.roleChipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.roleChipText,
+                        inviteRole === role && styles.roleChipTextActive,
+                      ]}
+                    >
+                      {role === 'partner' ? t('shopTeam.partner') : t('shopTeam.staff')}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
 
-              <Button title={t('shopProfile.editProfilePhotos')} onPress={() => setEditing(true)} />
-            </>
+              <Button
+                title={t('shopTeam.sendInvite')}
+                onPress={handleInvite}
+                loading={inviting}
+              />
+
+              <Text style={[styles.cardTitle, { marginTop: spacing.lg }]}>
+                {t('shopTeam.members')}
+              </Text>
+              {teamLoading ? (
+                <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+              ) : members.length === 0 ? (
+                <Text style={styles.cardSub}>{t('shopTeam.empty')}</Text>
+              ) : (
+                members.map((member) => (
+                  <View key={member.id} style={styles.memberRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.memberName}>{member.fullName}</Text>
+                      <Text style={styles.memberEmail}>{member.email}</Text>
+                      <Text style={styles.memberTag}>
+                        {member.teamRole === 'partner'
+                          ? t('shopTeam.partner')
+                          : t('shopTeam.staff')}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => handleRevoke(member)}>
+                      <Text style={styles.remove}>{t('shopTeam.remove')}</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>{t('shopTeam.yourRole')}</Text>
+              <Text style={styles.memberTag}>
+                {user?.teamRole === 'partner' ? t('shopTeam.partner') : t('shopTeam.staff')}
+              </Text>
+              <Text style={styles.cardSub}>{t('shopTeam.memberHint')}</Text>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -296,201 +443,112 @@ export default function ShopProfileScreen({ navigation }: Props) {
   );
 }
 
-function HeroCameraBadge({ loading }: { loading: boolean }) {
-  return (
-    <View style={spfStyles.spfCameraBadge}>
-      {loading ? (
-        <ActivityIndicator size="small" color="#FFF" />
-      ) : (
-        <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
-          <Path d="M4 8 H8 L10 5 H14 L16 8 H20 V19 H4 Z" stroke="#FFF" strokeWidth={2} />
-          <Circle cx={12} cy={13} r={3.5} stroke="#FFF" strokeWidth={2} />
-        </Svg>
-      )}
-    </View>
-  );
-}
-
-function InfoRow({
-  icon,
-  label,
-  value,
-  last,
-}: {
-  icon: 'shop' | 'pin' | 'user' | 'mail';
-  label: string;
-  value: string;
-  last?: boolean;
-}) {
-  const iconColor = colors.primary;
-  return (
-    <View style={[spfStyles.spfInfoRow, !last && spfStyles.spfInfoRowBorder]}>
-      <View style={spfStyles.spfInfoIcon}>
-        {icon === 'shop' ? (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M4 10 L12 4 L20 10 V19 C20 19.55 19.55 20 19 20 H5 C4.45 20 4 19.55 4 19 Z" stroke={iconColor} strokeWidth={2} />
-          </Svg>
-        ) : icon === 'pin' ? (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M12 21 C12 21 19 14.5 19 10 C19 6.13 15.87 3 12 3 C8.13 3 5 6.13 5 10 C5 14.5 12 21 12 21 Z" stroke={iconColor} strokeWidth={2} />
-          </Svg>
-        ) : icon === 'user' ? (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M12 12 C14.21 12 16 10.21 16 8 C16 5.79 14.21 4 12 4 C9.79 4 8 5.79 8 8 C8 10.21 9.79 12 12 12 Z" stroke={iconColor} strokeWidth={2} />
-            <Path d="M4 20 C4 16.5 7.5 14 12 14 C16.5 14 20 16.5 20 20" stroke={iconColor} strokeWidth={2} />
-          </Svg>
-        ) : (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M4 6 H20 V18 H4 Z" stroke={iconColor} strokeWidth={2} />
-            <Path d="M4 7 L12 13 L20 7" stroke={iconColor} strokeWidth={2} />
-          </Svg>
-        )}
-      </View>
-      <View style={spfStyles.spfInfoBody}>
-        <Text style={spfStyles.spfInfoLabel}>{label}</Text>
-        <Text style={spfStyles.spfInfoValue}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-const spfStyles = StyleSheet.create({
-  spfScreen: { flex: 1, backgroundColor: '#F4F5F7' },
-  spfScroll: { flex: 1 },
-  spfHero: {
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F4F5F7' },
+  hero: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.lg,
     alignItems: 'center',
     borderBottomLeftRadius: radius.container,
     borderBottomRightRadius: radius.container,
   },
-  spfBackBtn: { alignSelf: 'flex-start', marginBottom: 8 },
-  spfBackBtnText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
-  spfHeroImages: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+  backBtn: { alignSelf: 'flex-start', marginBottom: 8 },
+  backText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  shopImageWrap: { alignItems: 'center', marginBottom: spacing.sm },
+  savePhotoBtn: {
+    marginTop: 4,
+    marginBottom: 12,
+    backgroundColor: colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 10,
+    minWidth: 160,
+    alignItems: 'center',
   },
-  spfShopImageWrap: {
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  spfShopHeroImage: { width: 64, height: 64, borderRadius: radius.card, borderWidth: 2, borderColor: '#FFFFFF' },
-  spfShopHeroPlaceholder: {
-    width: 64,
-    height: 64,
+  savePhotoBtnDisabled: { opacity: 0.6 },
+  savePhotoBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: ty.body },
+  shopImage: { width: 88, height: 88, borderRadius: radius.card, borderWidth: 2, borderColor: '#fff' },
+  shopPlaceholder: {
+    width: 88,
+    height: 88,
     borderRadius: radius.card,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  spfShopHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.xxl },
-  spfProfileImageWrap: { marginBottom: -8, position: 'relative' },
-  spfProfileHeroImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  spfProfileHeroPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primaryDark,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spfProfileHeroInitial: { color: '#FFF', fontWeight: '800', fontSize: ty.lg },
-  spfHeroTitle: {
+  shopInitial: { color: '#fff', fontWeight: '800', fontSize: 28 },
+  tapHint: { color: 'rgba(255,255,255,0.85)', marginTop: 8, fontSize: ty.caption },
+  heroTitle: {
     fontSize: ty.h2,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: 6,
-  },
-  spfLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     marginBottom: 4,
   },
-  spfHeroLocation: { fontSize: ty.body, color: 'rgba(255,255,255,0.9)' },
-  spfHeroOwner: { fontSize: ty.bodyLg, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 10 },
-  spfTapHint: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: ty.caption,
-    textAlign: 'center',
-    marginTop: -6,
-    marginBottom: 8,
-  },
-  spfCameraBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primaryDark,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spfStatusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  spfStatusBadgeText: { fontSize: ty.caption, fontWeight: '700' },
-  spfBody: { padding: spacing.md, marginTop: -8 },
-  spfCard: {
-    backgroundColor: '#FFFFFF',
+  heroLocation: { color: 'rgba(255,255,255,0.9)', marginBottom: 8 },
+  badge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999 },
+  badgeText: { fontSize: ty.caption, fontWeight: '700' },
+  viewOnly: { color: 'rgba(255,255,255,0.9)', marginTop: 8, fontSize: ty.caption },
+  body: { padding: spacing.md },
+  card: {
+    backgroundColor: '#fff',
     borderRadius: radius.card,
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: '#ECEEF2',
   },
-  spfCardTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  spfCardSub: { fontSize: ty.body, color: colors.textMuted, marginBottom: spacing.md },
-  spfPickerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 8,
-    gap: spacing.sm,
+  cardTitle: { fontSize: ty.lg, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  cardSub: { fontSize: ty.body, color: colors.textMuted, marginBottom: spacing.sm },
+  infoLabel: { fontSize: ty.caption, color: colors.textMuted, marginTop: 8 },
+  infoValue: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
+  success: { color: colors.primary, marginBottom: 10, fontWeight: '600' },
+  actions: { gap: 8, marginTop: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.input,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: ty.bodyLg,
+    color: colors.text,
+    backgroundColor: '#FAFAFA',
+    marginBottom: spacing.sm,
   },
-  spfInfoRow: {
+  roleRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
+  roleChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  roleChipActive: { borderColor: colors.primary, backgroundColor: '#F4F7EC' },
+  roleChipText: { color: colors.textMuted, fontWeight: '600' },
+  roleChipTextActive: { color: colors.primary },
+  memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  spfInfoRowBorder: {
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2F5',
   },
-  spfInfoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  memberName: { fontWeight: '700', color: colors.text },
+  memberEmail: { color: colors.textMuted, fontSize: ty.caption },
+  memberTag: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
     backgroundColor: '#F3F7EC',
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: ty.caption,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden',
+    borderRadius: 999,
   },
-  spfInfoBody: { flex: 1 },
-  spfInfoLabel: { fontSize: ty.caption, color: colors.textMuted, marginBottom: 2 },
-  spfInfoValue: { fontSize: ty.bodyLg, fontWeight: '600', color: colors.text },
-  spfSuccess: { color: colors.primary, marginBottom: 10, fontWeight: '600', fontSize: ty.bodyLg },
-  spfActions: { gap: 8, marginTop: 8 },
+  remove: { color: colors.danger, fontWeight: '700' },
 });

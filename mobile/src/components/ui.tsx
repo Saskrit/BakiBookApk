@@ -1,13 +1,5 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import AppLoading from './AppLoading';
 import { colors } from '../theme/colors';
 import { layout } from '../theme/layout';
 import { radius } from '../theme/radius';
@@ -98,11 +90,7 @@ export function Button({
 }
 
 export function LoadingState() {
-  return (
-    <View style={uiStyles.uiCenter}>
-      <ActivityIndicator size="large" color={colors.primary} />
-    </View>
-  );
+  return <AppLoading />;
 }
 
 export function ErrorText({ message }: { message: string }) {

@@ -147,11 +147,35 @@ export const fetchPendingLinks = () =>
   request<{
     success: boolean;
     count: number;
-    invitations: Array<Record<string, unknown>>;
+    invitations: PendingInvitation[];
   }>('/links/pending');
+
+export const fetchPendingLinkDetail = (customerId: string) =>
+  request<{
+    success: boolean;
+    invitation: PendingInvitation;
+  }>(`/links/pending/${customerId}`);
 
 export const acceptShopLink = (customerId: string) =>
   request(`/links/${customerId}/accept`, { method: 'POST' });
 
 export const rejectShopLink = (customerId: string) =>
   request(`/links/${customerId}/reject`, { method: 'POST' });
+
+export type PendingInvitation = {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  balance?: number;
+  creditScore?: string;
+  shopName?: string;
+  shopkeeperName?: string;
+  shopLocation?: string;
+  shopImage?: string;
+  shopkeeperPhone?: string;
+  shopVerificationStatus?: string;
+  shopVerified?: boolean;
+  invitedAt?: string;
+};

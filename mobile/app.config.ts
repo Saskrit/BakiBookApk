@@ -15,22 +15,28 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // Android-only — no iOS builds or prebuild output
     platforms: ['android'],
     splash: {
-      image: './assets/icon.png',
+      image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#4C5C2D',
+      backgroundColor: '#FAFAFA',
     },
     android: {
       package: 'com.bakibook.app',
+      allowBackup: false,
+      usesCleartextTraffic: false,
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
-        backgroundColor: '#4C5C2D',
-        foregroundImage: './assets/icon.png',
+        backgroundColor: '#FAFAFA',
+        foregroundImage: './assets/android-icon-foreground.png',
         monochromeImage: './assets/android-icon-monochrome.png',
+        backgroundImage: './assets/android-icon-background.png',
       },
       permissions: [
         'CAMERA',
         'READ_MEDIA_IMAGES',
         'READ_MEDIA_VISUAL_USER_SELECTED',
         'READ_EXTERNAL_STORAGE',
+        'POST_NOTIFICATIONS',
+        'VIBRATE',
       ],
       predictiveBackGestureEnabled: false,
     },
@@ -39,7 +45,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       'expo-font',
+      'expo-image',
+      'expo-secure-store',
+      './plugins/withBakiBookSecurity.js',
       './plugins/withBakiBookAndroid.js',
+      './plugins/withBakiBookFirebase.js',
+      [
+        'expo-notifications',
+        {
+          icon: './assets/icon.png',
+          color: '#4C5C2D',
+          defaultChannel: 'BakiBook alerts',
+        },
+      ],
       [
         'expo-camera',
         {
@@ -58,8 +76,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ],
     ],
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      // Always bake a reachable production API; override with EXPO_PUBLIC_API_URL for local backend.
+      apiUrl: process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://api.bakibook.run.place/api',
       googleWebClientId: googleWebClientId || undefined,
+      developer: 'Saskrit Bhattarai',
       eas: {
         projectId: '2a61e05a-bb22-4d04-9f06-2d7a4bfc5871',
       },

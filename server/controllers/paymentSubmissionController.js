@@ -7,13 +7,13 @@ import { applyPayment, generateReceiptNo } from '../utils/customerBalance.js';
 import { formatPaymentSubmission } from '../utils/formatters.js';
 import { createNotification } from '../utils/notify.js';
 import { emitToUser } from '../config/socket.js';
+import { emitShopDataSync } from '../utils/realtimeSync.js';
 import {
   findBlockingSubmission,
   findCompletedPayment,
 } from '../utils/paymentStatus.js';
 import { parsePagination, buildPagination } from '../utils/pagination.js';
-
-const getShopkeeperId = (req) => req.user._id;
+import { getShopkeeperId } from '../utils/shopContext.js';
 
 const buildPayLabel = (submission) => {
   if (submission.payLabel) return submission.payLabel;
@@ -210,6 +210,12 @@ export const submitPayment = async (req, res) => {
       customerId: customer._id.toString(),
     });
 
+    emitToUser(submission.shopkeeper.toString(), 'payment-submission:updated', {
+      submissionId: submission._id.toString(),
+      status: 'pending',
+      customerId: customer._id.toString(),
+    });
+
     res.status(201).json({
       success: true,
       submission: formatPaymentSubmission(submission, {
@@ -332,6 +338,10 @@ const finalizeReview = async (submission, customer, status, extra = {}) => {
       paymentId: submission.payment?.toString?.() || submission.payment || null,
     });
   }
+
+  await emitShopDataSync(submission.shopkeeper, {
+    scopes: ['dashboard', 'customers', 'payments', 'all'],
+  });
 };
 
 export const acceptSubmission = async (req, res) => {

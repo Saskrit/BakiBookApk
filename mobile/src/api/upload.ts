@@ -1,61 +1,108 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { ApiError, getActiveApiBaseUrl, getAuthToken } from './client';
+import { isDeviceOnline } from '../utils/deviceNetwork';
+import i18n from '../i18n';
 
 export type UploadType = 'profile' | 'shop' | 'payment';
 
+const UPLOAD_TIMEOUT_MS = 60000;
+
 function mimeFromUri(uri: string) {
-  const ext = uri.split('.').pop()?.toLowerCase();
+  const path = uri.split('?')[0] || uri;
+  const ext = path.split('.').pop()?.toLowerCase();
   if (ext === 'png') return 'image/png';
   if (ext === 'webp') return 'image/webp';
   if (ext === 'gif') return 'image/gif';
   return 'image/jpeg';
 }
 
-export async function uploadImage(localUri: string, type: UploadType): Promise<string> {
-  if (!API_BASE_URL) {
-    throw new Error('API URL is not configured');
+function normalizeFileUri(uri: string) {
+  if (uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://')) {
+    return uri;
   }
-
-  const token = await AsyncStorage.getItem('bakibook_token');
-  const filename = `photo-${Date.now()}.jpg`;
-  const mimeType = mimeFromUri(localUri);
-  const uri = localUri.startsWith('file://') ? localUri : `file://${localUri}`;
-
-  const formData = new FormData();
-  formData.append('image', {
-    uri,
-    name: filename,
-    type: mimeType,
-  } as unknown as Blob);
-
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (uri.startsWith('file:')) {
+    return uri.replace(/^file:\/*/i, 'file:///');
   }
+  return `file://${uri}`;
+}
 
-  let response: Response;
+function parseUploadBody(body: string | null | undefined) {
+  if (!body) return {} as { message?: string; url?: string; success?: boolean };
   try {
-    response = await fetch(`${API_BASE_URL}/upload/${type}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    return JSON.parse(body) as { message?: string; url?: string; success?: boolean };
   } catch {
-    throw new Error('Cannot reach the server. Check your connection and try again.');
+    return {} as { message?: string; url?: string; success?: boolean };
+  }
+}
+
+/** Same as web: use the Cloudinary URL the API returns. */
+function publicImageUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (/^http:\/\/.*cloudinary\.com/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, 'https://');
+  }
+  return trimmed;
+}
+
+export async function uploadImage(localUri: string, type: UploadType): Promise<string> {
+  if (!(await isDeviceOnline())) {
+    throw new ApiError(i18n.t('errors.noInternet'), { code: 'NO_INTERNET' });
   }
 
-  const data = (await response.json().catch(() => ({}))) as {
-    message?: string;
-    url?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Image upload failed');
+  const apiBase = await getActiveApiBaseUrl();
+  if (!apiBase) {
+    throw new Error(i18n.t('errors.notConfigured'));
   }
 
-  if (!data.url) {
-    throw new Error('Upload succeeded but no image URL was returned');
+  const token = await getAuthToken();
+  if (!token) {
+    throw new Error('Please sign in again to upload photos');
   }
 
-  return data.url;
+  const sourceUri = normalizeFileUri(localUri);
+  const sourceInfo = await FileSystem.getInfoAsync(sourceUri);
+  if (!sourceInfo.exists) {
+    throw new Error(i18n.t('upload.pickFailed'));
+  }
+
+  const mimeType = mimeFromUri(sourceUri);
+  const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+  const uploadUri = `${FileSystem.cacheDirectory}bakibook-send-${Date.now()}.${ext}`;
+  await FileSystem.copyAsync({ from: sourceUri, to: uploadUri });
+
+  const url = `${apiBase}/upload/${type}`;
+
+  try {
+    const result = await Promise.race([
+      FileSystem.uploadAsync(url, uploadUri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'image',
+        mimeType,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(i18n.t('errors.timeout'))), UPLOAD_TIMEOUT_MS);
+      }),
+    ]);
+
+    const data = parseUploadBody(result.body);
+    if (result.status >= 200 && result.status < 300 && data.url) {
+      return publicImageUrl(data.url);
+    }
+    throw new Error(data.message || i18n.t('upload.uploadFailed'));
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (!(await isDeviceOnline())) {
+      throw new ApiError(i18n.t('errors.noInternet'), { code: 'NO_INTERNET' });
+    }
+    if (err instanceof Error && err.message === i18n.t('errors.timeout')) {
+      throw err;
+    }
+    if (err instanceof Error && err.message) throw err;
+    throw new ApiError(i18n.t('errors.network'));
+  }
 }

@@ -4,6 +4,8 @@ import {
   verifyRegistration,
   resendRegistrationCode,
   loginUser,
+  activateInviteLogin,
+  resendInviteLoginCode,
   googleAuth,
   completeShopProfile,
   updateProfile,
@@ -17,6 +19,8 @@ import {
   resetPassword,
   changePassword,
   updateTutorialProgress,
+  registerPushToken,
+  unregisterPushToken,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -26,6 +30,8 @@ router.post('/register', registerUser);
 router.post('/register/verify', verifyRegistration);
 router.post('/register/resend-code', resendRegistrationCode);
 router.post('/login', loginUser);
+router.post('/invite/activate', activateInviteLogin);
+router.post('/invite/resend-code', resendInviteLoginCode);
 router.post('/google', googleAuth);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
@@ -39,6 +45,8 @@ router.post('/resend-verification', protect, resendVerificationEmail);
 router.post('/change-email/request', protect, requestEmailChange);
 router.post('/change-email/confirm', protect, confirmEmailChange);
 router.post('/change-password', protect, changePassword);
+router.post('/push-token', protect, registerPushToken);
+router.delete('/push-token', protect, unregisterPushToken);
 router.get('/me', protect, getMe);
 
 export default router;

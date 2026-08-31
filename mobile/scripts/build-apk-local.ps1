@@ -119,8 +119,12 @@ if (-not (Test-Path $env:GRADLE_USER_HOME)) {
 }
 $env:Path = "$jdk\bin;$sdk\platform-tools;" + $env:Path
 
-# Release APK must hit production API + Web Google client (not local emulator .env)
-$prodApi = 'https://bakibookapp.onrender.com/api'
+# Release APK API + Web Google client (override with BAKIBOOK_API_URL if set)
+$prodApi = if ($env:BAKIBOOK_API_URL) {
+  $env:BAKIBOOK_API_URL.Trim()
+} else {
+  'https://api.bakibook.run.place/api'
+}
 $prodGoogleWeb = '129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com'
 $envFile = Join-Path $mobileRoot '.env'
 $envBackup = Join-Path $mobileRoot '.env.bakibook-apk-backup'
@@ -169,6 +173,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }
     node ./scripts/patch-gradle.js
   }
+
+  # Always re-apply current logo pack (removes stale Expo .webp + updates splash)
+  Write-Host 'Syncing launcher + splash icons from current assets...'
+  node ./scripts/sync-android-icons.js
+  if ($LASTEXITCODE -ne 0) { throw 'sync-android-icons failed' }
 
   $cxx = Join-Path $workRoot 'android\app\.cxx'
   if (Test-Path $cxx) {

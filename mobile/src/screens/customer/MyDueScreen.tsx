@@ -16,13 +16,14 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { fetchPortalDashboard, fetchPortalLedger, fetchPendingLinks } from '../../api/portal';
 import NotificationBell from '../../components/NotificationBell';
+import UserAvatar from '../../components/UserAvatar';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerColors as c } from '../../theme/customerColors';
 import { radius } from '../../theme/radius';
 import { spacing } from '../../theme/spacing';
 import { typeScale } from '../../theme/typography';
-import { formatDate, formatRs, getInitials } from '../../utils/format';
+import { formatDate, formatRs } from '../../utils/format';
 import type { RootStackParamList, CustomerTabParamList } from '../../navigation/types';
 
 type HomeNav = CompositeNavigationProp<
@@ -109,9 +110,16 @@ export default function MyDueScreen() {
         {/* Header */}
         <View style={[mdStyles.mdHeader, { paddingTop: insets.top + 10 }]}>
           <View style={mdStyles.mdHeaderLeft}>
-            <View style={mdStyles.mdAvatar}>
-              <Text style={mdStyles.mdAvatarText}>{getInitials(user?.fullName || 'C')}</Text>
-            </View>
+            <Pressable onPress={() => navigation.navigate('Profile')} hitSlop={6}>
+              <UserAvatar
+                uri={user?.profileImage}
+                name={user?.fullName || 'C'}
+                size={44}
+                borderRadius={radius.container}
+                fallbackBg={c.sand}
+                fallbackColor={c.peachDark}
+              />
+            </Pressable>
             <View>
               <Text style={mdStyles.mdHello}>{t('customer.hiName', { name: firstName })}</Text>
               <Text style={mdStyles.mdWelcome}>{t('customer.welcomeBakibook')}</Text>

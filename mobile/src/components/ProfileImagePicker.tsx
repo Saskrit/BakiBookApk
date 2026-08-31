@@ -1,25 +1,26 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
   ViewStyle,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { uploadImage, type UploadType } from '../api/upload';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-
 import { getInitials } from '../utils/format';
 import { promptImageSource } from '../utils/pickImage';
 
 type Props = {
   label: string;
   value: string;
+  savedUrl?: string;
   onChange: (url: string) => void;
+  onSavePhoto: (url: string) => void | Promise<void>;
   onError?: (message: string) => void;
   uploadType: UploadType;
   fallbackName?: string;
@@ -27,12 +28,24 @@ type Props = {
   size?: number;
   style?: ViewStyle;
   disabled?: boolean;
+  savingPhoto?: boolean;
+  savePhotoLabel?: string;
 };
 
+function isRemoteUrl(url: string) {
+  return /^https?:\/\//i.test(url.trim());
+}
+
+/**
+ * Pick + upload for preview, then a dedicated Save photo button.
+ * Profile name/phone save is a separate control on the parent screen.
+ */
 export default function ProfileImagePicker({
   label,
   value,
+  savedUrl = '',
   onChange,
+  onSavePhoto,
   onError,
   uploadType,
   fallbackName = '',
@@ -40,19 +53,23 @@ export default function ProfileImagePicker({
   size = 64,
   style,
   disabled,
+  savingPhoto,
+  savePhotoLabel,
 }: Props) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [previewUri, setPreviewUri] = useState('');
   const aspect: [number, number] = shape === 'circle' ? [1, 1] : [4, 3];
-
-  const displayUri = previewUri || value;
+  const displayUri = value || previewUri;
   const radius = shape === 'circle' ? size / 2 : 10;
+  const busy = disabled || uploading || savingPhoto;
+  const canSavePhoto =
+    isRemoteUrl(value) && value.trim() !== savedUrl.trim() && !uploading;
 
-  const handleUpload = async (localUri: string) => {
-    setPreviewUri(localUri);
-    setUploading(true);
+  const handleFile = async (localUri: string) => {
     onError?.('');
+    setUploading(true);
+    setPreviewUri(localUri);
     try {
       const url = await uploadImage(localUri, uploadType);
       onChange(url);
@@ -66,20 +83,24 @@ export default function ProfileImagePicker({
   };
 
   const chooseSource = () => {
-    if (disabled || uploading) return;
-
+    if (busy) return;
     promptImageSource({
       title: label,
       aspect,
-      onPicked: handleUpload,
+      onPicked: handleFile,
       onError: (message) => onError?.(message),
     });
   };
 
   const clearImage = () => {
-    if (disabled || uploading) return;
+    if (busy) return;
     onChange('');
     setPreviewUri('');
+  };
+
+  const savePhoto = async () => {
+    if (!canSavePhoto || busy) return;
+    await onSavePhoto(value.trim());
   };
 
   return (
@@ -88,28 +109,39 @@ export default function ProfileImagePicker({
       <View style={pipStyles.pipRow}>
         <Pressable
           onPress={chooseSource}
-          disabled={disabled || uploading}
+          disabled={busy}
           style={({ pressed }) => [pressed && pipStyles.pipPressed]}
         >
-          <View
-            style={[
-              pipStyles.pipImageBox,
-              {
-                width: size,
-                height: size,
-                borderRadius: radius,
-              },
-            ]}
-          >
+          <View style={{ width: size, height: size }}>
             {displayUri ? (
-              <Image source={{ uri: displayUri }} style={[pipStyles.pipImage, { borderRadius: radius }]} />
+              <Image
+                source={{ uri: displayUri }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={displayUri}
+                style={{ width: size, height: size, borderRadius: radius }}
+              />
             ) : (
-              <View style={[pipStyles.pipPlaceholder, { borderRadius: radius }]}>
-                <Text style={pipStyles.pipInitials}>{getInitials(fallbackName || label)}</Text>
+              <View
+                style={[
+                  pipStyles.pipPlaceholder,
+                  { width: size, height: size, borderRadius: radius },
+                ]}
+              >
+                {uploading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={pipStyles.pipInitials}>{getInitials(fallbackName || label)}</Text>
+                )}
               </View>
             )}
-            {uploading ? (
-              <View style={[pipStyles.pipOverlay, { borderRadius: radius }]}>
+            {uploading && displayUri ? (
+              <View
+                style={[
+                  pipStyles.pipOverlay,
+                  { width: size, height: size, borderRadius: radius },
+                ]}
+              >
                 <ActivityIndicator color="#FFFFFF" />
               </View>
             ) : null}
@@ -119,13 +151,30 @@ export default function ProfileImagePicker({
         <View style={pipStyles.pipActions}>
           <Pressable
             onPress={chooseSource}
-            disabled={disabled || uploading}
-            style={[pipStyles.pipActionBtn, (disabled || uploading) && pipStyles.pipActionBtnDisabled]}
+            disabled={busy}
+            style={[pipStyles.pipChangeBtn, busy && pipStyles.pipActionBtnDisabled]}
           >
-            <Text style={pipStyles.pipActionBtnText}>{uploading ? t('upload.uploading') : t('upload.changePhoto')}</Text>
+            <Text style={pipStyles.pipChangeBtnText}>
+              {uploading ? t('upload.uploading') : t('upload.changePhoto')}
+            </Text>
           </Pressable>
-          {value ? (
-            <Pressable onPress={clearImage} disabled={disabled || uploading}>
+          {canSavePhoto ? (
+            <Pressable
+              onPress={() => void savePhoto()}
+              disabled={busy}
+              style={[pipStyles.pipSaveBtn, busy && pipStyles.pipActionBtnDisabled]}
+            >
+              {savingPhoto ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={pipStyles.pipSaveBtnText}>
+                  {savePhotoLabel || t('upload.savePhoto')}
+                </Text>
+              )}
+            </Pressable>
+          ) : null}
+          {displayUri ? (
+            <Pressable onPress={clearImage} disabled={busy}>
               <Text style={pipStyles.pipRemoveText}>{t('upload.remove')}</Text>
             </Pressable>
           ) : null}
@@ -144,18 +193,7 @@ const pipStyles = StyleSheet.create({
     marginBottom: 10,
   },
   pipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  pipImageBox: {
-    overflow: 'hidden',
-    backgroundColor: colors.border,
-  },
-  pipImage: {
-    width: '100%',
-    height: '100%',
-  },
   pipPlaceholder: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -168,15 +206,25 @@ const pipStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   pipActions: { flex: 1, gap: 8 },
-  pipActionBtn: {
+  pipChangeBtn: {
     backgroundColor: '#F3F7EC',
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
     borderRadius: 10,
     alignSelf: 'flex-start',
   },
+  pipSaveBtn: {
+    backgroundColor: colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    minWidth: 120,
+    alignItems: 'center',
+  },
   pipActionBtnDisabled: { opacity: 0.6 },
-  pipActionBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  pipChangeBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  pipSaveBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   pipRemoveText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
   pipPressed: { opacity: 0.85 },
 });

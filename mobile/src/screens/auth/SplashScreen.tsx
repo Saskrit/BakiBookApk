@@ -13,30 +13,60 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import SplashBackground from '../../components/splash/SplashBackground';
+import SplashHeroCarousel, { HERO_SEQUENCE_MS } from '../../components/splash/SplashHeroCarousel';
 import { colors } from '../../theme/colors';
 import { s } from '../../theme/scale';
 import { typeScale } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { preloadSessionCache } from '../../utils/sessionCache';
+import { warmAuthDuringSplash } from '../../utils/warmApi';
 
 import type { RootStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
+type StackProps = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
-const LOGO = require('../../../assets/android-icon-foreground.png');
+type Props = Partial<StackProps> & {
+  /** Boot gate: called after full 8s sequence (and auth ready). No navigation. */
+  onBootComplete?: () => void;
+};
 
-/** How long the progress bar takes to fill 0 → 100% */
-const SPLASH_PROGRESS_MS = 5200;
-const SPLASH_HOLD_AT_100_MS = 400;
+const LOGO = require('../../../assets/icon.png');
 
-export default function SplashScreen({ navigation }: Props) {
+/** 4 heroes × 2s each — never leave early. */
+const SPLASH_PROGRESS_MS = HERO_SEQUENCE_MS;
+const SPLASH_HOLD_AT_100_MS = 250;
+
+export default function SplashScreen({ navigation, onBootComplete }: Props) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const progress = useRef(new Animated.Value(0)).current;
-  const hasNavigated = useRef(false);
+  const hasFinished = useRef(false);
   const [progressDone, setProgressDone] = useState(false);
+  const [warmupDone, setWarmupDone] = useState(false);
   const [percentLabel, setPercentLabel] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    void (async () => {
+      await Promise.allSettled([
+        warmAuthDuringSplash(SPLASH_PROGRESS_MS),
+        preloadSessionCache(),
+      ]);
+      const remaining = SPLASH_PROGRESS_MS - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+      if (!cancelled) setWarmupDone(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     progress.setValue(0);
@@ -63,11 +93,17 @@ export default function SplashScreen({ navigation }: Props) {
   }, [progress]);
 
   useEffect(() => {
-    if (loading || !progressDone || hasNavigated.current) return;
+    // Full 8s + auth resolved before leaving splash.
+    if (loading || !progressDone || !warmupDone || hasFinished.current) return;
 
     const timer = setTimeout(() => {
-      if (hasNavigated.current) return;
-      hasNavigated.current = true;
+      if (hasFinished.current) return;
+      hasFinished.current = true;
+      if (onBootComplete) {
+        onBootComplete();
+        return;
+      }
+      if (!navigation) return;
       if (!user) {
         navigation.replace('Login');
         return;
@@ -76,7 +112,7 @@ export default function SplashScreen({ navigation }: Props) {
     }, SPLASH_HOLD_AT_100_MS);
 
     return () => clearTimeout(timer);
-  }, [loading, progressDone, user, navigation]);
+  }, [loading, progressDone, warmupDone, user, navigation, onBootComplete]);
 
   const barFillWidth = progress.interpolate({
     inputRange: [0, 1],
@@ -90,8 +126,13 @@ export default function SplashScreen({ navigation }: Props) {
       <StatusBar style="dark" />
       <SplashBackground />
 
-      <View style={[spStyles.spContent, { paddingTop: insets.top + 48 }]}>
-        <Image source={LOGO} style={spStyles.spLogo} resizeMode="contain" accessibilityLabel={t('splash.logoA11y')} />
+      <View style={[spStyles.spContent, { paddingTop: insets.top + 20 }]}>
+        <Image
+          source={LOGO}
+          style={spStyles.spLogo}
+          resizeMode="contain"
+          accessibilityLabel={t('splash.logoA11y')}
+        />
         <Text style={spStyles.spBrandName}>
           <Text style={spStyles.spBrandBaki}>Baki</Text>
           <Text style={spStyles.spBrandBook}>Book</Text>
@@ -106,10 +147,16 @@ export default function SplashScreen({ navigation }: Props) {
         </View>
 
         <Text style={spStyles.spTagline}>{t('splash.tagline')}</Text>
+
+        <View style={spStyles.spHeroSlot}>
+          <SplashHeroCarousel frozen={percentLabel >= 100} />
+        </View>
       </View>
 
       <View style={[spStyles.spBottom, { paddingBottom: insets.bottom + 28 }]}>
-        <Text style={spStyles.spBottomTagline}>{t('auth.tagline')}</Text>
+        <Text style={spStyles.spBottomTagline}>
+          {percentLabel < 100 ? t('splash.loadingCache') : t('auth.tagline')}
+        </Text>
         <View style={[spStyles.spProgressTrack, { width: progressBarWidth }]}>
           <Animated.View style={[spStyles.spProgressFill, { width: barFillWidth }]} />
         </View>
@@ -127,12 +174,12 @@ const spStyles = StyleSheet.create({
   spContent: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 20,
   },
   spLogo: {
-    width: s(72),
-    height: s(72),
-    marginBottom: 12,
+    width: s(56),
+    height: s(56),
+    marginBottom: 8,
   },
   spBrandName: {
     fontSize: typeScale.display.fontSize,
@@ -150,8 +197,8 @@ const spStyles = StyleSheet.create({
   spSeparator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
-    marginBottom: 12,
+    marginTop: 10,
+    marginBottom: 8,
     gap: 0,
   },
   spSeparatorDot: {
@@ -174,6 +221,14 @@ const spStyles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     maxWidth: 280,
+    marginBottom: spacing.sm,
+  },
+  spHeroSlot: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 200,
   },
   spBottom: {
     alignItems: 'center',

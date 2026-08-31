@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import ServerStatusDot from './ServerStatusDot';
 import { useLanguage } from '../contexts/LanguageContext';
 import { colors } from '../theme/colors';
 import { layout } from '../theme/layout';
@@ -19,27 +20,35 @@ export default function AuthLanguageToggle() {
   ];
 
   return (
-    <View style={styles.wrap} accessibilityLabel={t('common.language')}>
-      {options.map(({ code, short, label }) => {
-        const active = language === code;
-        return (
-          <Pressable
-            key={code}
-            onPress={() => setLanguage(code)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={label}
-            style={[styles.chip, active && styles.chipActive]}
-          >
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{short}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.row}>
+      <ServerStatusDot />
+      <View style={styles.wrap} accessibilityLabel={t('common.language')}>
+        {options.map(({ code, short, label }) => {
+          const active = language === code;
+          return (
+            <Pressable
+              key={code}
+              onPress={() => setLanguage(code)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={label}
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{short}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   wrap: {
     flexDirection: 'row',
     gap: spacing.xs,
