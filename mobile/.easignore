@@ -10,6 +10,9 @@ dist/
 .env
 .env.*
 google-play-service-account.json
+credentials/
+*.jks
+*.keystore
 
 # Never upload locally generated native projects (Windows paths break Linux EAS builds).
 /android

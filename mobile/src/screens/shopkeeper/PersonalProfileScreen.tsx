@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { updateProfile } from '../../api/auth';
+import ScreenHeader from '../../components/ScreenHeader';
 import ProfileImagePicker from '../../components/ProfileImagePicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, ErrorText, Input } from '../../components/ui';
@@ -91,18 +92,18 @@ export default function PersonalProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
+      <ScreenHeader
+        title={t('personalProfile.title')}
+        subtitle={t('personalProfile.subtitle')}
+        onBack={() => navigation.goBack()}
+        style={{ paddingBottom: 0 }}
+      />
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.md,
           paddingBottom: insets.bottom + spacing.xl,
           paddingHorizontal: spacing.md,
         }}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={styles.back}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('personalProfile.title')}</Text>
-        <Text style={styles.subtitle}>{t('personalProfile.subtitle')}</Text>
 
         <ProfileImagePicker
           label={t('personalProfile.yourPhoto')}

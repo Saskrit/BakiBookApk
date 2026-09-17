@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { createCustomer } from '../../api/customers';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
-import { Button, ErrorText, Input, Screen, Subtitle, Title } from '../../components/ui';
+import ScreenHeader from '../../components/ScreenHeader';
+import { Button, ErrorText, Input, Screen } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
 import { isShopVerified } from '../../utils/authHelpers';
@@ -49,9 +50,13 @@ export default function AddCustomerScreen({ navigation }: Props) {
 
   return (
     <Screen>
+      <ScreenHeader
+        title={t('customers.addTitle')}
+        subtitle={t('customers.addSubtitle')}
+        onBack={() => navigation.goBack()}
+        style={{ paddingBottom: 0 }}
+      />
       <ScrollView keyboardShouldPersistTaps="handled">
-        <Title>{t('customers.addTitle')}</Title>
-        <Subtitle>{t('customers.addSubtitle')}</Subtitle>
         {error ? <ErrorText message={error} /> : null}
         <Input label={t('customers.fields.name')} value={name} onChangeText={setName} />
         <Input label={t('customers.fields.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />

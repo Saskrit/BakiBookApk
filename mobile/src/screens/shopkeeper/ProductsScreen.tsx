@@ -21,6 +21,7 @@ import {
   fetchProducts,
   updateProduct,
 } from '../../api/products';
+import ScreenHeader from '../../components/ScreenHeader';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -171,28 +172,31 @@ export default function ProductsScreen() {
 
   return (
     <View style={prStyles.prScreen}>
-      <View style={[prStyles.prHeader, { paddingTop: insets.top + 12 }]}>
-        <View style={prStyles.prHeaderTop}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={prStyles.prBack}>{t('common.back')}</Text>
-          </Pressable>
-          <Pressable style={prStyles.prAddBtn} onPress={openAdd}>
-            <Text style={prStyles.prAddBtnText}>{t('products.add')}</Text>
-          </Pressable>
-        </View>
-        <Text style={prStyles.prHeaderTitle}>{t('products.title')}</Text>
-        <Text style={prStyles.prHeaderSubtitle}>{t('products.subtitle')}</Text>
-
-        <View style={prStyles.prStatsRow}>
-          <View style={prStyles.prStatPill}>
-            <Text style={prStyles.prStatValue}>{stats.count}</Text>
-            <Text style={prStyles.prStatLabel}>{t('products.productsLabel')}</Text>
-          </View>
-          <View style={prStyles.prStatPill}>
-            <Text style={prStyles.prStatValue}>{stats.totalUsage}</Text>
-            <Text style={prStyles.prStatLabel}>{t('products.timesUsed')}</Text>
-          </View>
-        </View>
+      <View style={prStyles.prHeader}>
+        <ScreenHeader
+          title={t('products.title')}
+          subtitle={t('products.subtitle')}
+          onBack={() => navigation.goBack()}
+          variant="onDark"
+          style={prStyles.prHeaderInner}
+          right={
+            <Pressable style={prStyles.prAddBtn} onPress={openAdd}>
+              <Text style={prStyles.prAddBtnText}>{t('products.add')}</Text>
+            </Pressable>
+          }
+          bottom={
+            <View style={prStyles.prStatsRow}>
+              <View style={prStyles.prStatPill}>
+                <Text style={prStyles.prStatValue}>{stats.count}</Text>
+                <Text style={prStyles.prStatLabel}>{t('products.productsLabel')}</Text>
+              </View>
+              <View style={prStyles.prStatPill}>
+                <Text style={prStyles.prStatValue}>{stats.totalUsage}</Text>
+                <Text style={prStyles.prStatLabel}>{t('products.timesUsed')}</Text>
+              </View>
+            </View>
+          }
+        />
       </View>
 
       <View style={prStyles.prSearchBox}>
@@ -289,13 +293,10 @@ const prStyles = StyleSheet.create({
   prScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   prHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  prHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  prBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  prHeaderInner: { paddingBottom: spacing.md },
   prAddBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
@@ -303,8 +304,6 @@ const prStyles = StyleSheet.create({
     borderRadius: 8,
   },
   prAddBtnText: { color: '#FFF', fontWeight: '700', fontSize: ty.body },
-  prHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
-  prHeaderSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.body, marginTop: 4 },
   prStatsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   prStatPill: {
     flex: 1,

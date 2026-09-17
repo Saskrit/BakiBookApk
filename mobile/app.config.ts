@@ -21,6 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       package: 'com.bakibook.app',
+      versionCode: 7,
       allowBackup: false,
       usesCleartextTraffic: false,
       googleServicesFile: './google-services.json',

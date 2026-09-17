@@ -4,7 +4,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { createPayment } from '../../api/transactions';
 import { appAlert } from '../../contexts/DialogContext';
-import { Button, ErrorText, Input, Screen, Subtitle, Title } from '../../components/ui';
+import ScreenHeader from '../../components/ScreenHeader';
+import { Button, ErrorText, Input, Screen } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
@@ -55,9 +56,13 @@ export default function RecordPaymentScreen({ route, navigation }: Props) {
 
   return (
     <Screen>
+      <ScreenHeader
+        title={t('payments.title')}
+        subtitle={customerName || t('common.customer')}
+        onBack={() => navigation.goBack()}
+        style={{ paddingBottom: 0 }}
+      />
       <ScrollView keyboardShouldPersistTaps="handled">
-        <Title>{t('payments.title')}</Title>
-        <Subtitle>{customerName || t('common.customer')}</Subtitle>
         {error ? <ErrorText message={error} /> : null}
         <Input label={t('payments.amount')} value={amount} onChangeText={setAmount} keyboardType="numeric" />
         <Text style={rpStyles.rpLabel}>{t('payments.method')}</Text>

@@ -5,6 +5,7 @@ set -euo pipefail
 PRIMARY_DOMAIN=bakibook.run.place
 WWW_DOMAIN=www.bakibook.run.place
 API_DOMAIN=api.bakibook.run.place
+DOWNLOAD_DOMAIN=download.bakibook.run.place
 ENV_FILE=/var/www/bakibook/server/.env
 CERT_DIR="/etc/letsencrypt/live/$PRIMARY_DOMAIN"
 
@@ -23,6 +24,9 @@ if [[ -f "$HOME/nginx-bakibook-api-locations.conf" ]]; then
 fi
 if [[ -f "$HOME/nginx-bakibook-frontend-locations.conf" ]]; then
   sudo cp "$HOME/nginx-bakibook-frontend-locations.conf" /etc/nginx/snippets/bakibook-frontend-locations.conf
+fi
+if [[ -f "$HOME/nginx-bakibook-download-locations.conf" ]]; then
+  sudo cp "$HOME/nginx-bakibook-download-locations.conf" /etc/nginx/snippets/bakibook-download-locations.conf
 fi
 
 CERT_EMAIL=""
@@ -52,6 +56,7 @@ sudo certbot certonly --webroot -w /var/www/certbot \
   -d "$PRIMARY_DOMAIN" \
   -d "$WWW_DOMAIN" \
   -d "$API_DOMAIN" \
+  -d "$DOWNLOAD_DOMAIN" \
   --expand \
   --non-interactive --agree-tos -m "$CERT_EMAIL" \
   --preferred-challenges http
@@ -68,4 +73,5 @@ sudo systemctl reload nginx
 echo ""
 echo "Frontend: https://$PRIMARY_DOMAIN"
 echo "API:      https://$API_DOMAIN/api/health"
+echo "Download: https://$DOWNLOAD_DOMAIN"
 echo "Renewal:  sudo certbot renew --dry-run"

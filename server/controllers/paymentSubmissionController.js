@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import PaymentSubmission from '../models/PaymentSubmission.js';
 import Payment from '../models/Payment.js';
 import Customer from '../models/Customer.js';
@@ -14,6 +13,7 @@ import {
 } from '../utils/paymentStatus.js';
 import { parsePagination, buildPagination } from '../utils/pagination.js';
 import { getShopkeeperId } from '../utils/shopContext.js';
+import { startTransactionSession } from '../utils/mongoSession.js';
 
 const buildPayLabel = (submission) => {
   if (submission.payLabel) return submission.payLabel;
@@ -345,8 +345,7 @@ const finalizeReview = async (submission, customer, status, extra = {}) => {
 };
 
 export const acceptSubmission = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const session = await startTransactionSession();
 
   try {
     const shopkeeperId = getShopkeeperId(req);

@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import Svg, { Path } from 'react-native-svg';
 import { connectQr, fetchMyQr, previewQr, type QrPreviewTarget } from '../../api/qr';
+import AppBackButton from '../../components/AppBackButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as cc } from '../../theme/customerColors';
@@ -287,22 +288,11 @@ export default function QRScannerScreen() {
   return (
     <View style={[qrStyles.qrScreen, { paddingTop: insets.top, backgroundColor: isCustomer ? '#F7F8FC' : colors.background }]}>
       <View style={qrStyles.qrHeader}>
-        <Pressable
+        <AppBackButton
           onPress={() => {
             if (navigation.canGoBack()) navigation.goBack();
           }}
-          hitSlop={8}
-          style={qrStyles.qrBackBtn}
-        >
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 6 L9 12 L15 18"
-              stroke="#1E293B"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-            />
-          </Svg>
-        </Pressable>
+        />
         <Text style={qrStyles.qrHeaderTitle}>{t('qr.screenTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -492,7 +482,7 @@ const qrStyles = StyleSheet.create({
   },
   qrHeaderTitle: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: 'left',
     fontSize: 18,
     fontWeight: '800',
     color: '#1E293B',

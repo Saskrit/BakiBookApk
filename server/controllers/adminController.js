@@ -17,7 +17,7 @@ import {
   emitUserSync,
   broadcastMaintenance,
 } from '../utils/realtimeSync.js';
-import mongoose from 'mongoose';
+import { startTransactionSession } from '../utils/mongoSession.js';
 
 const resolveShopStatus = (shopkeeper) => {
   if (shopkeeper.shopVerificationStatus === 'verified' || shopkeeper.isShopVerified) {
@@ -422,6 +422,47 @@ export const deleteAdminUser = async (req, res) => {
       success: true,
       message: 'User deleted',
       id: user._id.toString(),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const resetAdminUserPassword = async (req, res) => {
+  try {
+    const { password, mustChangePassword } = req.body;
+    if (!password || typeof password !== 'string' || password.trim().length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters',
+      });
+    }
+
+    const { user, error } = await findManageableUser(req.params.id);
+    if (error) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    user.password = password.trim();
+    user.mustChangePassword = Boolean(mustChangePassword);
+    await user.save();
+
+    await createNotification({
+      userId: user._id,
+      title: 'Password updated by admin',
+      body: 'Your account password was updated by an administrator. Please sign in with your new password.',
+      type: 'warning',
+      linkPath: '/login',
+    }).catch(() => {});
+
+    emitUserSync(user._id, {
+      forceLogout: true,
+      mustChangePassword: user.mustChangePassword,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Password reset successfully',
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -864,8 +905,7 @@ export const getAdminPaymentSubmissions = async (req, res) => {
 
 /** Accept a pending/reported submission and record the payment (admin). */
 export const acceptAdminPaymentSubmission = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const session = await startTransactionSession();
 
   try {
     const reviewNote = req.body.note?.trim() || 'Accepted by admin';

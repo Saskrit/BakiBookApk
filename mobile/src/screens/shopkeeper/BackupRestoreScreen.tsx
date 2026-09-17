@@ -22,6 +22,7 @@ import {
   type CustomerBackupPayload,
   type RestoreBackupStats,
 } from '../../api/backup';
+import ScreenHeader from '../../components/ScreenHeader';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
@@ -289,14 +290,12 @@ export default function BackupRestoreScreen() {
 
   return (
     <View style={brStyles.screen}>
-      <View style={[brStyles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={brStyles.backBtn}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path d="M15 6 L9 12 L15 18" stroke={colors.text} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-          <Text style={brStyles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={brStyles.headerTitle}>{t('backupRestore.title')}</Text>
+      <View style={brStyles.header}>
+        <ScreenHeader
+          title={t('backupRestore.title')}
+          onBack={() => navigation.goBack()}
+          style={brStyles.headerInner}
+        />
       </View>
 
       <ScrollView
@@ -474,14 +473,10 @@ const brStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F4F5F7' },
   header: {
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#ECEEF2',
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
-  backText: { color: colors.text, fontSize: ty.body, fontWeight: '600' },
-  headerTitle: { fontSize: ty.h1, fontWeight: '800', color: colors.text },
+  headerInner: { paddingBottom: spacing.md },
   body: { flex: 1 },
   bodyContent: { padding: spacing.md, gap: spacing.md },
   noticeCard: {

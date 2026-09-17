@@ -20,9 +20,10 @@ Long-lived production API on your VM (`ubuntu@YOUR_IP`), with:
    Without this, the API works on the VM but times out from the internet.
 3. MongoDB Atlas → Network Access → add VPS public IP `130.210.30.18` (or `0.0.0.0/0`)  
    **Speed tip:** Create/move the Atlas cluster to the **same region as the Oracle VM** (e.g. both Mumbai / Singapore). If Atlas is in the US while the VM is in Asia, every API call pays 100–300ms+ just for the database round-trip — that feels slow even though Oracle itself is fine.
-4. **DNS** — both A records → `130.210.30.18`:
+4. **DNS** — A records → `130.210.30.18`:
    - `bakibook.run.place` (frontend)
    - `api.bakibook.run.place` (API backend)
+   - `download.bakibook.run.place` (APK download page)
 
    **Important:** If `bakibook.run.place` still points at **Render** or **Cloudflare → Render**, visitors get an **old** web build (no admin pagination, shop review modal, ban/suspend). The API subdomain may already be correct on the VPS — only the **frontend hostname** must be fixed.
 
@@ -53,6 +54,8 @@ Symptoms: no pagination, no ban/suspend, no shop verification modal on https://b
    | `bakibook.run.place` | A | `130.210.30.18` |
    | `www.bakibook.run.place` | A | `130.210.30.18` |
    | `api.bakibook.run.place` | A | `130.210.30.18` |
+   | `download.bakibook.run.place` | A | `130.210.30.18` |
+   | `download.bakibook.run.place` | A | `130.210.30.18` |
 
 4. Hard-refresh the browser (`Ctrl+Shift+R`) after DNS propagates.
 
@@ -64,6 +67,7 @@ Symptoms: no pagination, no ban/suspend, no shop verification modal on https://b
 |-----|------|
 | http(s)://bakibook.run.place | React web app (frontend); also proxies `/api`, `/socket.io`, `/uploads` |
 | https://api.bakibook.run.place/api | Node API (backend, primary for mobile) |
+| https://download.bakibook.run.place | APK download page + `bakibook-latest.apk` |
 
 Verification emails link to `http://bakibook.run.place/verify?token=...`
 

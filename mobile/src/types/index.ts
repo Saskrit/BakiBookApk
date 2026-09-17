@@ -50,6 +50,7 @@ export interface Customer {
   qrCode?: string;
   notes?: string;
   avatar?: string;
+  profileImage?: string;
   lastCreditDate?: string;
   lastPaymentDate?: string;
 }

@@ -21,6 +21,7 @@ import {
   updateProfile,
 } from '../../api/auth';
 import ProfileImagePicker from '../../components/ProfileImagePicker';
+import ScreenHeader from '../../components/ScreenHeader';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { Button, ErrorText } from '../../components/ui';
@@ -199,13 +200,15 @@ export default function PersonalInfoScreen() {
         colors={[colors.primaryDark, colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[piStyles.piHeader, { paddingTop: insets.top + 8 }]}
+        style={piStyles.piHeader}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={piStyles.piBack}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={piStyles.piHeaderTitle}>{t('customer.personalInfo')}</Text>
-        <Text style={piStyles.piHeaderSubtitle}>{t('customer.personalInfoBody')}</Text>
+        <ScreenHeader
+          title={t('customer.personalInfo')}
+          subtitle={t('customer.personalInfoBody')}
+          onBack={() => navigation.goBack()}
+          variant="onDark"
+          style={piStyles.piHeaderInner}
+        />
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -436,6 +439,7 @@ const piStyles = StyleSheet.create({
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
+  piHeaderInner: { paddingHorizontal: 0, paddingBottom: 0 },
   piBack: {
     color: 'rgba(255,255,255,0.95)',
     fontSize: ty.bodyLg,

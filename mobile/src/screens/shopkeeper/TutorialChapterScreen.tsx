@@ -12,6 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import AppBackButton from '../../components/AppBackButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { updateTutorialProgress } from '../../api/auth';
@@ -191,9 +192,7 @@ export default function TutorialChapterScreen({ navigation, route }: Props) {
   return (
     <View style={[tcStyles.tcScreen, { paddingTop: insets.top }]}>
       <View style={tcStyles.tcTopBar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
-          <Text style={tcStyles.tcTopLink}>{t('common.close')}</Text>
-        </Pressable>
+        <AppBackButton onPress={() => navigation.goBack()} variant="plain" />
         <Text style={tcStyles.tcTopMeta}>
           {index + 1}/{chapter.steps.length}
         </Text>

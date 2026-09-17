@@ -12,8 +12,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
-import { fetchPortalShopDetail } from '../../api/portal';
+import { fetchPendingLinkDetail, fetchPortalShopDetail } from '../../api/portal';
+import AppBackButton from '../../components/AppBackButton';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
+import {
+  isCreditTimelineEntry,
+  timelineEntryAmount,
+  type TimelineEntry,
+} from '../../components/customer/ShopTimelineList';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
 import { spacing } from '../../theme/spacing';
@@ -25,37 +31,8 @@ import type { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'ShopTimeline'>;
 type TimelineFilter = 'all' | 'credits' | 'payments';
 
-type LedgerEntry = {
-  id?: string;
-  type?: string;
-  label?: string;
-  desc?: string;
-  items?: string;
-  products?: string;
-  date?: string;
-  time?: string;
-  creditAmount?: number;
-  paymentAmount?: number;
-  runningBalance?: number;
-  sortAt?: string;
-};
-
-function isCreditEntry(entry: LedgerEntry) {
-  const type = String(entry.type || '').toLowerCase();
-  if (type === 'payment' || type === 'paid') return false;
-  if (type === 'credit') return true;
-  if (entry.paymentAmount != null && entry.creditAmount == null) return false;
-  return entry.creditAmount != null;
-}
-
-function entryAmount(entry: LedgerEntry) {
-  return isCreditEntry(entry)
-    ? Number(entry.creditAmount ?? 0)
-    : Number(entry.paymentAmount ?? 0);
-}
-
 export default function ShopTimelineScreen({ route, navigation }: Props) {
-  const { customerId, shopName: shopNameParam } = route.params;
+  const { customerId, shopName: shopNameParam, pending } = route.params;
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -63,14 +40,24 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
   const [filter, setFilter] = useState<TimelineFilter>('all');
   const [shopName, setShopName] = useState(shopNameParam || 'Shop');
   const [currentDue, setCurrentDue] = useState(0);
-  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [ledger, setLedger] = useState<TimelineEntry[]>([]);
 
   const load = useCallback(async () => {
+    if (pending) {
+      const data = await fetchPendingLinkDetail(customerId);
+      setShopName(data.invitation?.shopName || shopNameParam || 'Shop');
+      setCurrentDue(
+        Number(data.invitation?.summary?.currentDue || data.invitation?.balance || 0)
+      );
+      setLedger((data.invitation?.ledger || []) as TimelineEntry[]);
+      return;
+    }
+
     const data = await fetchPortalShopDetail(customerId);
     setShopName(data.shop?.shopName || shopNameParam || 'Shop');
     setCurrentDue(Number(data.summary?.currentDue || data.shop?.balance || 0));
-    setLedger((data.ledger || []) as LedgerEntry[]);
-  }, [customerId, shopNameParam]);
+    setLedger((data.ledger || []) as TimelineEntry[]);
+  }, [customerId, pending, shopNameParam]);
 
   useFocusEffect(
     useCallback(() => {
@@ -78,10 +65,13 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
       load()
         .catch(() => {
           setLedger([]);
-          appAlert(t('common.error'), t('customer.shopDetailLoadFailed'));
+          appAlert(
+            t('common.error'),
+            pending ? t('customer.inviteLoadFailed') : t('customer.shopDetailLoadFailed')
+          );
         })
         .finally(() => setLoading(false));
-    }, [load, t])
+    }, [load, pending, t])
   );
 
   const timeline = useMemo(() => {
@@ -91,7 +81,7 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
       return db - da;
     });
     return sorted.filter((entry) => {
-      const credit = isCreditEntry(entry);
+      const credit = isCreditTimelineEntry(entry);
       if (filter === 'credits' && !credit) return false;
       if (filter === 'payments' && credit) return false;
       return true;
@@ -112,17 +102,7 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
   return (
     <View style={[stStyles.stScreen, { paddingTop: insets.top }]}>
       <View style={stStyles.stTopBar}>
-        <Pressable style={stStyles.stIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 6 L9 12 L15 18"
-              stroke="#1E293B"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </Pressable>
+        <AppBackButton onPress={() => navigation.goBack()} />
         <View style={stStyles.stTitleWrap}>
           <Text style={stStyles.stTitle} numberOfLines={1}>
             {t('customer.transactionTimeline')}
@@ -163,8 +143,8 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
           <Text style={stStyles.stEmpty}>{t('customer.noLedger')}</Text>
         }
         renderItem={({ item, index }) => {
-          const credit = isCreditEntry(item);
-          const amount = entryAmount(item);
+          const credit = isCreditTimelineEntry(item);
+          const amount = timelineEntryAmount(item);
           const title =
             item.desc ||
             item.items ||
@@ -172,6 +152,13 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
             (credit ? t('common.credit') : t('customer.paymentReceived'));
           const balance =
             item.runningBalance != null ? Number(item.runningBalance) : null;
+          const entryType = String(item.type || '').toLowerCase();
+          const subLabel =
+            entryType === 'paid'
+              ? t('customer.itemPaid')
+              : credit
+                ? t('customer.addedToCredit')
+                : t('customer.paymentReceived');
 
           return (
             <View style={stStyles.stRow}>
@@ -218,9 +205,24 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
                     {credit ? `+ ${formatRs(amount)}` : `- ${formatRs(amount)}`}
                   </Text>
                 </View>
-                <Text style={stStyles.stSub} numberOfLines={1}>
-                  {credit ? t('customer.addedToCredit') : t('customer.paymentReceived')}
+                <Text style={stStyles.stSub} numberOfLines={2}>
+                  {subLabel}
                 </Text>
+                {!credit && item.paidFor && item.paidFor !== title ? (
+                  <Text style={stStyles.stDetail} numberOfLines={2}>
+                    {t('customer.paidFor')}: {item.paidFor}
+                  </Text>
+                ) : null}
+                {!credit && item.method ? (
+                  <Text style={stStyles.stDetail} numberOfLines={1}>
+                    {t('customer.paymentMethod')}: {item.method}
+                  </Text>
+                ) : null}
+                {!credit && item.receipt ? (
+                  <Text style={stStyles.stDetail} numberOfLines={1}>
+                    {t('customer.receiptNo', { id: item.receipt })}
+                  </Text>
+                ) : null}
                 <View style={stStyles.stMetaRow}>
                   <View
                     style={[
@@ -234,7 +236,11 @@ export default function ShopTimelineScreen({ route, navigation }: Props) {
                         { color: credit ? '#C2410C' : '#15803D' },
                       ]}
                     >
-                      {credit ? t('customer.badgeCredit') : t('customer.badgePayment')}
+                      {credit
+                        ? t('customer.badgeCredit')
+                        : entryType === 'paid'
+                          ? t('customer.badgePaid')
+                          : t('customer.badgePayment')}
                     </Text>
                   </View>
                   <Text style={stStyles.stDate}>
@@ -333,6 +339,7 @@ const stStyles = StyleSheet.create({
   stEntryTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
   stAmount: { fontSize: 13, fontWeight: '800' },
   stSub: { marginTop: 4, fontSize: 12, color: c.textMuted },
+  stDetail: { marginTop: 4, fontSize: 11, color: c.textMuted, fontWeight: '600' },
   stMetaRow: {
     marginTop: 8,
     flexDirection: 'row',

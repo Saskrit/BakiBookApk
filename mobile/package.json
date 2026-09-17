@@ -54,6 +54,7 @@
     "build:android:apk": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 apk",
     "build:android:wait": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 preview -NoAutoRun",
     "build:apk:local": "powershell -ExecutionPolicy Bypass -File ./scripts/build-apk-local.ps1",
+    "build:aab:local": "powershell -ExecutionPolicy Bypass -File ./scripts/build-aab-local.ps1",
     "install:apk": "powershell -ExecutionPolicy Bypass -File ./scripts/install-eas-apk.ps1",
     "install:apk:latest": "powershell -ExecutionPolicy Bypass -File ./scripts/install-eas-apk.ps1 preview",
     "submit:android": "npx eas-cli submit --platform android --profile production --latest"

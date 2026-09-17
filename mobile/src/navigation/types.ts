@@ -52,7 +52,7 @@ export type RootStackParamList = {
   LinkShops: undefined;
   LinkShopInvite: { customerId: string; shopName?: string };
   ShopDetail: { customerId: string; shopName?: string };
-  ShopTimeline: { customerId: string; shopName?: string };
+  ShopTimeline: { customerId: string; shopName?: string; pending?: boolean };
   ShopProfile: { forceEdit?: boolean } | undefined;
   PersonalProfile: undefined;
   Products: undefined;

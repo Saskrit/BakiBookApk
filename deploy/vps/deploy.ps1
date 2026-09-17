@@ -6,19 +6,25 @@ param(
   [string]$KeyPath = "C:\Users\Saskrit\Downloads\bakibookkeys\ssh-key-2026-08-23.key",
   [string]$Remote = "ubuntu@130.210.30.18",
   [string]$RemoteDir = "/var/www/bakibook/server",
-  [string]$ClientRemoteDir = "/var/www/bakibook/client/dist"
+  [string]$ClientRemoteDir = "/var/www/bakibook/client/dist",
+  [string]$DownloadRemoteDir = "/var/www/bakibook/download",
+  [string]$ApkPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $serverDir = Join-Path $repoRoot "server"
 $clientDir = Join-Path $repoRoot "client"
+$downloadDir = Join-Path $repoRoot "deploy\download"
+$defaultApk = Join-Path $repoRoot "mobile\dist\BakiBook.apk"
+if (-not $ApkPath) { $ApkPath = $defaultApk }
 $zip = Join-Path $env:TEMP "bakibook-server.zip"
 $clientZip = Join-Path $env:TEMP "bakibook-client-dist.zip"
 $remoteScript = Join-Path $env:TEMP "bakibook-deploy-remote.sh"
 
 $prodClientUrl = "https://bakibook.run.place"
 $prodServerUrl = "https://api.bakibook.run.place"
+$prodDownloadUrl = "https://download.bakibook.run.place"
 $prodApi = "$prodServerUrl/api"
 $prodGoogleWeb = "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com"
 $prodInvitePassword = if ($env:INVITE_DEFAULT_PASSWORD) {
@@ -36,12 +42,26 @@ $prodInvitePassword = if ($env:INVITE_DEFAULT_PASSWORD) {
 if (-not (Test-Path $KeyPath)) { throw "SSH key not found: $KeyPath" }
 if (-not (Test-Path $serverDir)) { throw "server/ not found" }
 if (-not (Test-Path $clientDir)) { throw "client/ not found" }
+if (-not (Test-Path (Join-Path $downloadDir "index.html"))) {
+  throw "deploy/download/index.html not found"
+}
+
+$uploadApk = Test-Path $ApkPath
+if ($uploadApk) {
+  Write-Host "Release env: APK=$ApkPath"
+} else {
+  Write-Host "Release env: APK not found at $ApkPath (download page only; build with npm run build:apk:local)" -ForegroundColor Yellow
+}
 
 $sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new")
 
 Write-Host "Release env: Frontend=$prodClientUrl"
 Write-Host "Release env: API=$prodApi"
+Write-Host "Release env: Download=$prodDownloadUrl"
 Write-Host "Release env: Invite default password=$prodInvitePassword"
+
+Write-Host "==> Syncing web brand assets from mobile..."
+& powershell -ExecutionPolicy Bypass -File (Join-Path $clientDir "scripts\sync-brand-assets.ps1")
 
 Write-Host "==> Building web frontend..."
 Push-Location $clientDir
@@ -51,6 +71,7 @@ if (-not (Test-Path "node_modules")) {
 $env:VITE_API_URL = $prodApi
 $env:VITE_API_ORIGIN = $prodServerUrl
 $env:VITE_GOOGLE_CLIENT_ID = $prodGoogleWeb
+$env:VITE_DOWNLOAD_URL = $prodDownloadUrl
 npm run build
 if (-not (Test-Path "dist\index.html")) { throw "client build failed - dist/index.html missing" }
 Pop-Location
@@ -74,10 +95,12 @@ $remoteBash = @(
   'set -euo pipefail',
   "REMOTE_DIR='$RemoteDir'",
   "CLIENT_DIR='$ClientRemoteDir'",
+  "DOWNLOAD_DIR='$DownloadRemoteDir'",
   "INVITE_DEFAULT_PASSWORD='$inviteEscaped'",
   "CLIENT_URL='$prodClientUrl'",
   "SERVER_URL='$prodServerUrl'",
-  'sudo mkdir -p "$REMOTE_DIR" "$CLIENT_DIR" /var/www/bakibook/logs /var/www/bakibook/uploads /var/www/certbot',
+  "DOWNLOAD_URL='$prodDownloadUrl'",
+  'sudo mkdir -p "$REMOTE_DIR" "$CLIENT_DIR" "$DOWNLOAD_DIR/apk" /var/www/bakibook/logs /var/www/bakibook/uploads /var/www/certbot',
   'sudo chown -R ubuntu:ubuntu /var/www/bakibook',
   'sudo find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +',
   'sudo find "$CLIENT_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true',
@@ -87,6 +110,18 @@ $remoteBash = @(
   'rm -f /tmp/bakibook-server.zip',
   'unzip -qo /tmp/bakibook-client-dist.zip -d "$CLIENT_DIR"',
   'rm -f /tmp/bakibook-client-dist.zip',
+  'rm -f "$CLIENT_DIR/favicon.svg"',
+  'cp /tmp/bakibook-download-index.html "$DOWNLOAD_DIR/index.html"',
+  'rm -f /tmp/bakibook-download-index.html',
+  'cp /tmp/bakibook-download-logo.png "$DOWNLOAD_DIR/logo.png"',
+  'rm -f /tmp/bakibook-download-logo.png',
+  'if [ -f /tmp/bakibook-latest.apk ]; then',
+  '  cp /tmp/bakibook-latest.apk "$DOWNLOAD_DIR/apk/bakibook-latest.apk"',
+  '  rm -f /tmp/bakibook-latest.apk',
+  '  echo "APK deployed to $DOWNLOAD_DIR/apk/bakibook-latest.apk"',
+  'else',
+  '  echo "WARN: No APK uploaded — download page only (build mobile/dist/BakiBook.apk first)"',
+  'fi',
   'if [ ! -f .env ]; then',
   '  echo "ERROR: missing $REMOTE_DIR/.env - create it from deploy/vps/.env.example"',
   '  exit 1',
@@ -117,7 +152,7 @@ $remoteBash = @(
   '  pm2 start /var/www/bakibook/ecosystem.config.cjs',
   'fi',
   'pm2 save',
-  'for f in "$HOME/setup-ssl.sh" "$HOME/nginx-bakibook.conf" "$HOME/nginx-bakibook-http.conf" "$HOME/nginx-bakibook-api-locations.conf" "$HOME/nginx-bakibook-frontend-locations.conf"; do',
+  'for f in "$HOME/setup-ssl.sh" "$HOME/nginx-bakibook.conf" "$HOME/nginx-bakibook-http.conf" "$HOME/nginx-bakibook-api-locations.conf" "$HOME/nginx-bakibook-frontend-locations.conf" "$HOME/nginx-bakibook-download-locations.conf"; do',
   '  if [ -f "$f" ]; then sed -i "s/\\r$//" "$f"; fi',
   'done',
   'if [ -f "$HOME/setup-ssl.sh" ]; then',
@@ -127,7 +162,8 @@ $remoteBash = @(
   'curl -sS http://127.0.0.1:5001/api/health',
   'echo',
   'curl -sS "$SERVER_URL/api/health" || echo "WARN: API HTTPS health check failed"',
-  'curl -sS -o /dev/null -w "Frontend HTTP %{http_code}\n" "$CLIENT_URL/" || echo "WARN: Frontend check failed"'
+  'curl -sS -o /dev/null -w "Frontend HTTP %{http_code}\n" "$CLIENT_URL/" || echo "WARN: Frontend check failed"',
+  'curl -sS -o /dev/null -w "Download HTTP %{http_code}\n" "http://download.bakibook.run.place/health" || echo "WARN: Download health check failed"'
 ) -join "`n"
 [System.IO.File]::WriteAllText($remoteScript, $remoteBash)
 
@@ -139,6 +175,12 @@ Write-Host "==> Uploading packages + deploy script..."
 & scp @sshBase (Join-Path $PSScriptRoot "nginx-bakibook-http.conf") "${Remote}:~/nginx-bakibook-http.conf"
 & scp @sshBase (Join-Path $PSScriptRoot "nginx-bakibook-api-locations.conf") "${Remote}:~/nginx-bakibook-api-locations.conf"
 & scp @sshBase (Join-Path $PSScriptRoot "nginx-bakibook-frontend-locations.conf") "${Remote}:~/nginx-bakibook-frontend-locations.conf"
+& scp @sshBase (Join-Path $PSScriptRoot "nginx-bakibook-download-locations.conf") "${Remote}:~/nginx-bakibook-download-locations.conf"
+& scp @sshBase (Join-Path $downloadDir "index.html") "${Remote}:/tmp/bakibook-download-index.html"
+& scp @sshBase (Join-Path $downloadDir "logo.png") "${Remote}:/tmp/bakibook-download-logo.png"
+if ($uploadApk) {
+  & scp @sshBase $ApkPath "${Remote}:/tmp/bakibook-latest.apk"
+}
 & scp @sshBase (Join-Path $PSScriptRoot "setup-ssl.sh") "${Remote}:~/setup-ssl.sh"
 & scp @sshBase $remoteScript "${Remote}:/tmp/bakibook-deploy-remote.sh"
 
@@ -157,8 +199,11 @@ try {
   $frontendIps = @($dns | ForEach-Object { $_.IPAddress } | Where-Object { $_ })
   $apiDns = Resolve-DnsName "api.bakibook.run.place" -Type A -ErrorAction Stop
   $apiIps = @($apiDns | ForEach-Object { $_.IPAddress } | Where-Object { $_ })
+  $downloadDns = Resolve-DnsName "download.bakibook.run.place" -Type A -ErrorAction SilentlyContinue
+  $downloadIps = @($downloadDns | ForEach-Object { $_.IPAddress } | Where-Object { $_ })
   Write-Host "    bakibook.run.place     -> $($frontendIps -join ', ')"
   Write-Host "    api.bakibook.run.place -> $($apiIps -join ', ')"
+  Write-Host "    download.bakibook.run.place -> $(if ($downloadIps) { $downloadIps -join ', ' } else { '(not set)' })"
   Write-Host "    VPS IP                 -> $vpsIp"
   if ($frontendIps -notcontains $vpsIp) {
     Write-Host ""
@@ -167,10 +212,18 @@ try {
     Write-Host "         Fix DNS at your registrar (run.place / Cloudflare):" -ForegroundColor Yellow
     Write-Host "           A  bakibook.run.place      -> $vpsIp" -ForegroundColor Yellow
     Write-Host "           A  www.bakibook.run.place  -> $vpsIp" -ForegroundColor Yellow
+    Write-Host "           A  download.bakibook.run.place -> $vpsIp" -ForegroundColor Yellow
     Write-Host "         Then remove or disable the old Render web service." -ForegroundColor Yellow
     Write-Host ""
   } else {
     Write-Host "    Frontend DNS OK." -ForegroundColor Green
+  }
+  if ($downloadIps -and $downloadIps -notcontains $vpsIp) {
+    Write-Host "WARNING: download.bakibook.run.place does NOT point to the VPS." -ForegroundColor Yellow
+  } elseif ($downloadIps) {
+    Write-Host "    Download DNS OK." -ForegroundColor Green
+  } else {
+    Write-Host "    Add DNS: A download.bakibook.run.place -> $vpsIp" -ForegroundColor Yellow
   }
 } catch {
   Write-Host "    Could not resolve DNS (check manually)." -ForegroundColor Yellow
@@ -179,5 +232,9 @@ try {
 Write-Host "==> Deploy finished."
 Write-Host "    Frontend: $prodClientUrl"
 Write-Host "    API:      $prodApi/health"
+Write-Host "    Download: $prodDownloadUrl"
+if (-not $uploadApk) {
+  Write-Host "    APK:      not uploaded (run: npm run build:apk:local  then deploy again)" -ForegroundColor Yellow
+}
 Write-Host "    Rebuild the mobile APK so it uses $prodApi"
 Write-Host "Release env: Invite default password=$prodInvitePassword"

@@ -16,6 +16,8 @@ import { fetchSharedAccount, type LedgerEntry } from '../../api/shared';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSyncOnInvalidate } from '../../contexts/SyncContext';
 import { appAlert } from '../../contexts/DialogContext';
+import AppBackButton from '../../components/AppBackButton';
+import UserAvatar from '../../components/UserAvatar';
 import { Button, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -23,7 +25,7 @@ import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
 import { exportCustomerReportPdf } from '../../utils/customerReportPdf';
-import { avatarColor, formatRs, getInitials } from '../../utils/format';
+import { avatarColor, formatRs } from '../../utils/format';
 import type { Customer } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -175,7 +177,6 @@ export default function CustomerProfileScreen({ route }: Props) {
 
   if (loading || !customer) return <LoadingState />;
 
-  const initials = getInitials(customer.name);
   const avatarBg = avatarColor(customer.name);
 
   return (
@@ -188,13 +189,17 @@ export default function CustomerProfileScreen({ route }: Props) {
           colors={[colors.primaryDark, colors.primary]}
           style={[cprStyles.cprHero, { paddingTop: insets.top + 12 }]}
         >
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={cprStyles.cprBack}>{t('common.back')}</Text>
-          </Pressable>
+          <AppBackButton onPress={() => navigation.goBack()} variant="onDark" />
 
-          <View style={[cprStyles.cprAvatar, { backgroundColor: `${avatarBg}33` }]}>
-            <Text style={[cprStyles.cprAvatarText, { color: '#FFFFFF' }]}>{initials}</Text>
-          </View>
+          <UserAvatar
+            uri={customer.linkStatus === 'linked' ? customer.profileImage : ''}
+            name={customer.name}
+            size={72}
+            borderRadius={36}
+            fallbackBg={`${avatarBg}55`}
+            fallbackColor="#FFFFFF"
+            style={cprStyles.cprAvatar}
+          />
           <Text style={cprStyles.cprHeroName}>{customer.name}</Text>
           {customer.phone ? <Text style={cprStyles.cprHeroMeta}>{customer.phone}</Text> : null}
           {customer.email ? <Text style={cprStyles.cprHeroMeta}>{customer.email}</Text> : null}

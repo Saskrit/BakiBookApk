@@ -1,6 +1,6 @@
-# Build a release APK locally (installable BakiBook.apk, no EAS).
-# Usage: .\scripts\build-apk-local.ps1
-# Output: android\app\build\outputs\apk\release\BakiBook.apk (also copied to dist\BakiBook.apk)
+# Build a signed release Android App Bundle (.aab) locally for Google Play Store.
+# Usage: .\scripts\build-aab-local.ps1
+# Output: dist\BakiBook.aab (ready for Google Play Console upload)
 
 $ErrorActionPreference = 'Stop'
 $mobileRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
@@ -9,7 +9,6 @@ function Resolve-JdkHome {
   param([string[]]$Candidates)
   foreach ($candidate in $Candidates) {
     if (-not $candidate) { continue }
-    # Ignore broken values like "jdk-17*" left from incomplete setup docs
     if ($candidate -match '[*?]') { continue }
     $javaExe = Join-Path $candidate 'bin\java.exe'
     if (Test-Path $javaExe) { return $candidate }
@@ -20,7 +19,6 @@ function Resolve-JdkHome {
 function Get-JdkMajorVersion {
   param([string]$JdkHome)
   if (-not $JdkHome) { return 0 }
-  # Prefer path name — avoids PowerShell treating `java -version` stderr as a fatal error.
   if ($JdkHome -match 'jdk-(\d+)') { return [int]$Matches[1] }
   if ($JdkHome -match '[/\\](\d+)(?:[\.\\-]|$)') { return [int]$Matches[1] }
 
@@ -66,7 +64,6 @@ function Find-InstalledJdkHome {
 
   if ($found.Count -eq 0) { return $null }
 
-  # Prefer JDK 17 (Android/Expo), then 21. Skip 22+ (breaks CMake / AGP).
   $prefer = $found | Where-Object { $_ -match 'jdk-17|(^|[/\\])17([.\-]|$)' } | Select-Object -First 1
   if ($prefer) { return $prefer }
   $prefer = $found | Where-Object { $_ -match 'jdk-21|(^|[/\\])21([.\-]|$)' } | Select-Object -First 1
@@ -81,7 +78,6 @@ function Find-InstalledJdkHome {
 
 function Sync-ShortMirror {
   param([string]$Source, [string]$Mirror)
-  # Mirror was often weeks stale — always copy latest sources before building.
   Write-Host "Syncing latest sources -> $Mirror"
   if (-not (Test-Path $Mirror)) {
     New-Item -ItemType Directory -Path $Mirror -Force | Out-Null
@@ -89,14 +85,12 @@ function Sync-ShortMirror {
   & robocopy $Source $Mirror /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NC /NS /NP `
     /XD node_modules .git dist .expo `
     'android\app\build' 'android\app\.cxx' 'android\.gradle' 'android\build' `
-    /XF '*.apk' | Out-Null
-  # robocopy: 0-7 = success/partial copy; >=8 = failure
+    /XF '*.apk' '*.aab' | Out-Null
   if ($LASTEXITCODE -ge 8) {
     throw "Failed syncing project to $Mirror (robocopy exit $LASTEXITCODE)"
   }
   $script:LASTEXITCODE = 0
 
-  # Point mirror node_modules at the real project so plugins like expo-font resolve.
   $srcModules = Join-Path $Source 'node_modules'
   $mirModules = Join-Path $Mirror 'node_modules'
   if (-not (Test-Path (Join-Path $srcModules 'expo-font'))) {
@@ -113,7 +107,7 @@ function Sync-ShortMirror {
     } elseif ($isLink) {
       cmd /c "rmdir `"$mirModules`"" | Out-Null
     } else {
-      Write-Host 'Removing stale mirror node_modules (can take a minute)...'
+      Write-Host 'Removing stale mirror node_modules...'
       cmd /c "rd /s /q `"$mirModules`"" | Out-Null
     }
   }
@@ -129,31 +123,56 @@ function Sync-ShortMirror {
 
 function Get-ShortMobileRoot {
   param([string]$Path)
-  # Prefer a short mirror copy (avoids Windows 260-char path + subst drive issues with Expo)
   $mirror = 'C:\bk\mobile'
   if ((Test-Path $mirror) -or $Path.Length -gt 90 -or $Path -match 'OneDrive') {
     Sync-ShortMirror -Source $Path -Mirror $mirror
     Write-Host "Using short mirror $mirror"
     return $mirror
   }
-  # Release CMake paths exceed Windows 260-char limit even from moderate project paths.
   foreach ($letter in @('B', 'K', 'M', 'Z')) {
     $drive = "${letter}:"
     $existing = cmd /c "subst" 2>$null | Select-String "^\s*$([regex]::Escape($drive))"
     if ($existing) {
       if ($existing -match [regex]::Escape($Path)) {
-        Write-Host "Using short path $drive -> $Path"
         return "${drive}\"
       }
       cmd /c "subst $drive /d" 2>$null | Out-Null
     }
     cmd /c "subst $drive `"$Path`"" | Out-Null
     if ($LASTEXITCODE -eq 0) {
-      Write-Host "Mapped short path $drive -> $Path (avoids Windows 260-char path limit)"
       return "${drive}\"
     }
   }
   return $Path
+}
+
+function Ensure-ReleaseKeystore {
+  param([string]$KeystorePath, [string]$JdkHome)
+  if (Test-Path $KeystorePath) {
+    Write-Host "Using existing release keystore: $KeystorePath"
+    return
+  }
+
+  $keystoreDir = Split-Path -Parent $KeystorePath
+  if (-not (Test-Path $keystoreDir)) {
+    New-Item -ItemType Directory -Path $keystoreDir -Force | Out-Null
+  }
+
+  $keytool = Join-Path $JdkHome 'bin\keytool.exe'
+  if (-not (Test-Path $keytool)) {
+    $keytool = 'keytool'
+  }
+
+  Write-Host "Generating local Google Play release keystore at: $KeystorePath"
+  & $keytool -genkeypair -v -storetype PKCS12 -keystore $KeystorePath `
+    -alias bakibook -keyalg RSA -keysize 2048 -validity 10000 `
+    -storepass 'bakibook2026' -keypass 'bakibook2026' `
+    -dname 'CN=BakiBook, OU=Mobile, O=BakiBook, L=Kathmandu, ST=Bagmati, C=NP'
+
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to generate release keystore with keytool.'
+  }
+  Write-Host 'Release keystore generated successfully.' -ForegroundColor Green
 }
 
 $jdk = Resolve-JdkHome @(
@@ -165,7 +184,6 @@ $jdk = Resolve-JdkHome @(
   (Join-Path $env:LOCALAPPDATA 'Programs\Android Studio\jbr')
 )
 
-# Always prefer a discovered JDK 17/21 over JAVA_HOME when that points at JDK 22+.
 $discovered = Find-InstalledJdkHome
 if ($discovered) {
   if (-not $jdk) {
@@ -201,7 +219,10 @@ if (-not (Test-Path $env:GRADLE_USER_HOME)) {
 }
 $env:Path = "$jdk\bin;$sdk\platform-tools;" + $env:Path
 
-# Release APK API + Web Google client (override with BAKIBOOK_API_URL if set)
+# Ensure release keystore exists
+$keystorePath = Join-Path $mobileRoot 'credentials\bakibook-release.keystore'
+Ensure-ReleaseKeystore -KeystorePath $keystorePath -JdkHome $jdk
+
 $prodApi = if ($env:BAKIBOOK_API_URL) {
   $env:BAKIBOOK_API_URL.Trim()
 } else {
@@ -209,7 +230,7 @@ $prodApi = if ($env:BAKIBOOK_API_URL) {
 }
 $prodGoogleWeb = '129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com'
 $envFile = Join-Path $mobileRoot '.env'
-$envBackup = Join-Path $mobileRoot '.env.bakibook-apk-backup'
+$envBackup = Join-Path $mobileRoot '.env.bakibook-aab-backup'
 $restoredEnv = $false
 
 function Restore-MobileEnv {
@@ -217,16 +238,14 @@ function Restore-MobileEnv {
   if (Test-Path $envBackup) {
     Copy-Item -Path $envBackup -Destination $envFile -Force
     Remove-Item -Path $envBackup -Force -ErrorAction SilentlyContinue
-    Write-Host 'Restored mobile/.env (dev settings)'
   }
   $script:restoredEnv = $true
 }
 
 function Write-ReleaseEnv {
   param([string]$Path)
-  # ASCII-only comments — em dashes break dotenv export parsing on Windows.
   @(
-    '# Temporary values for release APK build (restored after build)'
+    '# Temporary values for release AAB build (restored after build)'
     "EXPO_PUBLIC_API_URL=$prodApi"
     "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=$prodGoogleWeb"
   ) | Set-Content -Path $Path -Encoding ascii
@@ -238,95 +257,93 @@ if (Test-Path $envFile) {
 Write-ReleaseEnv -Path $envFile
 $env:EXPO_PUBLIC_API_URL = $prodApi
 $env:EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = $prodGoogleWeb
-Write-Host "Release env: API=$prodApi"
-Write-Host "Release env: Google Web client=$prodGoogleWeb"
 
 $workRoot = Get-ShortMobileRoot -Path $mobileRoot
 Write-Host "Working directory=$workRoot"
-
-# Ensure mirror also has the release .env (sync may have run before write, or mirror is separate)
 Write-ReleaseEnv -Path (Join-Path $workRoot '.env')
+
+# Copy keystore to mirror
+$mirrorCreds = Join-Path $workRoot 'credentials'
+if (-not (Test-Path $mirrorCreds)) {
+  New-Item -ItemType Directory -Path $mirrorCreds -Force | Out-Null
+}
+$mirrorKeystore = Join-Path $mirrorCreds 'bakibook-release.keystore'
+Copy-Item -Path $keystorePath -Destination $mirrorKeystore -Force
+
+# Always copy the latest google-services.json to workRoot
+Copy-Item -Path (Join-Path $mobileRoot 'google-services.json') -Destination (Join-Path $workRoot 'google-services.json') -Force
+
+# Read versionCode from app.config.ts
+$versionCode = 7
+if ((Get-Content (Join-Path $mobileRoot 'app.config.ts') -Raw) -match 'versionCode:\s*(\d+)') {
+  $versionCode = [int]$Matches[1]
+}
+Write-Host "Target VersionCode: $versionCode"
 
 Push-Location $workRoot
 try {
-  if (-not (Test-Path 'android')) {
-    Write-Host 'Generating android/ (expo prebuild)...'
-    npx expo prebuild --platform android --clean
-    if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }
-    node ./scripts/patch-gradle.js
-  }
+  Write-Host 'Generating android/ (expo prebuild with latest config & google-services.json)...'
+  npx expo prebuild --platform android --clean
+  if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }
+  node ./scripts/patch-gradle.js
 
-  # Always re-apply current logo pack (removes stale Expo .webp + updates splash)
+  # Ensure android/app has the exact google-services.json
+  Copy-Item -Path (Join-Path $mobileRoot 'google-services.json') -Destination (Join-Path $workRoot 'android\app\google-services.json') -Force
+
   Write-Host 'Syncing launcher + splash icons from current assets...'
   node ./scripts/sync-android-icons.js
   if ($LASTEXITCODE -ne 0) { throw 'sync-android-icons failed' }
 
   $cxx = Join-Path $workRoot 'android\app\.cxx'
   if (Test-Path $cxx) {
-    Write-Host "Clearing stale CMake cache: $cxx"
     Remove-Item -Recurse -Force $cxx -ErrorAction SilentlyContinue
   }
 
-  # Windows NDK often hardlinks libc++_shared.so across projects; Gradle 9 cannot
-  # snapshot those ("not a regular file"). Wipe native module cxx outputs first.
-  Write-Host 'Clearing native module CMake intermediates...'
-  $nativeRoots = @(
-    (Join-Path $mobileRoot 'node_modules')
-    (Join-Path $workRoot 'node_modules')
-  ) | Select-Object -Unique
-  foreach ($nm in $nativeRoots) {
-    if (-not (Test-Path $nm)) { continue }
-    Get-ChildItem $nm -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-      foreach ($rel in @(
-        'android\build\intermediates\cxx'
-        'android\.cxx'
-      )) {
-        $target = Join-Path $_.FullName $rel
-        if (Test-Path $target) {
-          Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
-        }
-      }
-    }
-  }
+  # Build AAB for all production Android devices
+  $env:ORG_GRADLE_PROJECT_reactNativeArchitectures = 'armeabi-v7a,arm64-v8a,x86,x86_64'
 
-  # Phone APK only — skip emulator ABIs (x86/x86_64) that often hit the hardlink bug.
-  $env:ORG_GRADLE_PROJECT_reactNativeArchitectures = 'armeabi-v7a,arm64-v8a'
+  # Configure release signing and version code via Gradle project properties
+  $gradleArgs = @(
+    'bundleRelease',
+    '--no-daemon',
+    "-Pandroid.injected.version.code=$versionCode",
+    "-Pandroid.injected.signing.store.file=$mirrorKeystore",
+    '-Pandroid.injected.signing.store.password=bakibook2026',
+    '-Pandroid.injected.signing.key.alias=bakibook',
+    '-Pandroid.injected.signing.key.password=bakibook2026'
+  )
 
-  Write-Host 'Building release APK (assembleRelease)...'
+  Write-Host "Building signed Google Play App Bundle (bundleRelease, versionCode $versionCode)..."
   Push-Location android
   try {
     if ($IsWindows -or $env:OS -eq 'Windows_NT') {
-      .\gradlew.bat assembleRelease --no-daemon
+      .\gradlew.bat @gradleArgs
     } else {
-      ./gradlew assembleRelease --no-daemon
+      ./gradlew @gradleArgs
     }
     if ($LASTEXITCODE -ne 0) {
-      throw "Gradle assembleRelease failed (exit $LASTEXITCODE). Not copying an old APK."
+      throw "Gradle bundleRelease failed (exit $LASTEXITCODE)."
     }
   } finally {
     Pop-Location
   }
 
-  $apk = Join-Path $workRoot 'android\app\build\outputs\apk\release\BakiBook.apk'
-  if (-not (Test-Path $apk)) {
-    $fallback = Get-ChildItem -Path (Join-Path $workRoot 'android\app\build\outputs\apk\release') -Filter '*.apk' -ErrorAction SilentlyContinue |
-      Select-Object -First 1
-    if ($fallback) { $apk = $fallback.FullName }
-  }
+  $bundleDir = Join-Path $workRoot 'android\app\build\outputs\bundle\release'
+  $aab = Get-ChildItem -Path $bundleDir -Filter '*.aab' -ErrorAction SilentlyContinue |
+    Select-Object -First 1
 
-  if (Test-Path $apk) {
+  if ($aab) {
     $destDir = Join-Path $mobileRoot 'dist'
     if (-not (Test-Path $destDir)) {
       New-Item -ItemType Directory -Path $destDir -Force | Out-Null
     }
-    $copied = Join-Path $destDir 'BakiBook.apk'
-    Copy-Item -Path $apk -Destination $copied -Force
+    $copied = Join-Path $destDir 'BakiBook.aab'
+    Copy-Item -Path $aab.FullName -Destination $copied -Force
     Write-Host ''
-    Write-Host "APK ready: $copied" -ForegroundColor Green
-    Write-Host "Also at: $apk"
-    Write-Host ('Copy to your phone and install, or: adb install -r "' + $copied + '"')
+    Write-Host "Play Store AAB Ready: $copied" -ForegroundColor Green
+    Write-Host "You can now upload $copied to Google Play Console (Internal testing / Production track)."
   } else {
-    Write-Error 'APK not found under android\app\build\outputs\apk\release\'
+    Write-Error "AAB file not found under $bundleDir"
   }
 } finally {
   Restore-MobileEnv

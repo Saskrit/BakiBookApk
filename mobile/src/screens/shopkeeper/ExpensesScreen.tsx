@@ -24,6 +24,7 @@ import {
   fetchExpenses,
   updateExpense,
 } from '../../api/expenses';
+import ScreenHeader from '../../components/ScreenHeader';
 import { Button, ErrorText, LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -261,32 +262,37 @@ export default function ExpensesScreen() {
 
   return (
     <View style={exStyles.exScreen}>
-      <View style={[exStyles.exHeader, { paddingTop: insets.top + 12 }]}>
-        <View style={exStyles.exHeaderTop}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={exStyles.exBack}>{t('common.back')}</Text>
-          </Pressable>
-          <Pressable style={exStyles.exAddBtn} onPress={openAdd}>
-            <Text style={exStyles.exAddBtnText}>{t('expenses.add')}</Text>
-          </Pressable>
-        </View>
-        <Text style={exStyles.exHeaderTitle}>{t('expenses.title')}</Text>
-        <Text style={exStyles.exHeaderSubtitle}>{t('expenses.subtitle')}</Text>
+      <View style={exStyles.exHeader}>
+        <ScreenHeader
+          title={t('expenses.title')}
+          subtitle={t('expenses.subtitle')}
+          onBack={() => navigation.goBack()}
+          variant="onDark"
+          style={exStyles.exHeaderInner}
+          right={
+            <Pressable style={exStyles.exAddBtn} onPress={openAdd}>
+              <Text style={exStyles.exAddBtnText}>{t('expenses.add')}</Text>
+            </Pressable>
+          }
+          bottom={
+            <>
+              <View style={exStyles.exMonthRow}>
+                <Pressable onPress={() => shiftMonth(-1)} hitSlop={8} style={exStyles.exMonthBtn}>
+                  <Text style={exStyles.exMonthArrow}>‹</Text>
+                </Pressable>
+                <Text style={exStyles.exMonthLabel}>{monthDisplay}</Text>
+                <Pressable onPress={() => shiftMonth(1)} hitSlop={8} style={exStyles.exMonthBtn}>
+                  <Text style={exStyles.exMonthArrow}>›</Text>
+                </Pressable>
+              </View>
 
-        <View style={exStyles.exMonthRow}>
-          <Pressable onPress={() => shiftMonth(-1)} hitSlop={8} style={exStyles.exMonthBtn}>
-            <Text style={exStyles.exMonthArrow}>‹</Text>
-          </Pressable>
-          <Text style={exStyles.exMonthLabel}>{monthDisplay}</Text>
-          <Pressable onPress={() => shiftMonth(1)} hitSlop={8} style={exStyles.exMonthBtn}>
-            <Text style={exStyles.exMonthArrow}>›</Text>
-          </Pressable>
-        </View>
-
-        <View style={exStyles.exTotalCard}>
-          <Text style={exStyles.exTotalLabel}>{t('expenses.totalThisMonth')}</Text>
-          <Text style={exStyles.exTotalValue}>{formatRs(monthTotal)}</Text>
-        </View>
+              <View style={exStyles.exTotalCard}>
+                <Text style={exStyles.exTotalLabel}>{t('expenses.totalThisMonth')}</Text>
+                <Text style={exStyles.exTotalValue}>{formatRs(monthTotal)}</Text>
+              </View>
+            </>
+          }
+        />
       </View>
 
       <FlatList
@@ -452,13 +458,10 @@ const exStyles = StyleSheet.create({
   exScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   exHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  exHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  exBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
+  exHeaderInner: { paddingBottom: spacing.md },
   exAddBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
@@ -466,8 +469,6 @@ const exStyles = StyleSheet.create({
     borderRadius: 8,
   },
   exAddBtnText: { color: '#FFF', fontWeight: '700', fontSize: ty.body },
-  exHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
-  exHeaderSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.body, marginTop: 4 },
   exMonthRow: {
     flexDirection: 'row',
     alignItems: 'center',

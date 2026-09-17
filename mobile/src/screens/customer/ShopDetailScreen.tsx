@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { fetchPortalShopDetail } from '../../api/portal';
+import AppBackButton from '../../components/AppBackButton';
 import { CustomerLoading } from '../../components/customer/CustomerUi';
 import { appAlert } from '../../contexts/DialogContext';
 import { customerColors as c } from '../../theme/customerColors';
@@ -242,17 +243,7 @@ export default function ShopDetailScreen({ navigation, route }: Props) {
   return (
     <View style={[sdStyles.sdScreen, { paddingTop: insets.top }]}>
       <View style={sdStyles.sdTopBar}>
-        <Pressable style={sdStyles.sdIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 6 L9 12 L15 18"
-              stroke="#1E293B"
-              strokeWidth={2.4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </Pressable>
+        <AppBackButton onPress={() => navigation.goBack()} />
         <Text style={sdStyles.sdTopTitle} numberOfLines={1}>
           {shop.shopName}
         </Text>
@@ -814,7 +805,7 @@ const sdStyles = StyleSheet.create({
   sdTopTitle: {
     flex: 1,
     minWidth: 0,
-    textAlign: 'center',
+    textAlign: 'left',
     fontSize: 17,
     fontWeight: '800',
     color: '#1E293B',

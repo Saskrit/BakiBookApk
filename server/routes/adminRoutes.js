@@ -11,6 +11,7 @@ import {
   rejectShop,
   updateAdminUserStatus,
   deleteAdminUser,
+  resetAdminUserPassword,
   getMaintenanceSettings,
   updateMaintenanceSettings,
   getAdminPaymentSubmissions,
@@ -29,6 +30,7 @@ router.patch('/shops/:id/reject', rejectShop);
 router.get('/users', getAdminUsers);
 router.get('/users/:id', getAdminUserById);
 router.patch('/users/:id/status', updateAdminUserStatus);
+router.patch('/users/:id/password', resetAdminUserPassword);
 router.delete('/users/:id', deleteAdminUser);
 router.get('/payments', getAdminPaymentSubmissions);
 router.patch('/payments/:id/accept', acceptAdminPaymentSubmission);

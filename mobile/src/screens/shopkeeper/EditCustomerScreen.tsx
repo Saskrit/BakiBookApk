@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { fetchCustomer, updateCustomer } from '../../api/customers';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
-import { Button, ErrorText, Input, LoadingState, Screen, Subtitle, Title } from '../../components/ui';
+import { Button, ErrorText, Input, LoadingState, Screen } from '../../components/ui';
+import ScreenHeader from '../../components/ScreenHeader';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
 import { isShopVerified } from '../../utils/authHelpers';
@@ -71,9 +72,13 @@ export default function EditCustomerScreen({ route, navigation }: Props) {
 
   return (
     <Screen>
+      <ScreenHeader
+        title={t('customers.editTitle')}
+        subtitle={t('customers.editSubtitle')}
+        onBack={() => navigation.goBack()}
+        style={{ paddingBottom: 0 }}
+      />
       <ScrollView keyboardShouldPersistTaps="handled">
-        <Title>{t('customers.editTitle')}</Title>
-        <Subtitle>{t('customers.editSubtitle')}</Subtitle>
         {error ? <ErrorText message={error} /> : null}
         <Input label={t('customers.fields.name')} value={name} onChangeText={setName} />
         <Input label={t('customers.fields.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />

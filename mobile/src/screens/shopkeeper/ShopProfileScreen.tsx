@@ -23,6 +23,7 @@ import {
 } from '../../api/shopTeam';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
+import AppBackButton from '../../components/AppBackButton';
 import UserAvatar from '../../components/UserAvatar';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
@@ -262,9 +263,7 @@ export default function ShopProfileScreen({ navigation, route }: Props) {
           colors={[colors.primaryDark, colors.primary]}
           style={[styles.hero, { paddingTop: insets.top + 12 }]}
         >
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
+          <AppBackButton onPress={() => navigation.goBack()} variant="onDark" />
 
           <Pressable
             onPress={pickShopPhoto}

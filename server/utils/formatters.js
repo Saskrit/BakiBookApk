@@ -53,7 +53,15 @@ export const formatNotificationWhen = (date) => {
   return `${dateLabel}, ${time}`;
 };
 
-export const formatCustomer = (customer) => ({
+export const formatCustomer = (customer) => {
+  const linkedUser =
+    customer.linkedUser && typeof customer.linkedUser === 'object' ? customer.linkedUser : null;
+  const profileImage =
+    customer.linkStatus === 'linked' && linkedUser?.profileImage
+      ? toPublicImageUrl(linkedUser.profileImage)
+      : '';
+
+  return {
   id: customer._id.toString(),
   name: customer.name,
   phone: customer.phone || '',
@@ -63,6 +71,7 @@ export const formatCustomer = (customer) => ({
   creditScore: customer.creditScore,
   balance: customer.balance,
   avatar: getInitials(customer.name),
+  profileImage,
   notes: customer.notes || '',
   joined: formatDate(customer.createdAt),
   qrCode: customer.qrCode,
@@ -70,8 +79,9 @@ export const formatCustomer = (customer) => ({
   lastPaymentDate: customer.lastPaymentDate,
   linkStatus: customer.linkStatus || 'unlinked',
   isLinked: customer.linkStatus === 'linked',
-  linkedUserId: customer.linkedUser?.toString?.() || null,
-});
+  linkedUserId: linkedUser?._id?.toString?.() || customer.linkedUser?.toString?.() || null,
+};
+};
 
 export const formatCreditProducts = (items = []) => {
   if (!items?.length) return '—';

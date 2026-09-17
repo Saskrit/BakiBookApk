@@ -5,7 +5,9 @@ import { formatCustomer, formatTransaction, formatPayment } from '../utils/forma
 import { buildGroupedLedger } from '../utils/groupedLedger.js';
 
 const getCustomerAccess = async (user, customerId) => {
-  const customer = await Customer.findById(customerId).populate('shopkeeper', 'fullName shopName shopLocation shopImage email');
+  const customer = await Customer.findById(customerId)
+    .populate('shopkeeper', 'fullName shopName shopLocation shopImage email')
+    .populate({ path: 'linkedUser', select: 'profileImage' });
   if (!customer) return null;
 
   if (user.role === 'shopkeeper' && customer.shopkeeper._id.toString() === user._id.toString()) {

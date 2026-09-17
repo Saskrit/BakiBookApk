@@ -178,4 +178,20 @@ export type PendingInvitation = {
   shopVerificationStatus?: string;
   shopVerified?: boolean;
   invitedAt?: string;
+  summary?: {
+    currentDue: number;
+    totalPurchases: number;
+    totalPaid: number;
+    creditCount?: number;
+    paymentCount?: number;
+    transactionCount: number;
+    lastPaymentAmount?: number;
+    lastPaymentDate?: string | null;
+    lastCreditDate?: string | null;
+  };
+  recentPurchaseItems?: Array<{ name: string; qty?: number; price?: number }>;
+  ledger?: Array<Record<string, unknown>>;
+  notes?: string;
+  lastCreditDate?: string;
+  lastPaymentDate?: string;
 };

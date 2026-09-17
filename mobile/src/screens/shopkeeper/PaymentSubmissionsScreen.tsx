@@ -22,13 +22,13 @@ import {
   reportPaymentSubmission,
   type PaymentSubmission,
 } from '../../api/paymentSubmissions';
+import ScreenHeader from '../../components/ScreenHeader';
 import { Button, LoadingState } from '../../components/ui';
 import { appAlert } from '../../contexts/DialogContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
-import { typeScale } from '../../theme/typography';
 import { formatRs } from '../../utils/format';
 import { normalizeImageUrlSync } from '../../utils/normalizeImageUrl';
 import type { RootStackParamList } from '../../navigation/types';
@@ -232,26 +232,28 @@ export default function PaymentSubmissionsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.back} onPress={() => navigation.goBack()}>
-          {t('common.back')}
-        </Text>
-        <Text style={styles.title}>{t('paySubmissions.title')}</Text>
-        <Text style={styles.subtitle}>{t('paySubmissions.subtitle')}</Text>
-
-        <View style={styles.tabs}>
-          {(['pending', 'all'] as TabKey[]).map((key) => (
-            <Pressable
-              key={key}
-              style={[styles.tab, tab === key && styles.tabActive]}
-              onPress={() => setTab(key)}
-            >
-              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
-                {key === 'pending' ? t('paySubmissions.tabPending') : t('paySubmissions.tabAll')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+      <View style={styles.header}>
+        <ScreenHeader
+          title={t('paySubmissions.title')}
+          subtitle={t('paySubmissions.subtitle')}
+          onBack={() => navigation.goBack()}
+          style={styles.headerInner}
+          bottom={
+            <View style={styles.tabs}>
+              {(['pending', 'all'] as TabKey[]).map((key) => (
+                <Pressable
+                  key={key}
+                  style={[styles.tab, tab === key && styles.tabActive]}
+                  onPress={() => setTab(key)}
+                >
+                  <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
+                    {key === 'pending' ? t('paySubmissions.tabPending') : t('paySubmissions.tabAll')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          }
+        />
       </View>
 
       {loading ? (
@@ -383,22 +385,12 @@ export default function PaymentSubmissionsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  back: { color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  title: {
-    fontSize: typeScale.h1.fontSize,
-    lineHeight: typeScale.h1.lineHeight,
-    fontFamily: typeScale.h1.fontFamily,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  subtitle: { marginTop: 4, color: colors.textMuted, marginBottom: 12 },
-  tabs: { flexDirection: 'row', gap: 8 },
+  headerInner: { paddingBottom: 0 },
+  tabs: { flexDirection: 'row', gap: 8, marginTop: 12 },
   tab: {
     paddingHorizontal: 14,
     paddingVertical: 8,

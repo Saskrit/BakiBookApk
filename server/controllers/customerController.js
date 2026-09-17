@@ -5,6 +5,8 @@ import { parsePagination, buildPagination } from '../utils/pagination.js';
 import { getShopkeeperId, isRequestShopVerified } from '../utils/shopContext.js';
 import { emitShopDataSync } from '../utils/realtimeSync.js';
 
+const withLinkedProfile = (query) => query.populate({ path: 'linkedUser', select: 'profileImage' });
+
 const SHOP_UNVERIFIED_EMAIL_MESSAGE =
   'Verify your shop before adding or editing a customer email';
 
@@ -24,14 +26,14 @@ export const listCustomers = async (req, res) => {
     }
 
     if (req.query.all === 'true') {
-      const allCustomers = await Customer.find(filter).sort({ name: 1 });
+      const allCustomers = await withLinkedProfile(Customer.find(filter)).sort({ name: 1 });
       return res.json({ success: true, customers: allCustomers.map(formatCustomer) });
     }
 
     const { page, limit, skip } = parsePagination(req.query);
     const [total, customers] = await Promise.all([
       Customer.countDocuments(filter),
-      Customer.find(filter).sort({ name: 1 }).skip(skip).limit(limit),
+      withLinkedProfile(Customer.find(filter)).sort({ name: 1 }).skip(skip).limit(limit),
     ]);
 
     res.json({
@@ -46,10 +48,12 @@ export const listCustomers = async (req, res) => {
 
 export const getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findOne({
-      _id: req.params.id,
-      shopkeeper: getShopkeeperId(req),
-    });
+    const customer = await withLinkedProfile(
+      Customer.findOne({
+        _id: req.params.id,
+        shopkeeper: getShopkeeperId(req),
+      })
+    );
 
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
@@ -63,10 +67,12 @@ export const getCustomerById = async (req, res) => {
 
 export const getCustomerByQr = async (req, res) => {
   try {
-    const customer = await Customer.findOne({
-      qrCode: req.params.qrCode,
-      shopkeeper: getShopkeeperId(req),
-    });
+    const customer = await withLinkedProfile(
+      Customer.findOne({
+        qrCode: req.params.qrCode,
+        shopkeeper: getShopkeeperId(req),
+      })
+    );
 
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });

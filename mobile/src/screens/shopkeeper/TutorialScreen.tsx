@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import AppBackButton from '../../components/AppBackButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { updateTutorialProgress } from '../../api/auth';
@@ -77,9 +78,7 @@ export default function TutorialScreen({ navigation }: Props) {
     <View style={[tuStyles.tuScreen, { paddingTop: insets.top }]}>
       <View style={tuStyles.tuHero}>
         <View style={tuStyles.tuHeroTop}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Text style={tuStyles.tuBack}>{t('common.back')}</Text>
-          </Pressable>
+          <AppBackButton onPress={() => navigation.goBack()} variant="onDark" />
           <Pressable onPress={handleSkipAll} hitSlop={8}>
             <Text style={tuStyles.tuSkipAll}>{t('tutorial.skipAll')}</Text>
           </Pressable>

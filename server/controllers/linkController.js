@@ -1,6 +1,9 @@
 import Customer from '../models/Customer.js';
 import User from '../models/User.js';
+import Transaction from '../models/Transaction.js';
+import Payment from '../models/Payment.js';
 import { formatCustomer, formatDate } from '../utils/formatters.js';
+import { buildGroupedLedger } from '../utils/groupedLedger.js';
 import { createNotification } from '../utils/notify.js';
 import { toPublicImageUrl } from '../utils/imageUpload.js';
 
@@ -42,9 +45,65 @@ export const getPendingLinkDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invitation not found' });
     }
 
+    const shopName = customer.shopkeeper?.shopName || 'Shop';
+    const [transactions, payments, creditAgg, paymentAgg, lastPaymentDoc] = await Promise.all([
+      Transaction.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(200),
+      Payment.find({ customer: customer._id })
+        .populate('submission', 'itemName payLabel payType itemIndex transaction')
+        .sort({ createdAt: -1 })
+        .limit(200),
+      Transaction.aggregate([
+        { $match: { customer: customer._id } },
+        { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+      ]),
+      Payment.aggregate([
+        { $match: { customer: customer._id } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Payment.findOne({ customer: customer._id }).sort({ createdAt: -1 }),
+    ]);
+
+    const ledger = buildGroupedLedger({
+      transactions,
+      payments,
+      role: 'customer',
+      filter: 'active',
+      shopName,
+    });
+
+    const recentPurchaseItems = [];
+    for (const tx of transactions) {
+      const items = Array.isArray(tx.items) ? tx.items : [];
+      for (const item of items) {
+        if (item?.name && recentPurchaseItems.length < 12) {
+          recentPurchaseItems.push({
+            name: item.name,
+            qty: item.qty || 1,
+            price: item.price || 0,
+          });
+        }
+      }
+      if (recentPurchaseItems.length >= 12) break;
+    }
+
     res.json({
       success: true,
-      invitation: formatPendingLink(customer),
+      invitation: {
+        ...formatPendingLink(customer),
+        summary: {
+          currentDue: customer.balance || 0,
+          totalPurchases: creditAgg[0]?.total || 0,
+          totalPaid: paymentAgg[0]?.total || 0,
+          creditCount: creditAgg[0]?.count || 0,
+          paymentCount: paymentAgg[0]?.count || 0,
+          transactionCount: (creditAgg[0]?.count || 0) + (paymentAgg[0]?.count || 0),
+          lastPaymentAmount: lastPaymentDoc?.amount || 0,
+          lastPaymentDate: lastPaymentDoc ? formatDate(lastPaymentDoc.createdAt) : null,
+          lastCreditDate: customer.lastCreditDate ? formatDate(customer.lastCreditDate) : null,
+        },
+        recentPurchaseItems,
+        ledger,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

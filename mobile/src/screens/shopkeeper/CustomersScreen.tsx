@@ -20,6 +20,7 @@ import { fetchCustomers, deleteCustomer } from '../../api/customers';
 import { fetchDashboardStats } from '../../api/shop';
 import { useSyncOnInvalidate } from '../../contexts/SyncContext';
 import { getCachedCustomers, getCachedDashboard } from '../../utils/sessionCache';
+import UserAvatar from '../../components/UserAvatar';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -30,7 +31,6 @@ import {
   avatarColor,
   formatLastTransaction,
   formatRs,
-  getInitials,
   getTransactionBadge,
   isOverdueCustomer,
   sumSlice,
@@ -99,11 +99,15 @@ function CustomerRow({
 
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} style={cuStyles.cuCustomerRow}>
-      <View style={[cuStyles.cuAvatar, { backgroundColor: `${avatarColor(customer.name)}22` }]}>
-        <Text style={[cuStyles.cuAvatarText, { color: avatarColor(customer.name) }]}>
-          {getInitials(customer.name)}
-        </Text>
-      </View>
+      <UserAvatar
+        uri={customer.linkStatus === 'linked' ? customer.profileImage : ''}
+        name={customer.name}
+        size={48}
+        borderRadius={24}
+        fallbackBg={`${avatarColor(customer.name)}22`}
+        fallbackColor={avatarColor(customer.name)}
+        style={cuStyles.cuAvatar}
+      />
 
       <View style={cuStyles.cuCustomerMain}>
         <Text style={cuStyles.cuCustomerName}>{customer.name}</Text>

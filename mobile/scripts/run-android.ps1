@@ -9,8 +9,70 @@ function Resolve-JdkHome {
   param([string[]]$Candidates)
   foreach ($candidate in $Candidates) {
     if (-not $candidate) { continue }
+    if ($candidate -match '[*?]') { continue }
     $javaExe = Join-Path $candidate 'bin\java.exe'
     if (Test-Path $javaExe) { return $candidate }
+  }
+  return $null
+}
+
+function Get-JdkMajorVersion {
+  param([string]$JdkHome)
+  if (-not $JdkHome) { return 0 }
+  # Prefer path name — avoids PowerShell treating `java -version` stderr as a fatal error.
+  if ($JdkHome -match 'jdk-(\d+)') { return [int]$Matches[1] }
+  if ($JdkHome -match '[/\\](\d+)(?:[\.\\-]|$)') { return [int]$Matches[1] }
+
+  $javaExe = Join-Path $JdkHome 'bin\java.exe'
+  if (-not (Test-Path $javaExe)) { return 0 }
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $out = (& $javaExe -version 2>&1 | ForEach-Object { "$_" }) -join "`n"
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  if ($out -match 'version "(\d+)') { return [int]$Matches[1] }
+  return 0
+}
+
+function Find-InstalledJdkHome {
+  $roots = @(
+    'C:\bk\jdk'
+    (Join-Path $env:ProgramFiles 'Microsoft')
+    (Join-Path $env:ProgramFiles 'Eclipse Adoptium')
+    (Join-Path $env:ProgramFiles 'Java')
+    (Join-Path $env:ProgramFiles 'Android\Android Studio\jbr')
+    (Join-Path ${env:ProgramFiles(x86)} 'Android\Android Studio\jbr')
+    (Join-Path $env:LOCALAPPDATA 'Programs\Android Studio\jbr')
+  )
+
+  $found = @()
+  foreach ($root in $roots) {
+    if (-not (Test-Path $root)) { continue }
+    if (Test-Path (Join-Path $root 'bin\java.exe')) {
+      $found += $root
+      continue
+    }
+    Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -match '^(jdk|jre|temurin|microsoft)' -or $_.Name -match '^jdk-' } |
+      ForEach-Object {
+        if (Test-Path (Join-Path $_.FullName 'bin\java.exe')) {
+          $found += $_.FullName
+        }
+      }
+  }
+
+  if ($found.Count -eq 0) { return $null }
+
+  $prefer = $found | Where-Object { $_ -match 'jdk-17|(^|[/\\])17([.\-]|$)' } | Select-Object -First 1
+  if ($prefer) { return $prefer }
+  $prefer = $found | Where-Object { $_ -match 'jdk-21|(^|[/\\])21([.\-]|$)' } | Select-Object -First 1
+  if ($prefer) { return $prefer }
+
+  foreach ($candidate in ($found | Sort-Object -Descending)) {
+    $major = Get-JdkMajorVersion $candidate
+    if ($major -ge 17 -and $major -le 21) { return $candidate }
   }
   return $null
 }
@@ -68,13 +130,28 @@ $sdk = if ($env:ANDROID_HOME -and (Test-Path $env:ANDROID_HOME)) {
 
 $jdk = Resolve-JdkHome @(
   $env:JAVA_HOME
+  [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
+  [Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')
   'C:\Program Files\Android\Android Studio\jbr'
   "${env:ProgramFiles(x86)}\Android\Android Studio\jbr"
   (Join-Path $env:LOCALAPPDATA 'Programs\Android Studio\jbr')
 )
 
+$discovered = Find-InstalledJdkHome
+if ($discovered) {
+  if (-not $jdk) {
+    $jdk = $discovered
+  } else {
+    $major = Get-JdkMajorVersion $jdk
+    if ($major -lt 17 -or $major -gt 21) {
+      Write-Host "Ignoring JAVA_HOME=$jdk (Java $major). Using $discovered for Android builds."
+      $jdk = $discovered
+    }
+  }
+}
+
 if (-not $jdk) {
-  Write-Error 'JDK not found. Install Android Studio or set JAVA_HOME to its jbr folder (JDK 17).'
+  Write-Error 'JDK 17 not found. Install Microsoft OpenJDK 17: winget install --id Microsoft.OpenJDK.17 -e'
 }
 
 $env:JAVA_HOME = $jdk

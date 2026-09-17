@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
+import ScreenHeader from '../../components/ScreenHeader';
 import {
   changePassword,
   forgotPassword,
@@ -229,23 +230,20 @@ export default function SecurityScreen() {
         colors={[colors.primaryDark, colors.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[secStyles.secHeader, { paddingTop: insets.top + 8 }]}
+        style={secStyles.secHeader}
       >
-        <Pressable
-          onPress={() => {
+        <ScreenHeader
+          title={t('security.title')}
+          subtitle={
+            mustChangePassword ? t('security.mustChangeSubtitle') : t('security.subtitle')
+          }
+          onBack={() => {
             if (!mustChangePassword) navigation.goBack();
           }}
-          hitSlop={8}
-          disabled={mustChangePassword}
-        >
-          <Text style={[secStyles.secBack, mustChangePassword && { opacity: 0 }]}>
-            {t('common.back')}
-          </Text>
-        </Pressable>
-        <Text style={secStyles.secHeaderTitle}>{t('security.title')}</Text>
-        <Text style={secStyles.secHeaderSubtitle}>
-          {mustChangePassword ? t('security.mustChangeSubtitle') : t('security.subtitle')}
-        </Text>
+          showBack={!mustChangePassword}
+          variant="onDark"
+          style={secStyles.secHeaderInner}
+        />
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -388,6 +386,7 @@ const secStyles = StyleSheet.create({
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
+  secHeaderInner: { paddingHorizontal: 0, paddingBottom: 0 },
   secBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600', marginBottom: 6 },
   secHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
   secHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },

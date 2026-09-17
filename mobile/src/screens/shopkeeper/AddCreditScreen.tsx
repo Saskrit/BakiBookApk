@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { createCustomer, fetchCustomers } from '../../api/customers';
 import { createTransaction } from '../../api/transactions';
+import AppBackButton from '../../components/AppBackButton';
+import UserAvatar from '../../components/UserAvatar';
 import ProductSearchInput from '../../components/ProductSearchInput';
 import { Button, ErrorText, Input } from '../../components/ui';
 import { colors } from '../../theme/colors';
@@ -25,7 +27,7 @@ import { typography as ty, typeScale } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 
-import { avatarColor, formatRs, getInitials } from '../../utils/format';
+import { avatarColor, formatRs } from '../../utils/format';
 import type { Customer, LineItem, ProductUnit } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -442,14 +444,26 @@ export default function AddCreditScreen({ route, navigation }: Props) {
         end={{ x: 1, y: 1 }}
         style={[adStyles.adHeader, { paddingTop: insets.top + 8 }]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={adStyles.adBackBtn}>
-          <Text style={adStyles.adBackText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={adStyles.adHeaderTitle}>{t('credit.title')}</Text>
-        <Text style={adStyles.adHeaderSubtitle}>{t('credit.subtitle')}</Text>
+        <View style={adStyles.adHeaderTopRow}>
+          <AppBackButton onPress={() => navigation.goBack()} variant="onDark" />
+          <View style={adStyles.adHeaderTitleWrap}>
+            <Text style={adStyles.adHeaderTitle}>{t('credit.title')}</Text>
+            <Text style={adStyles.adHeaderSubtitle}>{t('credit.subtitle')}</Text>
+          </View>
+          <View style={adStyles.adHeaderTopSpacer} />
+        </View>
         <View style={adStyles.adHeaderCustomer}>
-          <View style={[adStyles.adHeaderAvatar, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-            <Text style={adStyles.adHeaderAvatarText}>{getInitials(customerLabel)}</Text>
+          <View style={adStyles.adHeaderAvatar}>
+            <UserAvatar
+              uri={
+                selectedCustomer?.linkStatus === 'linked' ? selectedCustomer.profileImage : ''
+              }
+              name={customerLabel}
+              size={42}
+              borderRadius={21}
+              fallbackBg="rgba(255,255,255,0.25)"
+              fallbackColor="#FFF"
+            />
           </View>
           <View style={adStyles.adHeaderCustomerBody}>
             <Text style={adStyles.adHeaderCustomerLabel}>{t('credit.customerLabel')}</Text>
@@ -534,11 +548,15 @@ export default function AddCreditScreen({ route, navigation }: Props) {
                             onPress={() => setSelectedCustomer(item)}
                             style={[adStyles.adCustomerRow, selected && adStyles.adCustomerRowSelected]}
                           >
-                            <View
-                              style={[adStyles.adAvatar, { backgroundColor: avatarColor(item.name) }]}
-                            >
-                              <Text style={adStyles.adAvatarText}>{getInitials(item.name)}</Text>
-                            </View>
+                            <UserAvatar
+                              uri={item.linkStatus === 'linked' ? item.profileImage : ''}
+                              name={item.name}
+                              size={40}
+                              borderRadius={20}
+                              fallbackBg={avatarColor(item.name)}
+                              fallbackColor="#FFF"
+                              style={adStyles.adAvatar}
+                            />
                             <View style={adStyles.adCustomerInfo}>
                               <Text style={adStyles.adCustomerName}>{item.name}</Text>
                               {item.phone ? (
@@ -692,10 +710,30 @@ const adStyles = StyleSheet.create({
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
-  adBackBtn: { alignSelf: 'flex-start', marginBottom: 4 },
-  adBackText: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600' },
-  adHeaderTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
-  adHeaderSubtitle: { color: 'rgba(255,255,255,0.88)', fontSize: ty.body, marginTop: 4 },
+  adHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  adHeaderTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+  adHeaderTopSpacer: { width: 40, height: 40 },
+  adHeaderTitle: {
+    color: '#FFF',
+    fontSize: ty.h1,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  adHeaderSubtitle: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: ty.body,
+    marginTop: 4,
+    textAlign: 'center',
+  },
   adHeaderCustomer: {
     flexDirection: 'row',
     alignItems: 'center',

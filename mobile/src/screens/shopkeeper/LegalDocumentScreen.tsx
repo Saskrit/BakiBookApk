@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { fetchLegalDocument, type LegalSection } from '../../api/legal';
+import ScreenHeader from '../../components/ScreenHeader';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as t } from '../../theme/typography';
@@ -67,12 +68,13 @@ export default function LegalDocumentScreen({ route, navigation }: Props) {
 
   return (
     <View style={ldStyles.ldScreen}>
-      <View style={[ldStyles.ldHeader, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={ldStyles.ldBack}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={ldStyles.ldHeaderTitle}>{docTitle}</Text>
-        {updated ? <Text style={ldStyles.ldUpdated}>{t('legal.lastUpdated', { date: updated })}</Text> : null}
+      <View style={ldStyles.ldHeader}>
+        <ScreenHeader
+          title={docTitle}
+          subtitle={updated ? t('legal.lastUpdated', { date: updated }) : undefined}
+          onBack={() => navigation.goBack()}
+          style={ldStyles.ldHeaderInner}
+        />
       </View>
 
       <ScrollView
@@ -97,6 +99,7 @@ const ldStyles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
+  ldHeaderInner: { paddingHorizontal: 0, paddingBottom: 0 },
   ldBack: { color: 'rgba(255,255,255,0.95)', fontSize: t.bodyLg, fontWeight: '600', marginBottom: 6 },
   ldHeaderTitle: { color: '#FFF', fontSize: t.h2, fontWeight: '800' },
   ldUpdated: { color: 'rgba(255,255,255,0.85)', fontSize: t.caption, marginTop: 6 },

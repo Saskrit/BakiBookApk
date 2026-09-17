@@ -11,6 +11,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { fetchCustomers } from '../../api/customers';
+import UserAvatar from '../../components/UserAvatar';
+import ScreenHeader from '../../components/ScreenHeader';
 import { LoadingState } from '../../components/ui';
 import { colors } from '../../theme/colors';
 import { typography as ty } from '../../theme/typography';
@@ -21,7 +23,6 @@ import {
   avatarColor,
   formatLastTransaction,
   formatRs,
-  getInitials,
   getTransactionBadge,
   isOverdueCustomer,
 } from '../../utils/format';
@@ -54,11 +55,15 @@ function CustomerRow({
 
   return (
     <Pressable onPress={onPress} style={fcStyles.fcRow}>
-      <View style={[fcStyles.fcAvatar, { backgroundColor: `${avatarColor(customer.name)}22` }]}>
-        <Text style={[fcStyles.fcAvatarText, { color: avatarColor(customer.name) }]}>
-          {getInitials(customer.name)}
-        </Text>
-      </View>
+      <UserAvatar
+        uri={customer.linkStatus === 'linked' ? customer.profileImage : ''}
+        name={customer.name}
+        size={48}
+        borderRadius={24}
+        fallbackBg={`${avatarColor(customer.name)}22`}
+        fallbackColor={avatarColor(customer.name)}
+        style={fcStyles.fcAvatar}
+      />
       <View style={fcStyles.fcBody}>
         <Text style={fcStyles.fcName}>{customer.name}</Text>
         <Text style={fcStyles.fcPhone}>{customer.phone || t('customers.noPhone')}</Text>
@@ -125,20 +130,24 @@ export default function FilteredCustomersScreen({ route, navigation }: Props) {
 
   return (
     <View style={fcStyles.fcScreen}>
-      <View style={[fcStyles.fcHeader, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Text style={fcStyles.fcBack}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={fcStyles.fcTitle}>{title}</Text>
-        <Text style={fcStyles.fcSubtitle}>{subtitle}</Text>
-        <View style={fcStyles.fcSummaryBar}>
-          <Text style={fcStyles.fcSummaryText}>
-            {t('customers.summaryBar', {
-              count: filtered.length,
-              amount: formatRs(totalDue),
-            })}
-          </Text>
-        </View>
+      <View style={fcStyles.fcHeader}>
+        <ScreenHeader
+          title={title}
+          subtitle={subtitle}
+          onBack={() => navigation.goBack()}
+          variant="onDark"
+          style={fcStyles.fcHeaderInner}
+          bottom={
+            <View style={fcStyles.fcSummaryBar}>
+              <Text style={fcStyles.fcSummaryText}>
+                {t('customers.summaryBar', {
+                  count: filtered.length,
+                  amount: formatRs(totalDue),
+                })}
+              </Text>
+            </View>
+          }
+        />
       </View>
 
       <FlatList
@@ -167,14 +176,10 @@ const fcStyles = StyleSheet.create({
   fcScreen: { flex: 1, backgroundColor: '#F4F5F7' },
   fcHeader: {
     backgroundColor: colors.primaryDark,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  fcBack: { color: 'rgba(255,255,255,0.95)', fontSize: ty.bodyLg, fontWeight: '600', marginBottom: 8 },
-  fcTitle: { color: '#FFF', fontSize: ty.h1, fontWeight: '800' },
-  fcSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: ty.body, marginTop: 4 },
+  fcHeaderInner: { paddingBottom: spacing.md },
   fcSummaryBar: {
     marginTop: 12,
     backgroundColor: 'rgba(255,255,255,0.15)',

@@ -9,7 +9,8 @@ param(
   [string]$Profile = 'production',
   [switch]$NoAutoRun,
   [switch]$CopyToLocalAppData,
-  [string]$AvdName = 'Medium_Phone'
+  [string]$AvdName = 'Medium_Phone',
+  [switch]$NonInteractive
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,9 +57,11 @@ try {
     'build',
     '--platform', 'android',
     '--profile', $Profile,
-    '--non-interactive',
     '--wait'
   )
+  if ($NonInteractive) {
+    $easArgs += '--non-interactive'
+  }
   if ($args.Count -gt 0) { $easArgs += $args }
 
   Write-Host "EAS build (profile: $Profile, auto-run emulator: $autoRun)"

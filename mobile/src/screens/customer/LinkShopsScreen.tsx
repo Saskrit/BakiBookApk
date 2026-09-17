@@ -18,11 +18,11 @@ import {
   CustomerLoading,
 } from '../../components/customer/CustomerUi';
 import { customerColors as c } from '../../theme/customerColors';
-import { typeScale } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 import { formatRs } from '../../utils/format';
 
+import ScreenHeader from '../../components/ScreenHeader';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LinkShops'>;
@@ -106,15 +106,14 @@ export default function LinkShopsScreen({ navigation }: Props) {
 
   return (
     <View style={lsStyles.lsScreen}>
-      <LinearGradient
-        colors={[c.peach, c.sky]}
-        style={[lsStyles.lsHeader, { paddingTop: insets.top + 10 }]}
-      >
-        <Text style={lsStyles.lsBack} onPress={() => navigation.goBack()}>
-          {t('common.back')}
-        </Text>
-        <Text style={lsStyles.lsTitle}>{t('customer.linkShopsTitle')}</Text>
-        <Text style={lsStyles.lsSubtitle}>{t('customer.linkShopsSubtitle')}</Text>
+      <LinearGradient colors={[c.peach, c.sky]} style={lsStyles.lsHeader}>
+        <ScreenHeader
+          title={t('customer.linkShopsTitle')}
+          subtitle={t('customer.linkShopsSubtitle')}
+          onBack={() => navigation.goBack()}
+          variant="customer"
+          style={lsStyles.lsHeaderInner}
+        />
       </LinearGradient>
 
       <FlatList
@@ -181,20 +180,10 @@ export default function LinkShopsScreen({ navigation }: Props) {
 const lsStyles = StyleSheet.create({
   lsScreen: { flex: 1, backgroundColor: c.cream },
   lsHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 18,
     borderBottomLeftRadius: radius.container,
     borderBottomRightRadius: radius.container,
   },
-  lsBack: { color: c.text, fontSize: 16, fontWeight: '600', marginBottom: 10 },
-  lsTitle: {
-    fontSize: typeScale.h1.fontSize,
-    lineHeight: typeScale.h1.lineHeight,
-    fontFamily: typeScale.h1.fontFamily,
-    fontWeight: '700',
-    color: c.text,
-  },
-  lsSubtitle: { marginTop: 4, color: c.textMuted },
+  lsHeaderInner: { paddingBottom: 18 },
   lsContent: { padding: spacing.md },
   lsEmpty: { textAlign: 'center', color: c.textMuted, marginTop: 40 },
   lsShop: { fontSize: 17, fontWeight: '800', color: c.text },

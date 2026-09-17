@@ -15,7 +15,7 @@ export const getLedger = async (req, res) => {
     const customer = await Customer.findOne({
       _id: customerId,
       shopkeeper: getShopkeeperId(req),
-    });
+    }).populate({ path: 'linkedUser', select: 'profileImage' });
 
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });

@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import AppBackButton from '../../components/AppBackButton';
+import ScreenHeader from '../../components/ScreenHeader';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { customerColors as cc } from '../../theme/customerColors';
@@ -355,20 +357,7 @@ export default function NotificationsScreen({ navigation }: Props) {
       {customerMode ? (
         <View style={[ntStyles.ntCustomerHeader, { paddingTop: insets.top + 10 }]}>
           <View style={ntStyles.ntCustomerHeaderRow}>
-            <Pressable
-              onPress={() => navigation.goBack()}
-              hitSlop={8}
-              style={ntStyles.ntSettingsBtn}
-            >
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M15 6 L9 12 L15 18"
-                  stroke="#64748B"
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                />
-              </Svg>
-            </Pressable>
+            <AppBackButton onPress={() => navigation.goBack()} />
             <View style={{ flex: 1 }}>
               <Text style={[ntStyles.ntCustomerTitle, { color: palette.text }]}>
                 {t('notifications.title')}
@@ -434,26 +423,28 @@ export default function NotificationsScreen({ navigation }: Props) {
           colors={[...palette.header]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[ntStyles.ntHeader, { paddingTop: insets.top + 10 }]}
+          style={ntStyles.ntHeader}
         >
-          <View style={ntStyles.ntHeaderRow}>
-            <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-              <Text style={ntStyles.ntBack}>{t('common.back')}</Text>
-            </Pressable>
-            {unreadCount > 0 ? (
-              <Pressable onPress={() => markAllRead()}>
-                <Text style={ntStyles.ntMarkAll}>{t('notifications.markAllRead')}</Text>
-              </Pressable>
-            ) : (
-              <View style={{ width: 64 }} />
-            )}
-          </View>
-          <Text style={ntStyles.ntTitle}>{t('notifications.title')}</Text>
-          <Text style={ntStyles.ntSubtitle}>
-            {unreadCount > 0
-              ? t('notifications.unreadLive', { count: unreadCount })
-              : t('notifications.upToDate')}
-          </Text>
+          <ScreenHeader
+            title={t('notifications.title')}
+            subtitle={
+              unreadCount > 0
+                ? t('notifications.unreadLive', { count: unreadCount })
+                : t('notifications.upToDate')
+            }
+            onBack={() => navigation.goBack()}
+            variant="onDark"
+            style={ntStyles.ntHeaderInner}
+            right={
+              unreadCount > 0 ? (
+                <Pressable onPress={() => markAllRead()}>
+                  <Text style={ntStyles.ntMarkAll}>{t('notifications.markAllRead')}</Text>
+                </Pressable>
+              ) : (
+                <View style={{ width: 40 }} />
+              )
+            }
+          />
         </LinearGradient>
       )}
 
@@ -632,6 +623,7 @@ const ntStyles = StyleSheet.create({
     borderBottomLeftRadius: radius.container,
     borderBottomRightRadius: radius.container,
   },
+  ntHeaderInner: { paddingHorizontal: 0, paddingBottom: 0 },
   ntHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',

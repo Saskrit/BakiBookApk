@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import ScreenHeader from '../../components/ScreenHeader';
 import { useAuth } from '../../contexts/AuthContext';
 import { appAlert } from '../../contexts/DialogContext';
 import { getActiveApiBaseUrl } from '../../api/client';
@@ -256,32 +257,26 @@ export default function HelpSupportScreen() {
 
   return (
     <View style={[hsStyles.hsScreen, { paddingTop: insets.top }]}>
-      <View style={hsStyles.hsTopBar}>
-        <Pressable style={hsStyles.hsIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M15 6 L9 12 L15 18"
-              stroke={colors.primaryDark}
-              strokeWidth={2.4}
-              strokeLinecap="round"
-            />
-          </Svg>
-        </Pressable>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={hsStyles.hsTitle}>{t('help.title')}</Text>
-          <Text style={hsStyles.hsSubtitle}>{t('help.heroSubtitle')}</Text>
-        </View>
-        <Pressable style={hsStyles.hsTicketsBtn} onPress={openTickets}>
-          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M4 8 H20 V11 C18.5 11 17.5 12 17.5 13.5 C17.5 15 18.5 16 20 16 V19 H4 V16 C5.5 16 6.5 15 6.5 13.5 C6.5 12 5.5 11 4 11 Z"
-              stroke={colors.primary}
-              strokeWidth={1.8}
-            />
-          </Svg>
-          <Text style={hsStyles.hsTicketsText}>{t('help.myTickets')}</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        layout="inline"
+        title={t('help.title')}
+        subtitle={t('help.heroSubtitle')}
+        onBack={() => navigation.goBack()}
+        includeSafeArea={false}
+        style={hsStyles.hsHeaderInner}
+        right={
+          <Pressable style={hsStyles.hsTicketsBtn} onPress={openTickets}>
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M4 8 H20 V11 C18.5 11 17.5 12 17.5 13.5 C17.5 15 18.5 16 20 16 V19 H4 V16 C5.5 16 6.5 15 6.5 13.5 C6.5 12 5.5 11 4 11 Z"
+                stroke={colors.primary}
+                strokeWidth={1.8}
+              />
+            </Svg>
+            <Text style={hsStyles.hsTicketsText}>{t('help.myTickets')}</Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={[hsStyles.hsContent, { paddingBottom: insets.bottom + 28 }]}
@@ -520,6 +515,7 @@ export default function HelpSupportScreen() {
 
 const hsStyles = StyleSheet.create({
   hsScreen: { flex: 1, backgroundColor: '#F7F8F4' },
+  hsHeaderInner: { paddingBottom: 8 },
   hsTopBar: {
     flexDirection: 'row',
     alignItems: 'center',

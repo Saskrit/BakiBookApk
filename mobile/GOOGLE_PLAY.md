@@ -160,8 +160,10 @@ npx eas submit --platform android --profile production --latest
 
 | Command | Purpose |
 |---------|---------|
-| `npm run build:android` | Production AAB build |
-| `npm run build:android:preview` | Test APK |
+| `npm run build:android` | Production AAB build (EAS Cloud - recommended) |
+| `npm run build:aab:local` | Production AAB build (Local machine via Gradle) |
+| `npm run build:android:preview` | Test APK (EAS Cloud) |
+| `npm run build:apk:local` | Test APK (Local machine) |
 | `npm run submit:android` | Upload latest AAB to Play Console |
 
 ---

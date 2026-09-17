@@ -99,7 +99,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="AddCustomer"
           component={AddCustomerScreen}
-          options={{ title: t('nav.addCustomer') }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="CustomerProfile"
@@ -109,7 +109,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="EditCustomer"
           component={EditCustomerScreen}
-          options={{ title: t('nav.editCustomer') }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="FilteredCustomers"
@@ -124,7 +124,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="RecordPayment"
           component={RecordPaymentScreen}
-          options={{ title: t('nav.recordPayment') }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PaymentSubmissions"

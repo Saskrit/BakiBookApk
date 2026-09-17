@@ -248,19 +248,16 @@ export default function ProfileScreen() {
         <View style={cpStyles.cpMenuCard}>
           <SettingsRow
             title={t('customer.personalInfo')}
-            subtitle={t('customer.personalInfoBody')}
             icon="user"
             onPress={() => navigation.navigate('PersonalInfo')}
           />
           <SettingsRow
             title={t('nav.security')}
-            subtitle={t('customer.securityBody')}
             icon="shield"
             onPress={() => navigation.navigate('Security')}
           />
           <SettingsRow
             title={t('nav.notifications')}
-            subtitle={t('customer.notificationsBody')}
             icon="bell"
             onPress={() => navigation.navigate('Notifications')}
             last
@@ -271,7 +268,6 @@ export default function ProfileScreen() {
         <View style={cpStyles.cpMenuCard}>
           <SettingsRow
             title={t('customer.downloadStatement')}
-            subtitle={t('customer.downloadStatementBody')}
             icon="doc"
             onPress={() => void downloadStatement()}
             trailing={
@@ -282,7 +278,6 @@ export default function ProfileScreen() {
           />
           <SettingsRow
             title={t('settings.backupRestore')}
-            subtitle={t('backupRestore.connectHint', { email: user?.email || '' })}
             icon="backup"
             onPress={() => navigation.navigate('BackupRestore')}
             last
@@ -303,7 +298,6 @@ export default function ProfileScreen() {
         <View style={cpStyles.cpMenuCard}>
           <SettingsRow
             title={t('nav.helpSupport')}
-            subtitle={t('customer.helpBody')}
             icon="help"
             onPress={() => navigation.navigate('HelpSupport')}
           />
@@ -370,7 +364,7 @@ function SettingsRow({
   trailing,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   icon: RowIcon;
   onPress: () => void;
   last?: boolean;
@@ -389,9 +383,11 @@ function SettingsRow({
         <Text style={cpStyles.cpSettingsTitle} numberOfLines={1}>
           {title}
         </Text>
-        <Text style={cpStyles.cpSettingsSub} numberOfLines={2}>
-          {subtitle}
-        </Text>
+        {subtitle ? (
+          <Text style={cpStyles.cpSettingsSub} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
       {trailing || <Text style={cpStyles.cpChevron}>›</Text>}
     </Pressable>

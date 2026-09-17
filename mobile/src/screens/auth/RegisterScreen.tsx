@@ -207,140 +207,136 @@ export default function RegisterScreen({ navigation }: Props) {
         <AuthLanguageToggle />
       </View>
 
-      <AuthKeyboardLayout
-        contentContainerStyle={{
-          paddingTop: insets.top + layout.touchTarget + spacing.md,
-        }}
-      >
-          {step === 'role' ? (
-            <View style={styles.panel}>
-              <AuthHeader compact />
-              <Text style={styles.title}>{t('auth.createAccount')}</Text>
-              <Text style={styles.subtitle}>{t('auth.chooseRoleSubtitle')}</Text>
-              <OfflineBanner />
-              {error ? <Text style={authStyles.error}>{error}</Text> : null}
+      <AuthKeyboardLayout>
+        <AuthHeader compact />
 
-              <RoleCard
-                title={t('auth.shopkeeper')}
-                hint={t('auth.shopkeeperRoleHint')}
-                icon={<StoreIcon />}
-                onPress={() => chooseRole('shopkeeper')}
-              />
-              <RoleCard
-                title={t('auth.customer')}
-                hint={t('auth.customerRoleHint')}
-                icon={<PersonRoleIcon />}
-                onPress={() => chooseRole('customer')}
-              />
+        {step === 'role' ? (
+          <View style={authStyles.card}>
+            <Text style={authStyles.cardTitle}>{t('auth.createAccount')}</Text>
+            <Text style={authStyles.cardSubtitle}>{t('auth.chooseRoleSubtitle')}</Text>
+            <OfflineBanner />
+            {error ? <Text style={authStyles.error}>{error}</Text> : null}
 
-              <View style={authStyles.altRow}>
-                <Text style={authStyles.altText}>{t('auth.hasAccount')} </Text>
-                <Pressable onPress={() => navigation.replace('Login')}>
-                  <Text style={authStyles.altLink}>{t('auth.loginNow')}</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.panel}>
-              <AuthHeader compact />
-              <Text style={styles.title}>{t('auth.createAccount')}</Text>
-              <Text style={styles.subtitle}>
-                {t('auth.registerAsRole', { role: t(`auth.${role}`) })}
-              </Text>
-              <OfflineBanner />
-              {error ? <Text style={authStyles.error}>{error}</Text> : null}
+            <RoleCard
+              title={t('auth.shopkeeper')}
+              hint={t('auth.shopkeeperRoleHint')}
+              icon={<StoreIcon />}
+              onPress={() => chooseRole('shopkeeper')}
+            />
+            <RoleCard
+              title={t('auth.customer')}
+              hint={t('auth.customerRoleHint')}
+              icon={<PersonRoleIcon />}
+              onPress={() => chooseRole('customer')}
+            />
 
-              <Text style={authStyles.label}>{t('auth.fullName')}</Text>
-              <View style={authStyles.inputRow}>
-                <UserIcon />
-                <TextInput
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder={t('auth.placeholderFullName')}
-                  placeholderTextColor={colors.textMuted}
-                  style={authStyles.input}
-                  autoCapitalize="words"
-                  textContentType="name"
-                  autoComplete="name"
-                />
-              </View>
-
-              <Text style={authStyles.label}>{t('auth.email')}</Text>
-              <View style={authStyles.inputRow}>
-                <EmailIcon />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder={t('auth.placeholderEmail')}
-                  placeholderTextColor={colors.textMuted}
-                  style={authStyles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  autoComplete="email"
-                />
-              </View>
-
-              <Text style={authStyles.label}>{t('auth.password')}</Text>
-              <View style={authStyles.inputRow}>
-                <LockIcon />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder={t('auth.placeholderCreatePassword')}
-                  placeholderTextColor={colors.textMuted}
-                  style={authStyles.input}
-                  secureTextEntry={!showPassword}
-                  textContentType="newPassword"
-                  autoComplete="password-new"
-                  returnKeyType="done"
-                  onSubmitEditing={handleRegister}
-                />
-                <Pressable
-                  onPress={() => setShowPassword((current) => !current)}
-                  hitSlop={spacing.sm}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                >
-                  <EyeIcon visible={showPassword} />
-                </Pressable>
-              </View>
-
-              <Pressable
-                onPress={handleRegister}
-                disabled={loading}
-                style={({ pressed }) => [
-                  authStyles.primaryBtn,
-                  loading && authStyles.primaryBtnDisabled,
-                  pressed && authStyles.primaryBtnPressed,
-                ]}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.surface} />
-                ) : (
-                  <>
-                    <Text style={authStyles.primaryBtnText}>{t('auth.signUp')}</Text>
-                    <Text style={authStyles.primaryBtnArrow}>→</Text>
-                  </>
-                )}
+            <View style={authStyles.altRow}>
+              <Text style={authStyles.altText}>{t('auth.hasAccount')} </Text>
+              <Pressable onPress={() => navigation.replace('Login')}>
+                <Text style={authStyles.altLink}>{t('auth.loginNow')}</Text>
               </Pressable>
-
-              <OrDivider />
-              <GoogleSignInButton
-                onCredential={handleGoogleCredential}
-                onError={setError}
-                disabled={loading}
-              />
-
-              <View style={authStyles.altRow}>
-                <Text style={authStyles.altText}>{t('auth.hasAccount')} </Text>
-                <Pressable onPress={() => navigation.replace('Login')}>
-                  <Text style={authStyles.altLink}>{t('auth.loginNow')}</Text>
-                </Pressable>
-              </View>
             </View>
-          )}
+          </View>
+        ) : (
+          <View style={authStyles.card}>
+            <Text style={authStyles.cardTitle}>{t('auth.createAccount')}</Text>
+            <Text style={authStyles.cardSubtitle}>
+              {t('auth.registerAsRole', { role: t(`auth.${role}`) })}
+            </Text>
+            <OfflineBanner />
+            {error ? <Text style={authStyles.error}>{error}</Text> : null}
+
+            <Text style={authStyles.label}>{t('auth.fullName')}</Text>
+            <View style={authStyles.inputRow}>
+              <UserIcon />
+              <TextInput
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder={t('auth.placeholderFullName')}
+                placeholderTextColor={colors.textMuted}
+                style={authStyles.input}
+                autoCapitalize="words"
+                textContentType="name"
+                autoComplete="name"
+              />
+            </View>
+
+            <Text style={authStyles.label}>{t('auth.email')}</Text>
+            <View style={authStyles.inputRow}>
+              <EmailIcon />
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder={t('auth.placeholderEmail')}
+                placeholderTextColor={colors.textMuted}
+                style={authStyles.input}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+              />
+            </View>
+
+            <Text style={authStyles.label}>{t('auth.password')}</Text>
+            <View style={authStyles.inputRow}>
+              <LockIcon />
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder={t('auth.placeholderCreatePassword')}
+                placeholderTextColor={colors.textMuted}
+                style={authStyles.input}
+                secureTextEntry={!showPassword}
+                textContentType="newPassword"
+                autoComplete="password-new"
+                returnKeyType="done"
+                onSubmitEditing={handleRegister}
+              />
+              <Pressable
+                onPress={() => setShowPassword((current) => !current)}
+                hitSlop={spacing.sm}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+              >
+                <EyeIcon visible={showPassword} />
+              </Pressable>
+            </View>
+
+            <Pressable
+              onPress={handleRegister}
+              disabled={loading}
+              style={({ pressed }) => [
+                authStyles.primaryBtn,
+                loading && authStyles.primaryBtnDisabled,
+                pressed && authStyles.primaryBtnPressed,
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.surface} />
+              ) : (
+                <>
+                  <Text style={authStyles.primaryBtnText}>{t('auth.signUp')}</Text>
+                  <Text style={authStyles.primaryBtnArrow}>→</Text>
+                </>
+              )}
+            </Pressable>
+
+            <OrDivider />
+            <GoogleSignInButton
+              onCredential={handleGoogleCredential}
+              onError={setError}
+              disabled={loading}
+            />
+
+            <View style={authStyles.altRow}>
+              <Text style={authStyles.altText}>{t('auth.hasAccount')} </Text>
+              <Pressable onPress={() => navigation.replace('Login')}>
+                <Text style={authStyles.altLink}>{t('auth.loginNow')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </AuthKeyboardLayout>
     </View>
   );
@@ -356,24 +352,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  panel: {
-    width: '100%',
-  },
-  title: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
   roleCard: {
     minHeight: 72,
     marginBottom: spacing.sm,
@@ -382,7 +360,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FAFAFA',
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.container,
