@@ -59,5 +59,19 @@
     "install:apk:latest": "powershell -ExecutionPolicy Bypass -File ./scripts/install-eas-apk.ps1 preview",
     "submit:android": "npx eas-cli submit --platform android --profile production --latest"
   },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-screens",
+        "expo",
+        "expo-constants",
+        "expo-file-system",
+        "expo-image",
+        "expo-image-picker",
+        "expo-notifications",
+        "expo-sharing"
+      ]
+    }
+  },
   "private": true
 }

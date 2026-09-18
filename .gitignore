@@ -26,7 +26,6 @@ web-build/
 # Never commit Firebase / Google keys
 server/firebase-service-account.json
 **/firebase-service-account.json
-mobile/google-services.json
 google-play-service-account.json
 
 server/uploads/**/*

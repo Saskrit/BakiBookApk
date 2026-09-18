@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "129286948746",
+    "project_id": "bakibook-236a6",
+    "storage_bucket": "bakibook-236a6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129286948746:android:2db2e0890b737c2babea73",
+        "android_client_info": {
+          "package_name": "com.bakibook.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "129286948746-belkr0rko3thtk91si8iq8mu63qk520d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bakibook.app",
+            "certificate_hash": "5a7a47a76e0f217764ced9d1110bb59d6c4cf4c6"
+          }
+        },
+        {
+          "client_id": "129286948746-qlhetjs1vjp6374ekdolsea3d71u228v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bakibook.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "129286948746-vsf9lgcnleonat8oodd032ati964nrjk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bakibook.app",
+            "certificate_hash": "76415300d6ccc03b6647b6a0c36e06fb792c2f14"
+          }
+        },
+        {
+          "client_id": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAG2BGW67y-Fe_h8lr_CggGQplv_avN-l4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -24,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       versionCode: 8,
       allowBackup: false,
       usesCleartextTraffic: false,
-      googleServicesFile: './google-services.json',
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
       adaptiveIcon: {
         backgroundColor: '#FAFAFA',
         foregroundImage: './assets/android-icon-foreground.png',
