@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -9,6 +9,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "disabled": true
       },
       "env": {
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com",
@@ -20,6 +23,9 @@
       "android": {
         "buildType": "apk"
       },
+      "cache": {
+        "disabled": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.bakibook.run.place/api",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "129286948746-c38ufv6he052pbr9c9l9a0upvr58e5fr.apps.googleusercontent.com",
@@ -28,16 +34,20 @@
     },
     "apk": {
       "extends": "production",
-      "autoIncrement": false,
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      }
     },
     "production": {
-      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "cache": {
+        "disabled": true
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.bakibook.run.place/api",
