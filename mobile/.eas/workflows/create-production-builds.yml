@@ -1,11 +1,16 @@
 name: Create Production Builds
 
 jobs:
-  build_android:
-    type: build # This job type creates a production build for Android
+  build_android_aab:
+    name: Build Android AAB (Play Store)
+    type: build
     params:
       platform: android
-  build_ios:
-    type: build # This job type creates a production build for iOS
+      profile: production
+
+  build_android_apk:
+    name: Build Android APK (Direct Install)
+    type: build
     params:
-      platform: ios
+      platform: android
+      profile: apk
