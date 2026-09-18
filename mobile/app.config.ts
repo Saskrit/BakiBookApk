@@ -8,7 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: 'BakiBook',
     slug: 'bakibook',
     scheme: 'bakibook',
-    version: '1.0.0',
+    version: '2.1.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -21,7 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       package: 'com.bakibook.app',
-      versionCode: 7,
+      versionCode: 8,
       allowBackup: false,
       usesCleartextTraffic: false,
       googleServicesFile: './google-services.json',

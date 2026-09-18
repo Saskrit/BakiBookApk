@@ -274,7 +274,7 @@ Copy-Item -Path $keystorePath -Destination $mirrorKeystore -Force
 Copy-Item -Path (Join-Path $mobileRoot 'google-services.json') -Destination (Join-Path $workRoot 'google-services.json') -Force
 
 # Read versionCode from app.config.ts
-$versionCode = 7
+$versionCode = 8
 if ((Get-Content (Join-Path $mobileRoot 'app.config.ts') -Raw) -match 'versionCode:\s*(\d+)') {
   $versionCode = [int]$Matches[1]
 }
@@ -282,6 +282,24 @@ Write-Host "Target VersionCode: $versionCode"
 
 Push-Location $workRoot
 try {
+  # Safely stop any running Gradle daemon and release file locks before prebuild
+  $androidDir = Join-Path $workRoot 'android'
+  if (Test-Path $androidDir) {
+    if (Test-Path (Join-Path $androidDir 'gradlew.bat')) {
+      Push-Location $androidDir
+      try { .\gradlew.bat --stop 2>$null | Out-Null } catch {}
+      Pop-Location
+    }
+    for ($i = 0; $i -lt 5; $i++) {
+      try {
+        Remove-Item -Path $androidDir -Recurse -Force -ErrorAction Stop
+        break
+      } catch {
+        Start-Sleep -Milliseconds 1500
+      }
+    }
+  }
+
   Write-Host 'Generating android/ (expo prebuild with latest config & google-services.json)...'
   npx expo prebuild --platform android --clean
   if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }

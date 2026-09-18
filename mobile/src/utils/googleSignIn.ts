@@ -12,7 +12,6 @@ function resolveGoogleWebClientId(): string {
   return typeof fromExtra === 'string' ? fromExtra.trim() : '';
 }
 
-const webClientId = resolveGoogleWebClientId();
 let configured = false;
 let googleModule: GoogleSigninModule | null | undefined;
 
@@ -34,8 +33,12 @@ export function loadGoogleModule(): GoogleSigninModule | null {
   return googleModule;
 }
 
+export function getGoogleWebClientId(): string {
+  return resolveGoogleWebClientId();
+}
+
 export function isGoogleSignInAvailable(): boolean {
-  return Boolean(webClientId && loadGoogleModule());
+  return Boolean(resolveGoogleWebClientId() && loadGoogleModule());
 }
 
 export function isGoogleSignInConfigured(): boolean {
@@ -44,9 +47,10 @@ export function isGoogleSignInConfigured(): boolean {
 
 export function configureGoogleSignIn() {
   const mod = loadGoogleModule();
-  if (!webClientId || !mod || configured) return;
+  const clientId = resolveGoogleWebClientId();
+  if (!clientId || !mod || configured) return;
   mod.GoogleSignin.configure({
-    webClientId,
+    webClientId: clientId,
     offlineAccess: false,
   });
   configured = true;
@@ -65,7 +69,8 @@ export async function signOutGoogleSdk(): Promise<void> {
 
 export async function getGoogleIdToken(): Promise<string> {
   const mod = loadGoogleModule();
-  if (!webClientId || !mod) {
+  const clientId = resolveGoogleWebClientId();
+  if (!clientId || !mod) {
     throw new Error(i18n.t('auth.googleNativeBuild'));
   }
 

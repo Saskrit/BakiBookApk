@@ -1,6 +1,6 @@
 {
   "name": "bakibook",
-  "version": "1.0.0",
+  "version": "2.1.1",
   "description": "BakiBook Android app + API backend",
   "private": true,
   "scripts": {
