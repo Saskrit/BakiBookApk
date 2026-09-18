@@ -6,7 +6,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: 'BakiBook',
-    slug: 'bakibook',
+    slug: 'bakibookexpo',
     scheme: 'bakibook',
     version: '2.1.1',
     orientation: 'portrait',
