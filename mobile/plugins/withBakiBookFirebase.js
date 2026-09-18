@@ -18,7 +18,7 @@ const GOOGLE_SERVICES_APPLY = 'apply plugin: "com.google.gms.google-services"';
 const FIREBASE_DEPS_MARKER = 'BakiBook: Firebase BoM';
 const FIREBASE_DEPS = `
     // ${FIREBASE_DEPS_MARKER}
-    implementation platform('com.google.firebase:firebase-bom:34.18.0')
+    implementation platform('com.google.firebase:firebase-bom:34.19.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-messaging'
 `;

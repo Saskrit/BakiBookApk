@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "129286948746-7uklquer5itnrk05e8uhdfpbbtg4qi2m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bakibook.app",
+            "certificate_hash": "da24d93bd1f835488ae602a61153a8dcc2c1537a"
+          }
+        },
+        {
           "client_id": "129286948746-belkr0rko3thtk91si8iq8mu63qk520d.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
