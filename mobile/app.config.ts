@@ -82,7 +82,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       googleWebClientId: googleWebClientId || undefined,
       developer: 'Saskrit Bhattarai',
       eas: {
-        projectId: '2a61e05a-bb22-4d04-9f06-2d7a4bfc5871',
+        projectId: 'fa317421-d438-4c65-8c36-89b0b9a2425a',
       },
     },
     owner: 'saskreet',
